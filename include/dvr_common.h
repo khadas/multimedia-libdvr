@@ -5,7 +5,33 @@
 extern "C" {
 #endif
 
-#define DVR_MAX_RECORD_PIDS 8
+#include <android/log.h>
+
+#define DVR_MAX_RECORD_PIDS_COUNT 8
+#define DVR_MAX_LOCATION_SIZE 512
+#define DVR_SUCCESS 0
+#define DVR_FAILURE -1
+
+#ifndef TAG_EXT
+#define TAG_EXT
+#endif
+
+#define dvr_log_print(...) __android_log_print(ANDROID_LOG_INFO, "DVR_DEBUG" TAG_EXT, __VA_ARGS__)
+#define DVR_DEBUG(_level,_fmt...) \
+	do {\
+	{\
+		dvr_log_print(_fmt);\
+	}\
+	} while(0)
+
+
+#define DVR_ASSERT(expr) \
+  do {\
+    if (!(expr)) {\
+      DVR_DEBUG(1, "%s-%d failed", __func__, __LINE__);\
+      return DVR_FAILURE;\
+    }\
+  } while (0)
 
 typedef enum
 {
@@ -23,12 +49,12 @@ typedef enum
   DVR_PID_TYPE_PCR         = 15,
   DVR_PID_TYPE_PES         = 16,
   DVR_PID_TYPE_AUDIO_AC4   = 17,
-} DVR_PidType;
+} DVR_PidType_t;
 
 typedef struct DVR_PidInfo_s {
-  uint16_t        pid;
-  DVR_PidType     type;
-} DVR_PidInfo;
+  uint16_t           pid;
+  DVR_PidType_t     type;
+} DVR_PidInfo_t;
 
 #ifdef __cplusplus
 }
