@@ -1,6 +1,8 @@
 #ifndef _DVR_COMMON_H_
 #define _DVR_COMMON_H_
 
+#include <android/log.h>
+#include "dvr_types.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -9,8 +11,7 @@ extern "C" {
 
 #define DVR_MAX_RECORD_PIDS_COUNT 8
 #define DVR_MAX_LOCATION_SIZE 512
-#define DVR_SUCCESS 0
-#define DVR_FAILURE -1
+
 
 #ifndef TAG_EXT
 #define TAG_EXT
