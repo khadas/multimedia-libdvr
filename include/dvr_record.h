@@ -6,7 +6,7 @@ extern "C" {
 #endif
 
 #include "dvr_common.h"
-#include <stdbool.h>
+#include "dvr_types.h"
 
 typedef uint32_t DVR_RecordHandle_t;
 
@@ -79,7 +79,7 @@ typedef enum {
 
 typedef struct
 {
-  bool                    transition;
+  DVR_Bool_t              transition;
   DVR_CryptoParity_t      parity;
   uint32_t                ts_offset;
   DVR_CryptoFilterType_t  filter_type;
@@ -92,7 +92,7 @@ typedef void (*DVR_CryptoPeriodNotifyFn_t)(
 typedef struct {
   DVR_CryptoPeriodNotifyFn_t    notify_func;
   uint64_t                      interval_bytes;
-  bool                          notify_clear_periods;
+  DVR_Bool_t                    notify_clear_periods;
 } DVR_CryptoPeriod_t;;
 
 typedef struct {

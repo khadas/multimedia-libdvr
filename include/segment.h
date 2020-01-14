@@ -7,7 +7,7 @@ extern "C" {
 
 #include "dvr_common.h"
 
-typedef uint32_t Segment_Handle_t;
+typedef void* Segment_Handle_t;
 
 typedef enum {
   SEGMENT_MODE_READ,
