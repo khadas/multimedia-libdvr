@@ -8,7 +8,7 @@ extern "C" {
 #include "dvr_common.h"
 #include "dvr_types.h"
 
-typedef uint32_t DVR_RecordHandle_t;
+typedef void* DVR_RecordHandle_t;
 
 typedef enum {
   DVR_RECORD_STATE_OPENED,
@@ -20,8 +20,8 @@ typedef enum {
 typedef enum
 {
   DVR_RECORD_PID_CREATE,
-  DVR_PID_KEEP,
-  DVR_PID_CLOSE
+  DVR_RECORD_PID_KEEP,
+  DVR_RECORD_PID_CLOSE
 } DVR_RecordPidAction_t;
 
 #if 0
@@ -81,7 +81,7 @@ typedef struct
 {
   DVR_Bool_t              transition;
   DVR_CryptoParity_t      parity;
-  uint32_t                ts_offset;
+  loff_t                  ts_offset;
   DVR_CryptoFilterType_t  filter_type;
 } DVR_CryptoPeriodInfo_t;
 
@@ -96,15 +96,17 @@ typedef struct {
 } DVR_CryptoPeriod_t;;
 
 typedef struct {
-  DVR_RecordSource_t src_type;
-  DVR_RecordFlag_t   flags;
-  DVR_CryptoPeriod_t crypto_period;
+  int                  dmx_dev_id;
+  DVR_RecordFlag_t     flags;
+  DVR_CryptoPeriod_t   crypto_period;
+  DVR_CryptoFunction_t crypto_fn;
+  void                *crypto_data;
 } DVR_RecordOpenParams_t;
 
 typedef struct {
   uint64_t segment_id;
   uint32_t nb_pids;
-  DVR_PidInfo_t pids[DVR_MAX_RECORD_PIDS_COUNT];
+  DVR_StreamPid_t pids[DVR_MAX_RECORD_PIDS_COUNT];
   DVR_RecordPidAction_t pid_action[DVR_MAX_RECORD_PIDS_COUNT];
 } DVR_RecordSegmentStartParams_t;
 
@@ -131,7 +133,6 @@ int dvr_record_open(DVR_RecordHandle_t *p_handle, DVR_RecordOpenParams_t *params
  */
 int dvr_record_close(DVR_RecordHandle_t handle);
 
-int dvr_record_set_encrypt();
 /**\brief Start recording on a segment
  * \param[in] handle Dvr recording session handle
  * \param[in] params Dvr start parameters

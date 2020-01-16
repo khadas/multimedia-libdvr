@@ -10,7 +10,7 @@ extern "C" {
 typedef struct Segment_StoreInfo_s {
   uint64_t            id;
   uint32_t            nb_pids;
-  DVR_PidInfo_t       pids[DVR_MAX_RECORD_PIDS_COUNT];
+  DVR_StreamPid_t     pids[DVR_MAX_RECORD_PIDS_COUNT];
   time_t              duration;
   size_t              size;
   uint32_t            nb_packets;

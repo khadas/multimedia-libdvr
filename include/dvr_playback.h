@@ -1,132 +1,122 @@
+/**
+ * \file
+ * Playback module.
+ */
+
 #ifndef DVR_PLAYBACK_H_
 #define DVR_PLAYBACK_H_
-#include <amports/aformat.h>
-#include <amports/vformat.h>
 #include "list.h"
-#include "dvr_common.h"
+#include "dvr_types.h"
 #include "segment.h"
 #include "playback_device.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 /**\brief dvr play chunk flag */
 typedef enum
 {
-  DVR_PLAY_ENCRYPTED = (1 << 0), /**< encrypted stream */
-  DVR_PLAY_DISPLAYABLE = (1 << 1), /**< displayable stream */
-  DVR_PLAY_CONTINUOUS = (1 << 2)  /**< continuous stream with pre one */
-} DVR_PlayBackChunkFlag_t;
-
-/**\brief dvr pid type*/
-typedef struct
-{
-  int   pid; /**< stream pid */
-  int   fmt; /**< stream fmt */
-} DVR_PlayBackStreamParams_t;
+  DVR_PLAYBACK_SEGMENT_ENCRYPTED   = (1 << 0), /**< encrypted stream */
+  DVR_PLAYBACK_SEGMENT_DISPLAYABLE = (1 << 1), /**< displayable stream */
+  DVR_PLAYBACK_SEGMENT_CONTINUOUS  = (1 << 2)  /**< continuous stream with pre one */
+} DVR_PlaybackSegmentFlag_t;
 
 /**\brief dvr pid type*/
 typedef enum
 {
-  DVR_PLAY_SYNC,    /**< sync play mode */
-  DVR_PLAY_ASYNC    /**< out of sync play mode */
-} DVR_PlayBackSyncMode_t;
+  DVR_PLAYBACK_SYNC,    /**< sync play mode */
+  DVR_PLAYBACK_ASYNC    /**< out of sync play mode */
+} DVR_PlaybackSyncMode_t;
 
 
 /**\brief dvr play pids */
 typedef struct
 {
-  DVR_PlayBackStreamParams_t vpid;       /**< video pid */
-  DVR_PlayBackStreamParams_t apid;       /**< audio pid */
-  DVR_PlayBackStreamParams_t pcrpid;     /**< pcr pid */
-  DVR_PlayBackStreamParams_t sub_apid;   /**< sub audio pid */
-} DVR_PlayBackPids_t;
+  DVR_StreamInfo_t video;    /**< Video.*/
+  DVR_StreamInfo_t audio;    /**< Audio.*/
+  DVR_StreamInfo_t ad;       /**< AD.*/
+  DVR_StreamInfo_t subtitle; /**< Subtitle.*/
+  DVR_StreamInfo_t pcr;      /**< PCR.*/
+} DVR_PlaybackPids_t;
 
-/**\brief dvr chunk info */
+/**\brief dvr segments info */
 typedef struct
 {
-  struct list_head head;                    /**< chunk list head */
-  int chunk_id;                             /**< chunk id */
-  uint8_t location[DVR_MAX_LOCATION_SIZE];  /**< chunk location */
-  DVR_PlayBackPids_t  pids;                    /**< chunk cons pids */
-  DVR_PlayBackChunkFlag_t flags;             /**< chunk flag */
-  int key_data_id;                          /**< ??? */
-} DVR_PlayBackChunkInfo_t;
+  struct  list_head head;         /**< Segment node.*/
+  int     segment_id;             /**< Segment's index.*/
+  DVR_PlaybackPids_t  pids;       /**< Streams' PIDs.*/
+  DVR_PlaybackChunkFlag_t flags;  /**< Segment's flag */
+  int key_data_id;                /**< ??? */
+} DVR_PlaybackSegmentInfo_t;
 
 /**\brief play flag, if set this flag, player need pause when decode first frame */
 typedef enum
 {
-  DVR_PLAY_STARTED_PAUSEDLIVE = (1 << 0)      /**< dvr play stat,need change to pause state if set */
-} DVR_PlayBackFlag_t;
-
+  DVR_PLAYBACK_STARTED_PAUSEDLIVE = (1 << 0) /**< dvr play stat,need change to pause state if set */
+} DVR_PlaybackFlag_t;
 
 /**\brief playback speed mode*/
 typedef enum
 {
-  DVR_PLAY_FAST_FORWARD = 0,        /**< fast forward */
-  DVR_PLAY_FAST_BACKWARD = 1,       /**< fast backward */
-} DVR_PlayBackSpeedMode_t;
+  DVR_PLAYBACK_FAST_FORWARD = 0,        /**< fast forward */
+  DVR_PLAYBACK_FAST_BACKWARD = 1,       /**< fast backward */
+} DVR_PlaybackSpeedMode_t;
 
 
-/**\brief playback play status*/
+/**\brief playback play speed*/
 typedef struct
 {
-  PlayBack_DeviceSpeeds_t speed;  /**< playback speed */
-  DVR_PlayBackSpeedMode_t mode;   /**< playback 0: fast forword or 1: fast backword*/
-} DVR_PlayBackSpeed_t;
+  Playback_DeviceSpeeds_t speed;  /**< playback speed */
+  DVR_PlaybackSpeedMode_t mode;   /**< playback 0: fast forword or 1: fast backword*/
+} DVR_PlaybackSpeed_t;
 
+/**Maximum supported speed modes.*/
 #define DVR_MAX_SUPPORTED_SPEEDS  32
+
 /**\brief playback capability*/
 typedef struct
 {
   int nb_supported_speeds;       /**< support playback speed count*/
   int supported_speeds[DVR_MAX_SUPPORTED_SPEEDS]; /**< support playback speed*/
-} DVR_PlayBackCapability_t;
+} DVR_PlaybackCapability_t;
 
-typedef void* DVR_PlayBackHandle_t;
+/**Playback handle.*/
+typedef void* DVR_PlaybackHandle_t;
 
 /**\brief playback play state*/
 typedef enum
 {
-  DVR_PlayBack_State_Unint,       /**< uninit state */
-  DVR_PlayBack_State_Init,        /**< init state, open device */
-  DVR_PlayBack_State_Start,       /**< start play */
-  DVR_PlayBack_State_Stop,        /**< stop */
-  DVR_PlayBack_State_Pause,       /**< pause */
-  DVR_PlayBack_State_FF,          /**< fast forward */
-  DVR_PlayBack_State_FB,           /**< fast backword */
-} DVR_PlayBackPlayState_t;
+  DVR_PLAYBACK_STATE_UNINIT,      /**< uninit state */
+  DVR_PLAYBACK_STATE_INIT,        /**< init state, open device */
+  DVR_PLAYBACK_STATE_START,       /**< start play */
+  DVR_PLAYBACK_STATE_STOP,        /**< stop */
+  DVR_PLAYBACK_STATE_PAUSE,       /**< pause */
+  DVR_PLAYBACK_STATE_FF,          /**< fast forward */
+  DVR_PLAYBACK_STATE_FB           /**< fast backword */
+} DVR_PlaybackPlayState_t;
 
 /**\brief playback play status*/
 typedef struct
 {
-  DVR_PlayBackPlayState_t state;  /**< playback play state */
-  int chunk_id;                     /**< playback ongoing chunkid */
-  int time_cur;                     /**< playback cur time,0 <--> time_end Ms*/
-  int time_end;                     /**< playback ongoing chunk dur,Ms */
-  DVR_PlayBackPids_t pids;         /**< playback played pids */
-  int speed;                        /**< playback played speed */
-  DVR_PlayBackChunkFlag_t flags;  /**< playback played chunk flag */
-} DVR_PlayBackStatus_t;
-
-/**\brief playback play params*/
-typedef struct
-{
-  int             vpid;       /**< video pid*/
-  int             vfmt;       /**< video fmt*/
-  int             apid;       /**< audio pid*/
-  int             afmt;       /**< audio fmt*/
-  int             sub_apid;   /**< sub audio pid*/
-  int             sub_afmt;   /**< sub audio fmt*/
-  int             pcr_pid;     /**< pcr pid*/
-} DVR_PlayBackPlayParams_t;
+  DVR_PlaybackPlayState_t state;  /**< playback play state */
+  int segment_id;                 /**< playback ongoing segment index */
+  int time_cur;                   /**< playback cur time,0 <--> time_end Ms*/
+  int time_end;                   /**< playback ongoing chunk dur,Ms */
+  DVR_PlaybackPids_t pids;        /**< playback played pids */
+  Playback_DeviceSpeeds_t speed;  /**< playback speed */
+  DVR_PlaybackSegmentFlag_t flags;/**< playback played segment flag */
+} DVR_PlaybackStatus_t;
 
 /**\brief playback open params*/
 typedef struct
 {
-  int             dmx; /**< playback used dmx device index*/
-  int             blocksize; /**< playback inject block size*/
-  int             is_timeshift;/**< 0:playback mode, 1 : is timeshift mode*/
-} DVR_PlayBackOpenParams_t;
+  int                    dmx_dev_id;      /**< playback used dmx device index*/
+  int                    block_size;      /**< playback inject block size*/
+  DVR_Bool_t             is_timeshift;    /**< 0:playback mode, 1 : is timeshift mode*/
+  PlaybackDeviceHandle_t playback_handle; /**< Playback device handle.*/
+  DVR_CryptoFunction_t   crypto_fn;       /**< Crypto function.*/
+  void                  *crypto_data;     /**< Crypto function's user data.*/
+} DVR_PlaybackOpenParams_t;
 
 /**\brief playback play state*/
 typedef enum
@@ -192,14 +182,14 @@ typedef struct
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int dvr_playback_open(DVR_PlayBackHandle_t *p_handle, DVR_PlayBackOpenParams_t *params);
+int dvr_playback_open(DVR_PlaybackHandle_t *p_handle, DVR_PlaybackOpenParams_t *params);
 
 /**\brief Close an dvr palyback
  * \param[in] handle playback handle
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int dvr_playback_close(DVR_PlayBackHandle_t handle);
+int dvr_playback_close(DVR_PlaybackHandle_t handle);
 
 
 /**\brief Start play audio and video, used start auido api and start video api
@@ -208,7 +198,7 @@ int dvr_playback_close(DVR_PlayBackHandle_t handle);
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int dvr_playback_start(DVR_PlayBackHandle_t handle, DVR_PlayBackFlag_t flag);
+int dvr_playback_start(DVR_PlaybackHandle_t handle, DVR_PlaybackFlag_t flag);
 
 /**\brief dvr play back add chunk info to chunk list
  * \param[in] handle playback handle

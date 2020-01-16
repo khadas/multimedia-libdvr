@@ -1,3 +1,8 @@
+/**
+ * \file
+ * Crypto function definition.
+ */
+
 #ifndef _DVR_CRYPTO_H_
 #define _DVR_CRYPTO_H_
 
@@ -5,47 +10,25 @@
 extern "C" {
 #endif
 
-typedef uint32_t DVR_CryptoDeviceHandle_t;
-
+/**Work type.*/
 typedef enum {
-  DVR_CRYPTO_VENDOR_AMLOGIC,
-  DVR_CRYPTO_VENDOR_IRDETO,
-  DVR_CRYPTO_VENDOR_VMX,
-  DVR_CRYPTO_VENDOR_NAGRA
-} DVR_CryptoVendorID_t;
+  DVR_CRYPTO_TYPE_ENCRYPT, /**< Encrypt.*/
+  DVR_CRYPTO_TYPE_DECRYPT  /**< Decrypt.*/
+} DVR_CryptoType_t;
 
-typedef struct {
-} DVR_CryptoIrdetoParams_t;
-
-typedef struct {
-} DVR_CryptoVmxParams_t;
-
-typedef struct {
-} DVR_CryptoAmlogicParams_t;
-
-typedef struct {
-} DVR_CryptoNagraParams_t;
-
+/**Crypto parameters.*/
 typedef struct DVR_CryptoParams_s {
-  int vendor_id;
-  union {
-    DVR_CryptoIrdetoParams_t irdeto;
-    DVR_CryptoVmxParams_t vmx;
-    DVR_CryptoAmlogicParams_t amlogic;
-    DVR_CryptoNagraParams_t nagra;
-  };
+  DVR_CryptoType_t type;                            /**< Work type.*/
+  char             location[DVR_MAX_LOCATION_SIZE]; /**< Location of the record file.*/
+  int              segment_id;                      /**< Current segment's index.*/
+  loff_t           offset;                          /**< Current offset in the segment file.*/
+  DVR_Buffer_t     input_buffer;                    /**< Input data buffer.*/
+  DVR_Buffer_t     output_buffer;                   /**< Output data buffer.*/
+  size_t           output_size;                     /**< Output data size in bytes.*/
 } DVR_CryptoParams_t;
 
-typedef int (*DVR_CryptoFunction_t) (DVR_CryptoParams_t params_t, void *userdata);
-
-int dvr_crypto_device_open(DVR_CryptoDeviceHandle_t *p_handle);
-
-int dvr_crypto_device_run(DVR_CryptoDeviceHandle_t handle,
-    uint8_t *buf_in, uint8_t *buf_out, DVR_CryptoParams_t *params);
-
-//int dvr_crypto_device_register(DVR_CryptoDeviceHandle_t handle, DVR_CryptoFunction cb, void *userdata, int is_enc);
-
-int dvr_crypto_device_close(DVR_CryptoDeviceHandle_t handle);
+/**Crypto function.*/
+typedef DVR_Result (*DVR_CryptoFunction_t) (DVR_CryptoParams_t *params_t, void *userdata);
 
 #ifdef __cplusplus
 }
