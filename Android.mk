@@ -24,3 +24,4 @@ include $(BUILD_SHARED_LIBRARY)
 
 
 include $(DVR_TOP)/test/dvr_chunk_test/Android.mk
+include $(DVR_TOP)/test/dvr_segment_test/Android.mk

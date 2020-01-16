@@ -29,6 +29,7 @@ extern "C"
  * Macro definitions
  ***************************************************************************/
 
+/**\brief caculate dvr evt type base value*/
 #define DVR_EVT_TYPE_BASE(no)    ((no)<<24)
 
 /****************************************************************************
@@ -38,7 +39,7 @@ extern "C"
 /**\brief Error code of the event module*/
 enum DVR_EVT_ErrorCode
 {
-	DVR_EVT_ERROR_BASE = 0,
+	DVR_EVT_ERROR_BASE = 0,              /**< dvr  base error*/
 	DVR_EVT_ERR_NO_MEM,                  /**< Not enough memory*/
 	DVR_EVT_ERR_NOT_SUBSCRIBED,          /**< The event is not subscribed*/
 	DVR_EVT_ERR_END
@@ -87,7 +88,16 @@ extern int DVR_EVT_Unsubscribe(long dev_no, int event_type, DVR_EVT_Callback_t c
  */
 extern int DVR_EVT_Signal(long dev_no, int event_type, void *param);
 
+/**\brief dvr event init
+ * \retval 0 On success
+ * \return -1 code
+ */
 extern int DVR_EVT_Init();
+
+/**\brief dvr event destory
+ * \retval 0 On success
+ * \return -1 code
+ */
 extern int DVR_EVT_Destory();
 
 #ifdef __cplusplus

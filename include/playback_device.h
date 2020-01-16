@@ -11,78 +11,77 @@ extern "C" {
 
 #define DVR_PLAYBACK_ERR_SYS 1
 
-
 typedef void* Playback_DeviceHandle;
 /**\brief playback device open information*/
 typedef struct Playback_DevideOpenParams_s {
     int dmx;    /**< playback used dmxid*/
-} Playback_DeviceOpenParams;
+} Playback_DeviceOpenParams_t;
 
 /**\brief playback speed*/
 typedef enum
 {
-    DVR_PlayBack_Speed_S16,         /**<slow 1/16 speed*/
-    DVR_PlayBack_Speed_S8,          /**<slow 1/8 speed*/
-    DVR_PlayBack_Speed_S4,          /**<slow 1/4 speed*/
-    DVR_PlayBack_Speed_S2,          /**<slow 1/2 speed*/
-    DVR_PlayBack_Speed_X1,          /**< X 1 normal speed*/
-    DVR_PlayBack_Speed_X2,          /**< X 2 speed*/
-    DVR_PlayBack_Speed_X4,          /**< X 4 speed*/
-    DVR_PlayBack_Speed_X8,          /**< X 8 speed*/
-    DVR_PlayBack_Speed_X16,         /**< X 16 speed*/
-    DVR_PlayBack_Speed_X32,         /**< X 32 speed*/
-    DVR_PlayBack_Speed_MAX,
-} PlayBack_Speed_t;
+  PlayBack_Speed_S16,         /**<slow 1/16 speed*/
+  PlayBack_Speed_S8,          /**<slow 1/8 speed*/
+  PlayBack_Speed_S4,          /**<slow 1/4 speed*/
+  PlayBack_Speed_S2,          /**<slow 1/2 speed*/
+  PlayBack_Speed_X1,          /**< X 1 normal speed*/
+  PlayBack_Speed_X2,          /**< X 2 speed*/
+  PlayBack_Speed_X4,          /**< X 4 speed*/
+  PlayBack_Speed_X8,          /**< X 8 speed*/
+  PlayBack_Speed_X16,         /**< X 16 speed*/
+  PlayBack_Speed_X32,         /**< X 32 speed*/
+  PlayBack_Speed_MAX,
+} PlayBack_Device_Speed_t;
 
 /**\brief playback speed*/
-typedef struct Playback_Speed_s {
-        PlayBack_Speed_t speed; /**< playback speed*/
-} Playback_Speed;
+typedef struct Playback_Device_Speeds_s {
+  PlayBack_Device_Speed_t speed; /**< playback speed*/
+} Playback_Device_Speeds_t;
 
 /**
  * Audio format
  *
  * detail definition in "linux/amlogic/amports/aformat.h"
  */
-typedef aformat_t AM_Playback_AFormat_t;
+typedef aformat_t Playback_Device_AFormat_t;
 
 /**
  * Video format
  *
  * detail definition in "linux/amlogic/amports/vformat.h"
  */
-typedef vformat_t AM_Playback_VFormat_t;
+typedef vformat_t Playback_Device_VFormat_t;
 
 /**\brief start playback audio params*/
 typedef struct Playback_AudioParams_s {
-    AM_Playback_AFormat_t fmt; /**< audio fmt*/
-    int                   pid; /**< audio pid*/
-} Playback_AudioParams;
+  Playback_Device_AFormat_t fmt; /**< audio fmt*/
+  int                   pid; /**< audio pid*/
+} Playback_Device_AudioParams_t;
 
 /**\brief start playback video params*/
 typedef struct Playback_VideoParams_s {
-    AM_Playback_VFormat_t   fmt; /**< video fmt*/
-    int                     pid; /**< video pid*/
-} Playback_VideoParams;
+  Playback_Device_VFormat_t   fmt; /**< video fmt*/
+  int                     pid; /**< video pid*/
+} Playback_Device_VideoParams_t;
 
 /**\brief start playback video params*/
 typedef struct Playback_WBufs_s {
-    void *buf;  /**< video fmt*/
-    size_t len; /**< video pid*/
-    int timeout; /**< video pid*/
-    int  flag;  /**< encreamble or not*/
-} Playback_WBufs;
+  void *buf;  /**< ts buf*/
+  size_t len; /**< buf len*/
+  int timeout; /**< write timeout*/
+  int  flag;  /**< encreamble or not*/
+} Playback_Device_WBufs_t;
 
 typedef struct PlayBack_Devices {
-    int    dev_no;      /**< device no*/
-    Playback_DeviceOpenParams params;
-    int    fd;          /**< amstream fd*/
-    int    isopen;
-    char   last_stb_src[16];
-    char   last_dmx_src[16];
-    int    vid_fd;
-    int    has_audio;
-    int    adec_start;
+  int    dev_no;         /**< device no*/
+  Playback_DeviceOpenParams_t params; /**< device open params*/
+  int    fd;             /**< amstream fd*/
+  int    isopen;         /**< device is opend*/
+  char   last_stb_src[16]; /**< device last stb source*/
+  char   last_dmx_src[16]; /**< device last dmx source*/
+  int    vid_fd;          /**< device video dev fd*/
+  int    has_audio;       /**< device is has audio to play*/
+  int    adec_start;      /**< device adec is start*/
 } PlayBack_Device;
 
 
@@ -92,7 +91,7 @@ typedef struct PlayBack_Devices {
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int playback_device_open(Playback_DeviceHandle *p_handle, Playback_DeviceOpenParams *params);
+int playback_device_open(Playback_DeviceHandle *p_handle, Playback_DeviceOpenParams_t *params);
 
 /**\brief Close an palyback device
  * \param[in] p_handle playback device
@@ -107,7 +106,7 @@ int playback_device_close(Playback_DeviceHandle handle);
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int playback_device_audio_start(Playback_DeviceHandle handle, Playback_AudioParams *param);
+int playback_device_audio_start(Playback_DeviceHandle handle, Playback_Device_AudioParams_t *param);
 
 /**\brief Stop play audio
  * \param[in] p_handle playback device
@@ -122,7 +121,7 @@ int playback_device_audio_stop(Playback_DeviceHandle handle);
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int playback_device_video_start(Playback_DeviceHandle handle, Playback_VideoParams *param);
+int playback_device_video_start(Playback_DeviceHandle handle, Playback_Device_VideoParams_t *param);
 
 /**\brief Stop play video
  * \param[in] p_handle playback device
@@ -145,15 +144,13 @@ int playback_device_pause(Playback_DeviceHandle handle);
  */
 int playback_device_resume(Playback_DeviceHandle handle);
 
-//int playback_device_seek(Playback_DeviceHandle handle, time_t time);
-
 /**\brief Set play speed
  * \param[in] p_handle playback device
  * \param[in] speed playback speed
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int playback_device_set_speed(Playback_DeviceHandle handle, Playback_Speed speed);
+int playback_device_set_speed(Playback_DeviceHandle handle, Playback_Device_Speeds_t speed);
 
 /**\brief write ts data to playback device
  * \param[in] p_handle playback device
@@ -163,7 +160,7 @@ int playback_device_set_speed(Playback_DeviceHandle handle, Playback_Speed speed
  * \retval had writed data len
  * \return writed len
  */
-ssize_t playback_device_write(Playback_DeviceHandle handle, Playback_WBufs *bufs, int timeout);
+ssize_t playback_device_write(Playback_DeviceHandle handle, Playback_Device_WBufs_t *bufs);
 
 /**\brief mute audio out put
  * \param[in] p_handle playback device
