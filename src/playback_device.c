@@ -30,7 +30,7 @@
 
 
 #define PLAYBACK_DEV_COUNT 1
-static PlayBack_Device playback_devices[PLAYBACK_DEV_COUNT] =
+static PlayBack_Device_t playback_devices[PLAYBACK_DEV_COUNT] =
 {
     {
         .isopen= 0
@@ -100,7 +100,7 @@ int _DVR_FileRead(const char *name, char *buf, int len)
 }
 
 
-static DVR_Bool_t _check_vfmt_support_sched(Playback_Device_VFormat_t vfmt)
+static DVR_Bool_t _check_vfmt_support_sched(PlayBack_DeviceVFormat_t vfmt)
 {
 
   if (vfmt == VFORMAT_MPEG12 ||
@@ -121,9 +121,9 @@ static DVR_Bool_t _check_vfmt_support_sched(Playback_Device_VFormat_t vfmt)
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int playback_device_open(Playback_DeviceHandle *p_handle, Playback_DeviceOpenParams_t *params) {
+int playback_device_open(PlayBack_DeviceHandle_t *p_handle, PlayBack_DeviceOpenParams_t *params) {
 
-  PlayBack_Device *dev;
+  PlayBack_Device_t *dev;
   int i =0;
   int finddev = 0;
   char buf[64] = {0};
@@ -145,7 +145,7 @@ int playback_device_open(Playback_DeviceHandle *p_handle, Playback_DeviceOpenPar
   dev->isopen = 1;
   dev->fd = open(STREAM_TS_FILE, O_RDWR);
   //dev->params
-  memcpy(&dev->params, params, sizeof(Playback_DeviceOpenParams_t));
+  memcpy(&dev->params, params, sizeof(PlayBack_DeviceOpenParams_t));
   //change and store dmx source
   _DVR_FileRead(DVB_STB_SOURCE_FILE, dev->last_stb_src, 16);
   snprintf(buf, sizeof(buf), "dmx%d", dev->params.dmx);
@@ -163,9 +163,9 @@ int playback_device_open(Playback_DeviceHandle *p_handle, Playback_DeviceOpenPar
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int playback_device_close(Playback_DeviceHandle handle) {
+int playback_device_close(PlayBack_DeviceHandle_t handle) {
 
-  PlayBack_Device *dev = (PlayBack_Device *) handle;
+  PlayBack_Device_t *dev = (PlayBack_Device_t *) handle;
   char buf[128];
   dev->isopen = 0;
   if (dev->fd != -1)
@@ -187,9 +187,9 @@ int playback_device_close(Playback_DeviceHandle handle) {
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int playback_device_audio_start(Playback_DeviceHandle handle, Playback_Device_AudioParams_t *param) {
+int playback_device_audio_start(PlayBack_DeviceHandle_t handle, PlayBack_DeviceAudioParams_t *param) {
 
-  PlayBack_Device *dev = (PlayBack_Device *) handle;
+  PlayBack_Device_t *dev = (PlayBack_Device_t *) handle;
   int val = 0;
 
   val = param->fmt;
@@ -226,9 +226,9 @@ int playback_device_audio_start(Playback_DeviceHandle handle, Playback_Device_Au
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int playback_device_audio_stop(Playback_DeviceHandle handle) {
+int playback_device_audio_stop(PlayBack_DeviceHandle_t handle) {
 
-  PlayBack_Device *dev = (PlayBack_Device *) handle;
+  PlayBack_Device_t *dev = (PlayBack_Device_t *) handle;
 
   if (dev->fd != -1)
       close(dev->fd);
@@ -246,9 +246,9 @@ int playback_device_audio_stop(Playback_DeviceHandle handle) {
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int playback_device_video_start(Playback_DeviceHandle handle, Playback_Device_VideoParams_t *param) {
+int playback_device_video_start(PlayBack_DeviceHandle_t handle, PlayBack_DeviceVideoParams_t *param) {
 
-  PlayBack_Device *dev = (PlayBack_Device *) handle;
+  PlayBack_Device_t *dev = (PlayBack_Device_t *) handle;
   int val = 0;
 
   if (dev->fd < 0 || dev->isopen == 0) {
@@ -286,9 +286,9 @@ int playback_device_video_start(Playback_DeviceHandle handle, Playback_Device_Vi
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int playback_device_video_stop(Playback_DeviceHandle handle) {
+int playback_device_video_stop(PlayBack_DeviceHandle_t handle) {
 
-  PlayBack_Device *dev = (PlayBack_Device *) handle;
+  PlayBack_Device_t *dev = (PlayBack_Device_t *) handle;
 
   if (dev->vid_fd == -1) {
      return 0;
@@ -305,9 +305,9 @@ int playback_device_video_stop(Playback_DeviceHandle handle) {
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int playback_device_pause(Playback_DeviceHandle handle) {
+int playback_device_pause(PlayBack_DeviceHandle_t handle) {
 
-  PlayBack_Device *dev = (PlayBack_Device *) handle;
+  PlayBack_Device_t *dev = (PlayBack_Device_t *) handle;
   if (dev->has_audio && dev->adec_start) {
       //adec_pause_decode
   }
@@ -322,8 +322,8 @@ int playback_device_pause(Playback_DeviceHandle handle) {
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int playback_device_resume(Playback_DeviceHandle handle) {
-    PlayBack_Device *dev = (PlayBack_Device *) handle;
+int playback_device_resume(PlayBack_DeviceHandle_t handle) {
+    PlayBack_Device_t *dev = (PlayBack_Device_t *) handle;
     if (dev->has_audio && dev->adec_start) {
         //adec_resume_decode
     }
@@ -339,8 +339,8 @@ int playback_device_resume(Playback_DeviceHandle handle) {
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int playback_device_set_speed(Playback_DeviceHandle handle, Playback_Device_Speeds_t speed) {
-  PlayBack_Device *dev = (PlayBack_Device *) handle;
+int playback_device_set_speed(PlayBack_DeviceHandle_t handle, PlayBack_DeviceSpeeds_t speed) {
+  PlayBack_Device_t *dev = (PlayBack_Device_t *) handle;
 
   return DVR_SUCCESS;
 }
@@ -353,8 +353,8 @@ int playback_device_set_speed(Playback_DeviceHandle handle, Playback_Device_Spee
  * \retval had writed data len
  * \return writed len
  */
-ssize_t playback_device_write(Playback_DeviceHandle handle, Playback_Device_WBufs_t *bufs) {
-  PlayBack_Device *dev = (PlayBack_Device *) handle;
+ssize_t playback_device_write(PlayBack_DeviceHandle_t handle, PlayBack_DeviceWBufs_t *bufs) {
+  PlayBack_Device_t *dev = (PlayBack_Device_t *) handle;
   int ret;
   int real_written = 0;
   int fd = dev->fd;
@@ -400,19 +400,19 @@ inject_end:
 }
 
 /**Miute/unmute the audio output.*/
-int playback_device_mute_audio (Playback_DeviceHandle handle, int mute) {
+int playback_device_mute_audio (PlayBack_DeviceHandle_t handle, int mute) {
 
   return 0;
 }
 
 /**Miute/unmute the video output.*/
-int playback_device_mute_video (Playback_DeviceHandle handle, int mute) {
+int playback_device_mute_video (PlayBack_DeviceHandle_t handle, int mute) {
 
   return 0;
 }
 
-int playback_device_trick_mode (Playback_DeviceHandle handle, int set) {
-  PlayBack_Device *dev = (PlayBack_Device *) handle;
+int playback_device_trick_mode (PlayBack_DeviceHandle_t handle, int set) {
+  PlayBack_Device_t *dev = (PlayBack_Device_t *) handle;
   if (set == 0) {
       //clear
       if (dev->vid_fd > 0) {
@@ -427,10 +427,10 @@ int playback_device_trick_mode (Playback_DeviceHandle handle, int set) {
   return 0;
 }
 
-int playback_device_get_trick_stat(Playback_DeviceHandle handle)
+int playback_device_get_trick_stat(PlayBack_DeviceHandle_t handle)
 {
   int state;
-  PlayBack_Device *dev = (PlayBack_Device *) handle;
+  PlayBack_Device_t *dev = (PlayBack_Device_t *) handle;
 
   if (dev->vid_fd == -1)
       return -1;

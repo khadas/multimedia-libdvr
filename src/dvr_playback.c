@@ -18,7 +18,7 @@
 
 #define VALID_PID(_pid_) ((_pid_)>0 && (_pid_)<0x1fff)
 
-static int _dvr_playback_get_trick_stat(DVR_Playback_Handle_t handle)
+static int _dvr_playback_get_trick_stat(DVR_PlayBackHandle_t handle)
 {
   int state;
   Dvr_PlayBack_t *player = (Dvr_PlayBack_t *) handle;
@@ -33,7 +33,7 @@ static int _dvr_playback_get_trick_stat(DVR_Playback_Handle_t handle)
 
 
 //timeout wait sibnal
-static int _dvr_playback_timeoutwait(DVR_Playback_Handle_t handle , int ms)
+static int _dvr_playback_timeoutwait(DVR_PlayBackHandle_t handle , int ms)
 {
   Dvr_PlayBack_t *player = (Dvr_PlayBack_t *) handle;
 
@@ -55,17 +55,17 @@ static int _dvr_playback_timeoutwait(DVR_Playback_Handle_t handle , int ms)
 }
 
 //send signal
-static int _dvr_playback_sendSignal(DVR_Playback_Handle_t handle)
+static int _dvr_playback_sendSignal(DVR_PlayBackHandle_t handle)
 {
   Dvr_PlayBack_t *player = (Dvr_PlayBack_t *) handle;
   pthread_cond_signal(&player->cond);
   return 0;
 }
 
-static int _dvr_get_next_chunkid(DVR_Playback_Handle_t handle) {
+static int _dvr_get_next_chunkid(DVR_PlayBackHandle_t handle) {
 
   Dvr_PlayBack_t *player = (Dvr_PlayBack_t *) handle;
-  DVR_Playback_Chunk_Info_t *chunk;
+  DVR_PlayBackChunkInfo_t *chunk;
 
   int found = 0;
 
@@ -87,7 +87,7 @@ static int _dvr_get_next_chunkid(DVR_Playback_Handle_t handle) {
       //cp location
       memcpy(player->cur_chunk.location, chunk->location, DVR_MAX_LOCATION_SIZE);
       //pids
-      memcpy(&player->cur_chunk.pids, &chunk->pids, sizeof(DVR_Playback_Pids_t));
+      memcpy(&player->cur_chunk.pids, &chunk->pids, sizeof(DVR_PlayBackPids_t));
       found = 2;
     }
   }
@@ -98,7 +98,7 @@ static int _dvr_get_next_chunkid(DVR_Playback_Handle_t handle) {
   return DVR_SUCCESS;
 }
 //open next chunk to play,if reach list end return errro.
-static int _change_to_next_chunk(DVR_Playback_Handle_t handle)
+static int _change_to_next_chunk(DVR_PlayBackHandle_t handle)
 {
   Dvr_PlayBack_t *player = (Dvr_PlayBack_t *) handle;
   Segment_OpenParams_t  params;
@@ -128,7 +128,7 @@ static void* _dvr_playback_thread(void *arg)
 {
   Dvr_PlayBack_t *player = (Dvr_PlayBack_t *) arg;
   int need_open_chunk = 1;
-  Playback_Device_WBufs_t     wbufs;
+  PlayBack_DeviceWBufs_t     wbufs;
 
   int timeout = 10;//ms
   uint8_t *buf = NULL;
@@ -142,7 +142,7 @@ static void* _dvr_playback_thread(void *arg)
   wbufs.timeout = 10;
   wbufs.len = 0;
 
-  int ret = _change_to_next_chunk((DVR_Playback_Handle_t)player);
+  int ret = _change_to_next_chunk((DVR_PlayBackHandle_t)player);
   if (ret != DVR_SUCCESS) {
     if (buf != NULL) {
       free(buf);
@@ -155,7 +155,7 @@ static void* _dvr_playback_thread(void *arg)
 
     //check trick stat
     pthread_mutex_lock(&player->lock);
-    trick_stat = _dvr_playback_get_trick_stat((DVR_Playback_Handle_t)player);
+    trick_stat = _dvr_playback_get_trick_stat((DVR_PlayBackHandle_t)player);
     if (trick_stat > 0)
     {
       if (player->cmd.cur_cmd == DVR_PlayBack_Cmd_Seek) {
@@ -183,7 +183,7 @@ static void* _dvr_playback_thread(void *arg)
     int read = segment_read(player->r_handle, buf + real_read, buf_len - real_read);
     if (read == 0) {
       //file end.need to play next chunk
-      int ret = _change_to_next_chunk((DVR_Playback_Handle_t)player);
+      int ret = _change_to_next_chunk((DVR_PlayBackHandle_t)player);
       if (ret != DVR_SUCCESS) {
          if (player->openParams.is_timeshift) {
            //continue,timeshift mode, when read end,need wait cur recording chunk
@@ -204,7 +204,7 @@ static void* _dvr_playback_thread(void *arg)
     real_read = real_read + read;
     if (real_read < buf_len ) {
       //continue to read
-      _dvr_playback_timeoutwait((DVR_Playback_Handle_t)player, timeout);
+      _dvr_playback_timeoutwait((DVR_PlayBackHandle_t)player, timeout);
       if (!player->is_running) {
          break;
       }
@@ -225,7 +225,7 @@ rewrite:
     if (real_write == real_read) {
       //this block write end
     } else {
-      _dvr_playback_timeoutwait((DVR_Playback_Handle_t)player, timeout);
+      _dvr_playback_timeoutwait((DVR_PlayBackHandle_t)player, timeout);
       if (!player->is_running) {
          break;
       }
@@ -236,7 +236,7 @@ rewrite:
 }
 
 
-static int _start_playback_thread(DVR_Playback_Handle_t handle)
+static int _start_playback_thread(DVR_PlayBackHandle_t handle)
 {
   Dvr_PlayBack_t *player = (Dvr_PlayBack_t *) handle;
   if (player->is_running) {
@@ -249,7 +249,7 @@ static int _start_playback_thread(DVR_Playback_Handle_t handle)
 }
 
 
-static int _stop_playback_thread(DVR_Playback_Handle_t handle)
+static int _stop_playback_thread(DVR_PlayBackHandle_t handle)
 {
   Dvr_PlayBack_t *player = (Dvr_PlayBack_t *) handle;
   if (player->is_running)
@@ -271,7 +271,7 @@ static int _stop_playback_thread(DVR_Playback_Handle_t handle)
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int dvr_playback_open(DVR_Playback_Handle_t *p_handle, DVR_PlayBack_OpenParams_t *params) {
+int dvr_playback_open(DVR_PlayBackHandle_t *p_handle, DVR_PlayBackOpenParams_t *params) {
 
   Dvr_PlayBack_t *player;
   pthread_condattr_t  cattr;
@@ -310,7 +310,7 @@ int dvr_playback_open(DVR_Playback_Handle_t *p_handle, DVR_PlayBack_OpenParams_t
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int dvr_playback_close(DVR_Playback_Handle_t handle) {
+int dvr_playback_close(DVR_PlayBackHandle_t handle) {
 
   DVR_ASSERT(handle);
 
@@ -325,8 +325,8 @@ int dvr_playback_close(DVR_Playback_Handle_t handle) {
 }
 
 int dvr_playback_get_playinfo(int chunkid,
-Playback_Device_VideoParams_t *vparam,
-Playback_Device_AudioParams_t *aparam) {
+PlayBack_DeviceVideoParams_t *vparam,
+PlayBack_DeviceAudioParams_t *aparam) {
 
     return 0;
 }
@@ -338,10 +338,10 @@ Playback_Device_AudioParams_t *aparam) {
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int dvr_playback_start(DVR_Playback_Handle_t handle, DVR_Playback_Flag_t flag) {
+int dvr_playback_start(DVR_PlayBackHandle_t handle, DVR_PlayBackFlag_t flag) {
   Dvr_PlayBack_t *player = (Dvr_PlayBack_t *) handle;
-  Playback_Device_VideoParams_t    vparams;
-  Playback_Device_AudioParams_t    aparams;
+  PlayBack_DeviceVideoParams_t    vparams;
+  PlayBack_DeviceAudioParams_t    aparams;
   int chunkid = -1;
 
   int sync = DVR_PLAY_SYNC;
@@ -392,21 +392,21 @@ int dvr_playback_start(DVR_Playback_Handle_t handle, DVR_Playback_Flag_t flag) {
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int dvr_playback_add_chunk(DVR_Playback_Handle_t handle, DVR_Playback_Chunk_Info_t *info) {
+int dvr_playback_add_chunk(DVR_PlayBackHandle_t handle, DVR_PlayBackChunkInfo_t *info) {
   Dvr_PlayBack_t *player = (Dvr_PlayBack_t *) handle;
 
   DVR_DEBUG(1, "add chunk id: %d", info->chunk_id);
-  DVR_Playback_Chunk_Info_t *chunk;
+  DVR_PlayBackChunkInfo_t *chunk;
 
-  chunk = malloc(sizeof(DVR_Playback_Chunk_Info_t));
-  memset(chunk, 0, sizeof(DVR_Playback_Chunk_Info_t));
+  chunk = malloc(sizeof(DVR_PlayBackChunkInfo_t));
+  memset(chunk, 0, sizeof(DVR_PlayBackChunkInfo_t));
 
   //not memcpy chun info.
   chunk->chunk_id = info->chunk_id;
   //cp location
   memcpy(chunk->location, info->location, DVR_MAX_LOCATION_SIZE);
   //pids
-  memcpy(&chunk->pids, &info->pids, sizeof(DVR_Playback_Pids_t));
+  memcpy(&chunk->pids, &info->pids, sizeof(DVR_PlayBackPids_t));
   chunk->flags = info->flags;
   pthread_mutex_lock(&player->lock);
   list_add_tail(&chunk->head, &player->chunk_list);
@@ -420,12 +420,12 @@ int dvr_playback_add_chunk(DVR_Playback_Handle_t handle, DVR_Playback_Chunk_Info
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int dvr_playback_remove_chunk(DVR_Playback_Handle_t handle, int chunk_id) {
+int dvr_playback_remove_chunk(DVR_PlayBackHandle_t handle, int chunk_id) {
   Dvr_PlayBack_t *player = (Dvr_PlayBack_t *) handle;
   DVR_DEBUG(1, "remove chunk id: %d", chunk_id);
 
   pthread_mutex_lock(&player->lock);
-  DVR_Playback_Chunk_Info_t *chunk;
+  DVR_PlayBackChunkInfo_t *chunk;
   list_for_each_entry(chunk, &player->chunk_list, head)
   {
     if (chunk->chunk_id == chunk_id) {
@@ -444,12 +444,12 @@ int dvr_playback_remove_chunk(DVR_Playback_Handle_t handle, int chunk_id) {
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int dvr_playback_Update_Chunk_Flags(DVR_Playback_Handle_t handle,
-  int chunk_id, DVR_Playback_Chunk_Flag_t flags) {
+int dvr_playback_Update_Chunk_Flags(DVR_PlayBackHandle_t handle,
+  int chunk_id, DVR_PlayBackChunkFlag_t flags) {
   Dvr_PlayBack_t *player = (Dvr_PlayBack_t *) handle;
   DVR_DEBUG(1, "update chunk id: %d flag:%d", chunk_id, flags);
 
-  DVR_Playback_Chunk_Info_t *chunk;
+  DVR_PlayBackChunkInfo_t *chunk;
   pthread_mutex_lock(&player->lock);
   list_for_each_entry(chunk, &player->chunk_list, head)
   {
@@ -484,7 +484,7 @@ int dvr_playback_Update_Chunk_Flags(DVR_Playback_Handle_t handle,
 }
 
 
-int _do_check_pid_info(DVR_Playback_Handle_t handle, DVR_Playback_StreamParams_t  now_pid, DVR_Playback_StreamParams_t set_pid, int type) {
+int _do_check_pid_info(DVR_PlayBackHandle_t handle, DVR_PlayBackStreamParams_t  now_pid, DVR_PlayBackStreamParams_t set_pid, int type) {
   Dvr_PlayBack_t *player = (Dvr_PlayBack_t *) handle;
 
   if (now_pid.pid == set_pid.pid) {
@@ -510,19 +510,19 @@ int _do_check_pid_info(DVR_Playback_Handle_t handle, DVR_Playback_StreamParams_t
       //start
       if (type == 0) {
         //start vieo
-        Playback_Device_VideoParams_t vparams;
+        PlayBack_DeviceVideoParams_t vparams;
         vparams.pid = set_pid.pid;
         vparams.fmt = set_pid.fmt;
         dvr_playback_video_start(player->handle,&vparams);
       } else if (type == 1) {
         //start audio
-        Playback_Device_AudioParams_t aparams;
+        PlayBack_DeviceAudioParams_t aparams;
         aparams.pid = set_pid.pid;
         aparams.fmt = set_pid.fmt;
         dvr_playback_audio_start(player->handle,&aparams);
       } else if (type == 2) {
         //start sub audio
-        Playback_Device_AudioParams_t aparams;
+        PlayBack_DeviceAudioParams_t aparams;
         aparams.pid = set_pid.pid;
         aparams.fmt = set_pid.fmt;
         dvr_playback_audio_start(player->handle, &aparams);
@@ -541,11 +541,11 @@ int _do_check_pid_info(DVR_Playback_Handle_t handle, DVR_Playback_StreamParams_t
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int dvr_playback_Update_Chunk_Pids(DVR_Playback_Handle_t handle, int chunk_id, DVR_Playback_Pids_t *p_pids) {
+int dvr_playback_Update_Chunk_Pids(DVR_PlayBackHandle_t handle, int chunk_id, DVR_PlayBackPids_t *p_pids) {
   Dvr_PlayBack_t *player = (Dvr_PlayBack_t *) handle;
   DVR_DEBUG(1, "update chunk id: %d", chunk_id);
 
-  DVR_Playback_Chunk_Info_t *chunk;
+  DVR_PlayBackChunkInfo_t *chunk;
   pthread_mutex_lock(&player->lock);
   list_for_each_entry(chunk, &player->chunk_list, head)
   {
@@ -559,7 +559,7 @@ int dvr_playback_Update_Chunk_Pids(DVR_Playback_Handle_t handle, int chunk_id, D
       //check pcr pids stop or restart
       _do_check_pid_info(handle, chunk->pids.pcrpid, p_pids->pcrpid, 3);
       //save pids info
-      memcpy(&chunk->pids, p_pids, sizeof(DVR_Playback_Pids_t));
+      memcpy(&chunk->pids, p_pids, sizeof(DVR_PlayBackPids_t));
       break;
     }
   }
@@ -572,7 +572,7 @@ int dvr_playback_Update_Chunk_Pids(DVR_Playback_Handle_t handle, int chunk_id, D
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int dvr_playback_stop(DVR_Playback_Handle_t handle, DVR_Bool_t clear) {
+int dvr_playback_stop(DVR_PlayBackHandle_t handle, DVR_Bool_t clear) {
   Dvr_PlayBack_t *player = (Dvr_PlayBack_t *) handle;
   pthread_mutex_lock(&player->lock);
   playback_device_video_stop(player->handle);
@@ -592,7 +592,7 @@ int dvr_playback_stop(DVR_Playback_Handle_t handle, DVR_Bool_t clear) {
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int dvr_playback_audio_start(DVR_Playback_Handle_t handle, Playback_Device_AudioParams_t *param) {
+int dvr_playback_audio_start(DVR_PlayBackHandle_t handle, PlayBack_DeviceAudioParams_t *param) {
   Dvr_PlayBack_t *player = (Dvr_PlayBack_t *) handle;
   _start_playback_thread(handle);
   //start audio and video
@@ -611,7 +611,7 @@ int dvr_playback_audio_start(DVR_Playback_Handle_t handle, Playback_Device_Audio
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int dvr_playback_audio_stop(DVR_Playback_Handle_t handle) {
+int dvr_playback_audio_stop(DVR_PlayBackHandle_t handle) {
   Dvr_PlayBack_t *player = (Dvr_PlayBack_t *) handle;
   pthread_mutex_lock(&player->lock);
   player->has_audio = DVR_FALSE;
@@ -637,7 +637,7 @@ int dvr_playback_audio_stop(DVR_Playback_Handle_t handle) {
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int dvr_playback_video_start(DVR_Playback_Handle_t handle, Playback_Device_VideoParams_t *param) {
+int dvr_playback_video_start(DVR_PlayBackHandle_t handle, PlayBack_DeviceVideoParams_t *param) {
   Dvr_PlayBack_t *player = (Dvr_PlayBack_t *) handle;
   _start_playback_thread(handle);
   //start audio and video
@@ -660,7 +660,7 @@ int dvr_playback_video_start(DVR_Playback_Handle_t handle, Playback_Device_Video
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int dvr_playback_video_stop(DVR_Playback_Handle_t handle) {
+int dvr_playback_video_stop(DVR_PlayBackHandle_t handle) {
   Dvr_PlayBack_t *player = (Dvr_PlayBack_t *) handle;
   pthread_mutex_lock(&player->lock);
   player->has_video = DVR_FALSE;
@@ -686,7 +686,7 @@ int dvr_playback_video_stop(DVR_Playback_Handle_t handle) {
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int dvr_playback_pause(DVR_Playback_Handle_t handle, DVR_Bool_t flush) {
+int dvr_playback_pause(DVR_PlayBackHandle_t handle, DVR_Bool_t flush) {
   Dvr_PlayBack_t *player = (Dvr_PlayBack_t *) handle;
   pthread_mutex_lock(&player->lock);
   playback_device_pause(player->handle);
@@ -704,7 +704,7 @@ int dvr_playback_pause(DVR_Playback_Handle_t handle, DVR_Bool_t flush) {
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int dvr_playback_seek(DVR_Playback_Handle_t handle, int chunk_id, int time_offset) {
+int dvr_playback_seek(DVR_PlayBackHandle_t handle, int chunk_id, int time_offset) {
   Dvr_PlayBack_t *player = (Dvr_PlayBack_t *) handle;
 
   pthread_mutex_lock(&player->lock);
@@ -728,8 +728,8 @@ int dvr_playback_seek(DVR_Playback_Handle_t handle, int chunk_id, int time_offse
   if (player->has_video)
     playback_device_audio_stop(player->handle);
   //start play
-  Playback_Device_VideoParams_t    vparams;
-  Playback_Device_AudioParams_t    aparams;
+  PlayBack_DeviceVideoParams_t    vparams;
+  PlayBack_DeviceAudioParams_t    aparams;
   int chunkid = player->cur_chunkid;
 
   int sync = DVR_PLAY_SYNC;
@@ -767,7 +767,7 @@ int dvr_playback_seek(DVR_Playback_Handle_t handle, int chunk_id, int time_offse
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int dvr_playback_set_speed(DVR_Playback_Handle_t handle, Playback_Device_Speeds_t speed) {
+int dvr_playback_set_speed(DVR_PlayBackHandle_t handle, PlayBack_DeviceSpeeds_t speed) {
 
   return DVR_SUCCESS;
 }
@@ -777,12 +777,12 @@ int dvr_playback_set_speed(DVR_Playback_Handle_t handle, Playback_Device_Speeds_
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int dvr_playback_get_status(DVR_Playback_Handle_t handle,
-   DVR_Playback_Status_t *p_status) {
+int dvr_playback_get_status(DVR_PlayBackHandle_t handle,
+   DVR_PlayBackStatus_t *p_status) {
   return DVR_SUCCESS;
 }
 
-void _dvr_dump_chunk(DVR_Playback_Chunk_Info_t *chunk) {
+void _dvr_dump_chunk(DVR_PlayBackChunkInfo_t *chunk) {
   if (chunk != NULL) {
     DVR_DEBUG(1, "chunk id: %d", chunk->chunk_id);
     DVR_DEBUG(1, "chunk flag: %d", chunk->flags);
@@ -794,10 +794,10 @@ void _dvr_dump_chunk(DVR_Playback_Chunk_Info_t *chunk) {
   }
 }
 
-int dvr_dump_chunkinfo(DVR_Playback_Handle_t handle, int chunk_id) {
+int dvr_dump_chunkinfo(DVR_PlayBackHandle_t handle, int chunk_id) {
   Dvr_PlayBack_t *player = (Dvr_PlayBack_t *) handle;
 
-  DVR_Playback_Chunk_Info_t *chunk;
+  DVR_PlayBackChunkInfo_t *chunk;
   list_for_each_entry(chunk, &player->chunk_list, head)
   {
     if (chunk_id >= 0) {

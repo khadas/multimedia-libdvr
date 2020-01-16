@@ -21,10 +21,10 @@
 int main(int argc, char **argv)
 {
   int ret=0;
-  DVR_Playback_Handle_t handle = 0;
-  DVR_PlayBack_OpenParams_t params;
+  DVR_PlayBackHandle_t handle = 0;
+  DVR_PlayBackOpenParams_t params;
   params.dmx = 1;
-  DVR_Playback_Chunk_Info_t info;
+  DVR_PlayBackChunkInfo_t info;
   info.chunk_id = 0;
   info.flags = 1;
   memcpy(info.location, "/data/data/", 12);
@@ -72,7 +72,7 @@ int main(int argc, char **argv)
   dvr_playback_Update_Chunk_Flags(handle, 0, 7);
   //printf chunk info
   dvr_dump_chunkinfo(handle, -1);
-  DVR_Playback_Pids_t pids;
+  DVR_PlayBackPids_t pids;
   pids.vpid.pid = 0x1fff;
   pids.vpid.fmt = 0x78;
   pids.apid.pid = 0x79;
