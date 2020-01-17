@@ -21,72 +21,72 @@
 int main(int argc, char **argv)
 {
   int ret=0;
-  DVR_PlayBackHandle_t handle = 0;
-  DVR_PlayBackOpenParams_t params;
-  params.dmx = 1;
-  DVR_PlayBackChunkInfo_t info;
-  info.chunk_id = 0;
+  DVR_PlaybackHandle_t handle = 0;
+  DVR_PlaybackOpenParams_t params;
+  params.dmx_dev_id = 1;
+  DVR_PlaybackSegmentInfo_t info;
+  info.segment_id = 0;
   info.flags = 1;
   memcpy(info.location, "/data/data/", 12);
-  info.pids.vpid.pid = 0x38;
-  info.pids.vpid.fmt = 0x38;
-  info.pids.apid.pid = 0x39;
-  info.pids.apid.fmt = 0x39;
-  info.pids.pcrpid.pid = 0x30;
-  info.pids.pcrpid.fmt = 0x30;
-  info.pids.sub_apid.pid = 0x31;
-  info.pids.sub_apid.fmt = 0x31;
+  info.pids.video.pid = 0x38;
+  info.pids.video.format = 0x38;
+  info.pids.audio.pid = 0x39;
+  info.pids.audio.format = 0x39;
+  info.pids.pcr.pid = 0x30;
+  info.pids.pcr.format = 0x30;
+  info.pids.ad.pid = 0x31;
+  info.pids.ad.format = 0x31;
 
   printf("open dvr playback device\r\n");
   dvr_playback_open(&handle, &params);
   //add chunk info
-  dvr_playback_add_chunk(handle, &info);
-  dvr_dump_chunkinfo(handle, -1);
-  info.chunk_id = 1;
+  dvr_playback_add_segment(handle, &info);
+  dvr_dump_segmentinfo(handle, -1);
+  info.segment_id = 1;
   info.flags = 2;
   memcpy(info.location, "/data/data/", 12);
-  info.pids.vpid.pid = 0x48;
-  info.pids.vpid.fmt = 0x48;
-  info.pids.apid.pid = 0x49;
-  info.pids.apid.fmt = 0x49;
-  info.pids.pcrpid.pid = 0x40;
-  info.pids.pcrpid.fmt = 0x40;
-  info.pids.sub_apid.pid = 0x41;
-  info.pids.sub_apid.fmt = 0x41;
-  dvr_playback_add_chunk(handle, &info);
-  dvr_dump_chunkinfo(handle, -1);
-  info.chunk_id = 2;
+  info.pids.video.pid = 0x48;
+  info.pids.video.format = 0x48;
+  info.pids.audio.pid = 0x49;
+  info.pids.audio.format = 0x49;
+  info.pids.pcr.pid = 0x40;
+  info.pids.pcr.format = 0x40;
+  info.pids.ad.pid = 0x41;
+  info.pids.ad.format = 0x41;
+  dvr_playback_add_segment(handle, &info);
+  dvr_dump_segmentinfo(handle, -1);
+  info.segment_id = 2;
   info.flags = 3;
   memcpy(info.location, "/data/data/", 12);
-  info.pids.vpid.pid = 0x58;
-  info.pids.vpid.fmt = 0x58;
-  info.pids.apid.pid = 0x59;
-  info.pids.apid.fmt = 0x59;
-  info.pids.pcrpid.pid = 0x50;
-  info.pids.pcrpid.fmt = 0x50;
-  info.pids.sub_apid.pid = 0x51;
-  info.pids.sub_apid.fmt = 0x51;
-  dvr_playback_add_chunk(handle, &info);
-  dvr_dump_chunkinfo(handle, -1);
-  //updata chunk info
-  dvr_playback_Update_Chunk_Flags(handle, 0, 7);
-  //printf chunk info
-  dvr_dump_chunkinfo(handle, -1);
-  DVR_PlayBackPids_t pids;
-  pids.vpid.pid = 0x1fff;
-  pids.vpid.fmt = 0x78;
-  pids.apid.pid = 0x79;
-  pids.apid.fmt = 0x79;
-  pids.pcrpid.pid = 0x70;
-  pids.sub_apid.pid = 0x1fff;
-  pids.pcrpid.fmt = 0x70;
-  pids.sub_apid.fmt = 0x71;
-  dvr_playback_Update_Chunk_Pids(handle, 1, &pids);
-  dvr_dump_chunkinfo(handle, -1);
+  info.pids.video.pid = 0x58;
+  info.pids.video.format = 0x58;
+  info.pids.audio.pid = 0x59;
+  info.pids.audio.format = 0x59;
+  info.pids.pcr.pid = 0x50;
+  info.pids.pcr.format = 0x50;
+  info.pids.ad.pid = 0x51;
+  info.pids.ad.format = 0x51;
+  dvr_playback_add_segment(handle, &info);
+  dvr_dump_segmentinfo(handle, -1);
+  //updata segment info
+  dvr_playback_update_segment_flags(handle, 0, 7);
+  //printf segment info
+  dvr_dump_segmentinfo(handle, -1);
+  DVR_PlaybackPids_t pids;
+  pids.video.pid = 0x1fff;
+  pids.video.format = 0x78;
+  pids.audio.pid = 0x79;
+  pids.audio.format = 0x79;
+  pids.pcr.pid = 0x70;
+  pids.ad.pid = 0x1fff;
+  pids.pcr.format = 0x70;
+  pids.ad.format = 0x71;
+  dvr_playback_update_segment_pids(handle, 1, &pids);
+  dvr_dump_segmentinfo(handle, -1);
   //remove chunk
-  dvr_playback_remove_chunk(handle, 2);
+  dvr_playback_remove_segment(handle, 2);
   //printf chunk info
-  dvr_dump_chunkinfo(handle, -1);
+  dvr_dump_segmentinfo(handle, -1);
   return ret;
 }
 
