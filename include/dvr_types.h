@@ -78,6 +78,10 @@ typedef uint8_t        DVR_Bool_t;
 #define DVR_FALSE       (0)
 #endif
 
+#ifndef UNUSED
+#define UNSED(x) (void)(x)
+#endif
+
 /**Funciton result*/
 typedef enum {
   DVR_FAILURE = -1, /**< Generic error.*/
@@ -148,6 +152,20 @@ typedef struct {
   size_t           addr; /**< Start address of the buffer.*/
   size_t           size; /**< Size of the buffer.*/
 } DVR_Buffer_t;
+
+/**\brief Segment store information*/
+typedef struct {
+  uint64_t            id;                                         /**< DVR segment id*/
+  uint32_t            nb_pids;                                    /**< DVR segment number of pids*/
+  DVR_StreamPid_t     pids[DVR_MAX_RECORD_PIDS_COUNT];            /**< DVR pids information*/
+  time_t              duration;                                   /**< DVR segment time duration, unit on ms*/
+  size_t              size;                                       /**< DVR segment size*/
+  uint32_t            nb_packets;                                 /**< DVR segment number of ts packets*/
+} Segment_StoreInfo_t;
+
+/**\brief DVR record segment information*/
+typedef Segment_StoreInfo_t DVR_RecordSegmentInfo_t;
+
 
 #ifdef __cplusplus
 }
