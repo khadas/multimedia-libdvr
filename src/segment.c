@@ -6,7 +6,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
-#include "dvr_common.h"
+#include "dvr_types.h"
 #include "segment.h"
 
 #define MAX_SEGMENT_FD_COUNT (128)

@@ -5,61 +5,24 @@
 extern "C" {
 #endif
 
-#include "dvr_common.h"
 #include "dvr_types.h"
+#include "dvr_crypto.h"
 
 typedef void* DVR_RecordHandle_t;
 
 typedef enum {
-  DVR_RECORD_STATE_OPENED,
-  DVR_RECORD_STATE_STARTED,
-  DVR_RECORD_STATE_STOPPED,
-  DVR_RECORD_STATE_CLOSED,
-} DVR_RecordState;
+  DVR_RECORD_STATE_OPENED,        /**< Record state is opened*/
+  DVR_RECORD_STATE_STARTED,       /**< Record state is started*/
+  DVR_RECORD_STATE_STOPPED,       /**< Record state is stopped*/
+  DVR_RECORD_STATE_CLOSED,        /**< Record state is closed*/
+} DVR_RecordState_t;
 
 typedef enum
 {
-  DVR_RECORD_PID_CREATE,
-  DVR_RECORD_PID_KEEP,
-  DVR_RECORD_PID_CLOSE
+  DVR_RECORD_PID_CREATE,          /**< Create a new pid used to record*/
+  DVR_RECORD_PID_KEEP,            /**< Indicate this pid keep last state*/
+  DVR_RECORD_PID_CLOSE            /**< Close this pid record*/
 } DVR_RecordPidAction_t;
-
-#if 0
-struct HAL_PVR_Param_s {
-  PVR_Record_Open_Params_t open_params;
-  PVR_Record_Notify_Fn_t   func;
-  PVR_Size_v2_t            notification_size;
-  char                     root_location[PVR_MAX_LOCATION_SIZE];
-};
-
-struct HAL_PVR_Chunk_s {
-  PVR_Chunk_Info_t  info;
-  PVR_Chunk_ID_t    chunk_id;
-  u32_t             nb_pids;
-  PVR_PID_t         pids[PVR_MAX_UPDATED_RECORD_PIDS];
-  PVR_PID_Action_t  update_info[PVR_MAX_UPDATED_RECORD_PIDS];
-  //int               state;
-  char              fname[HAL_PVR_MAX_LOCATION_SIZE];
-  struct list_head  list;
-};
-
-struct HAL_PVR_Device_s {
-  int dev_no;
-  int state;
-  struct HAL_PVR_Param_s param;
-  struct list_head head;
-  pthread_mutex_t lock;
-  pthread_t thread;
-  int current_chunk_id;
-};
-#endif
-
-typedef enum {
-  DVR_RECORD_SOURCE_MEMORY,
-  DVR_RECORD_SOURCE_DEMUX_0,
-  DVR_RECORD_SOURCE_DEMUX_1,
-  DVR_RECORD_SOURCE_DEMUX_2
-} DVR_RecordSource_t;
 
 typedef enum {
   DVR_RECORD_FLAG_SCRAMBLED = (1 << 0),
@@ -67,30 +30,32 @@ typedef enum {
 } DVR_RecordFlag_t;
 
 typedef enum {
-  DVR_CRYPTO_PARITY_CLEAR,
-  DVR_CRYPTO_PARITY_ODD,
-  DVR_CRYPTO_PARITY_EVEN,
+  DVR_CRYPTO_PARITY_CLEAR,        /**< Current period is clear*/
+  DVR_CRYPTO_PARITY_ODD,          /**< Current period is ODD*/
+  DVR_CRYPTO_PARITY_EVEN,         /**< Current period is EVEN*/
 } DVR_CryptoParity_t;
 
 typedef enum {
-  DVR_CRYPTO_FILTER_TYPE_AUDIO,
-  DVR_CRYPTO_FILTER_TYPE_VIDEO,
+  DVR_CRYPTO_FILTER_TYPE_AUDIO,   /**< Indicate current notification concerns audio packets*/
+  DVR_CRYPTO_FILTER_TYPE_VIDEO,   /**< Indicate current notification concerns video packets*/
 } DVR_CryptoFilterType_t;
 
 typedef struct
 {
-  DVR_Bool_t              transition;
-  DVR_CryptoParity_t      parity;
-  loff_t                  ts_offset;
-  DVR_CryptoFilterType_t  filter_type;
+  DVR_Bool_t              transition;     /**< DVR_TRUE is transition, DVR_FALSE is not transition. At the start of a recording this shall be set to DVR_TRUE*/
+  DVR_CryptoParity_t      parity;         /**< The crypto parity at the ts_offset*/
+  loff_t                  ts_offset;      /**< TS packet offset correspongding to this crypto period*/
+  DVR_CryptoFilterType_t  filter_type;    /**< Indicate this notification concerns audio or video*/
 } DVR_CryptoPeriodInfo_t;
 
+#if 0
 typedef void (*DVR_CryptoPeriodNotifyFn_t)(
                                         DVR_RecordHandle_t            handle,
                                         const DVR_CryptoPeriodInfo_t  *p_info);
+#endif
 
 typedef struct {
-  DVR_CryptoPeriodNotifyFn_t    notify_func;
+  //DVR_CryptoPeriodNotifyFn_t    notify_func;
   uint64_t                      interval_bytes;
   DVR_Bool_t                    notify_clear_periods;
 } DVR_CryptoPeriod_t;;

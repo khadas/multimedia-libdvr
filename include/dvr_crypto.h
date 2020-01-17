@@ -10,6 +10,8 @@
 extern "C" {
 #endif
 
+#include <dvr_types.h>
+
 /**Work type.*/
 typedef enum {
   DVR_CRYPTO_TYPE_ENCRYPT, /**< Encrypt.*/
@@ -28,7 +30,7 @@ typedef struct DVR_CryptoParams_s {
 } DVR_CryptoParams_t;
 
 /**Crypto function.*/
-typedef DVR_Result (*DVR_CryptoFunction_t) (DVR_CryptoParams_t *params_t, void *userdata);
+typedef DVR_Result_t (*DVR_CryptoFunction_t) (DVR_CryptoParams_t *params, void *userdata);
 
 #ifdef __cplusplus
 }

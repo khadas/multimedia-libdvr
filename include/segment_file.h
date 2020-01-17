@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#include "dvr_common.h"
+#include "dvr_types.h"
 
 typedef struct Segment_StoreInfo_s {
   uint64_t            id;

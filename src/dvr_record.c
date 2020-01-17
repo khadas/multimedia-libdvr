@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <pthread.h>
-#include "dvr_common.h"
+#include "dvr_types.h"
 #include "dvr_record.h"
 #include "dvr_crypto.h"
 #include "record_device.h"
@@ -12,7 +12,7 @@ typedef struct {
   pthread_t                       thread;
   Record_DeviceHandle_t           dev_handle;
   Segment_Handle_t                segment_handle;
-  DVR_RecordState                 state;
+  DVR_RecordState_t               state;
   char                            location[DVR_MAX_LOCATION_SIZE];
   DVR_RecordSegmentStartParams_t  segment_params;
 } DVR_RecordContext_t;
@@ -93,7 +93,7 @@ int dvr_record_open(DVR_RecordHandle_t *p_handle, DVR_RecordOpenParams_t *params
 
   p_ctx->state = DVR_RECORD_STATE_OPENED;
 
-  *p_handle = i;
+  *p_handle = p_ctx;
   return DVR_SUCCESS;
 }
 
@@ -101,9 +101,14 @@ int dvr_record_close(DVR_RecordHandle_t handle)
 {
   DVR_RecordContext_t *p_ctx;
   int ret;
+  int i;
 
-  DVR_ASSERT(handle < MAX_DVR_RECORD_SESSION_COUNT);
-  p_ctx = &record_ctx[handle];
+  p_ctx = (DVR_RecordContext_t *)handle;
+  for (i = 0; i < MAX_DVR_RECORD_SESSION_COUNT; i++) {
+    if (p_ctx == &record_ctx[i])
+      break;
+  }
+  DVR_ASSERT(p_ctx == &record_ctx[i]);
 
   DVR_ASSERT(p_ctx->state != DVR_RECORD_STATE_STOPPED);
 
@@ -116,6 +121,7 @@ int dvr_record_close(DVR_RecordHandle_t handle)
   return ret;
 }
 
+#if 0
 int dvr_record_register_encryption(DVR_RecordHandle_t handle,
     DVR_CryptoFunction_t cb,
     DVR_CryptoParams_t params,
@@ -123,6 +129,7 @@ int dvr_record_register_encryption(DVR_RecordHandle_t handle,
 {
   return DVR_SUCCESS;
 }
+#endif
 
 int dvr_record_start_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t *params)
 {
@@ -131,8 +138,12 @@ int dvr_record_start_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t 
   int ret;
   int i;
 
-  DVR_ASSERT(handle < MAX_DVR_RECORD_SESSION_COUNT);
-  p_ctx = &record_ctx[handle];
+  p_ctx = (DVR_RecordContext_t *)handle;
+  for (i = 0; i < MAX_DVR_RECORD_SESSION_COUNT; i++) {
+    if (p_ctx == &record_ctx[i])
+      break;
+  }
+  DVR_ASSERT(p_ctx == &record_ctx[i]);
 
   DVR_ASSERT(p_ctx->state != DVR_RECORD_STATE_STARTED);
   DVR_ASSERT(params);
@@ -171,8 +182,12 @@ int dvr_record_next_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t *
   int ret;
   int i;
 
-  DVR_ASSERT(handle < MAX_DVR_RECORD_SESSION_COUNT);
-  p_ctx = &record_ctx[handle];
+  p_ctx = (DVR_RecordContext_t *)handle;
+  for (i = 0; i < MAX_DVR_RECORD_SESSION_COUNT; i++) {
+    if (p_ctx == &record_ctx[i])
+      break;
+  }
+  DVR_ASSERT(p_ctx == &record_ctx[i]);
 
   DVR_ASSERT(p_ctx->state != DVR_RECORD_STATE_STARTED);
   DVR_ASSERT(params);
@@ -215,9 +230,14 @@ int dvr_record_stop_segment(DVR_RecordHandle_t handle, DVR_RecordSegmentInfo_t *
 {
   DVR_RecordContext_t *p_ctx;
   int ret;
+  int i;
 
-  DVR_ASSERT(handle < MAX_DVR_RECORD_SESSION_COUNT);
-  p_ctx = &record_ctx[handle];
+  p_ctx = (DVR_RecordContext_t *)handle;
+  for (i = 0; i < MAX_DVR_RECORD_SESSION_COUNT; i++) {
+    if (p_ctx == &record_ctx[i])
+      break;
+  }
+  DVR_ASSERT(p_ctx == &record_ctx[i]);
 
   DVR_ASSERT(p_ctx->state != DVR_RECORD_STATE_STOPPED);
   DVR_ASSERT(p_info);

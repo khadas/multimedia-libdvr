@@ -11,7 +11,7 @@ int dvr_segment_get_list(const char *location, uint32_t *p_segment_nb, uint64_t 
   return 0;
 }
 
-int dvr_segment_get_info(const char *location, uint64_t segment_id, DVR_SegmentInfo *p_info)
+int dvr_segment_get_info(const char *location, uint64_t segment_id, Segment_StoreInfo_t *p_info)
 {
   return 0;
 }

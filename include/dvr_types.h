@@ -17,7 +17,7 @@
 
 #include <android/log.h>
 #include <stdint.h>
-#include <assret.h>
+#include <assert.h>
 #include "pthread.h"
 
 #ifdef __cplusplus
@@ -36,14 +36,14 @@ extern "C"
 #define DVR_MAX_LOCATION_SIZE     512
 
 #define DVR_LOG_TAG "libdvr"
-#define DVR_DEBUG_LEVEL 0
+#define DVR_DEBUG_LEVEL 1
 
 #define dvr_log_print(...) __android_log_print(ANDROID_LOG_INFO, DVR_LOG_TAG, __VA_ARGS__)
 
 /**Output debug message.*/
 #define DVR_DEBUG(_level,_fmt...) \
   do {\
-    if (_level <= DVR_DEBUG_LEVLE)\
+    if (_level <= DVR_DEBUG_LEVEL)\
       dvr_log_print(_fmt);\
   } while (0)
 
