@@ -21,16 +21,16 @@ typedef struct Playback_DevideOpenParams_s {
 /**\brief playback speed*/
 typedef enum
 {
-  PLAYBACK_SPEED_S16,         /**<slow 1/16 speed*/
-  PLAYBACK_SPEED_S8,          /**<slow 1/8 speed*/
-  PLAYBACK_SPEED_S4,          /**<slow 1/4 speed*/
-  PLAYBACK_SPEED_S2,          /**<slow 1/2 speed*/
-  PLAYBACK_SPEED_X1,          /**< X 1 normal speed*/
-  PLAYBACK_SPEED_X2,          /**< X 2 speed*/
-  PLAYBACK_SPEED_X4,          /**< X 4 speed*/
-  PLAYBACK_SPEED_X8,          /**< X 8 speed*/
-  PLAYBACK_SPEED_X16,         /**< X 16 speed*/
-  PLAYBACK_SPEED_X32,         /**< X 32 speed*/
+  PLAYBACK_SPEED_S16 = 6,         /**<slow 1/16 speed*/
+  PLAYBACK_SPEED_S8 = 12,          /**<slow 1/8 speed*/
+  PLAYBACK_SPEED_S4 = 26,          /**<slow 1/4 speed*/
+  PLAYBACK_SPEED_S2 = 50,          /**<slow 1/2 speed*/
+  PLAYBACK_SPEED_X1 = 100,          /**< X 1 normal speed*/
+  PLAYBACK_SPEED_X2 = 200,          /**< X 2 speed*/
+  PLAYBACK_SPEED_X4 = 400,          /**< X 4 speed*/
+  PLAYBACK_SPEED_X8 = 800,          /**< X 8 speed*/
+  PLAYBACK_SPEED_X16 = 1600,         /**< X 16 speed*/
+  PLAYBACK_SPEED_X32    = 3200,         /**< X 32 speed*/
   PlayBack_Speed_MAX,
 } Playback_DeviceSpeed_t;
 

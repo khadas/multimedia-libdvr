@@ -142,6 +142,7 @@ int playback_device_open(Playback_DeviceHandle_t *p_handle, Playback_DeviceOpenP
   }
   dev->isopen = 1;
   dev->fd = open(STREAM_TS_FILE, O_RDWR);
+  DVR_DEBUG(1, "%s, open stream ts node", __func__);
   //dev->params
   memcpy(&dev->params, params, sizeof(Playback_DeviceOpenParams_t));
   //change and store dmx source
@@ -215,6 +216,7 @@ int playback_device_audio_start(Playback_DeviceHandle_t handle, Playback_DeviceA
       DVR_DEBUG(1, "set ts skipbyte failed");
       return DVR_PLAYBACK_ERR_SYS;
   }
+  DVR_DEBUG(1, "audio info set end and start audio");
   //audio codec satrt
   return DVR_SUCCESS;
 }
@@ -235,6 +237,7 @@ int playback_device_audio_stop(Playback_DeviceHandle_t handle) {
   //adec_stop_decode
   dev->adec_start = 0;
   dev->has_audio = 0;
+  DVR_DEBUG(1, "audio stop end");
   return DVR_SUCCESS;
 }
 
@@ -276,6 +279,7 @@ int playback_device_video_start(Playback_DeviceHandle_t handle, Playback_DeviceV
       DVR_DEBUG(1, "set video PID failed");
       return DVR_PLAYBACK_ERR_SYS;
   }
+  DVR_DEBUG(1, "video start end");
   return DVR_SUCCESS;
 }
 
@@ -392,8 +396,12 @@ ssize_t playback_device_write(Playback_DeviceHandle_t handle, Playback_DeviceWBu
       {
           real_written = ret;
       }
+  } else {
+        DVR_DEBUG(1, "timeshift write error");
   }
 inject_end:
+    DVR_DEBUG(1, "timeshift write [%d]", ret);
+
   return real_written;
 }
 
