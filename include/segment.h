@@ -69,7 +69,7 @@ ssize_t segment_write(Segment_Handle_t handle, void *buf, size_t count);
  * \return DVR_SUCCESS on success
  * \return error code on failure
  */
-int segment_update_pts(Segment_Handle_t handle, uint64_t pts, off_t offset);
+int segment_update_pts(Segment_Handle_t handle, uint64_t pts, loff_t offset);
 
 /**\brief Seek the segment to the correct position which match the giving time
  * \param[in] handle, Segment handle
@@ -77,14 +77,21 @@ int segment_update_pts(Segment_Handle_t handle, uint64_t pts, off_t offset);
  * \return The segment current read position on success
  * \return error code on failure
  */
-off_t segment_seek(Segment_Handle_t handle, uint64_t time);
+loff_t segment_seek(Segment_Handle_t handle, uint64_t time);
 
-/**\brief Tell the position for the giving segment
+/**\brief Tell the current position for the giving segment
  * \param[in] handle, Segment handle
  * \return The segment current read position on success
  * \return error code on failure
  */
-off_t segment_tell(Segment_Handle_t handle);
+loff_t segment_tell_position(Segment_Handle_t handle);
+
+/**\brief Tell the current time for the giving segment
+ * \param[in] handle, Segment handle
+ * \return The segment current time on success
+ * \return error code on failure
+ */
+uint64_t segment_tell_time(Segment_Handle_t handle);
 
 /**\brief Store the segment information to a file
  * \param[in] handle, The segment handle

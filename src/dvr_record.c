@@ -64,7 +64,7 @@ void *record_thread(void *arg)
       get_local_pts(&pts);
     }
 #endif
-    pos += segment_tell(p_ctx->segment_handle);
+    pos += segment_tell_position(p_ctx->segment_handle);
     ret = segment_update_pts(p_ctx->segment_handle, pts, pos);
     ret = segment_write(p_ctx->segment_handle, buf, len);
     p_ctx->segment_info.size += len;
@@ -105,15 +105,15 @@ int dvr_record_open(DVR_RecordHandle_t *p_handle, DVR_RecordOpenParams_t *params
   int ret;
   uint32_t i;
 
-  DVR_ASSERT(p_handle);
-  DVR_ASSERT(params);
+  DVR_RETURN_IF_FALSE(p_handle);
+  DVR_RETURN_IF_FALSE(params);
 
   for (i = 0; i < MAX_DVR_RECORD_SESSION_COUNT; i++) {
     if (record_ctx[i].state == DVR_RECORD_STATE_CLOSED) {
       break;
     }
   }
-  DVR_ASSERT(record_ctx[i].state == DVR_RECORD_STATE_CLOSED);
+  DVR_RETURN_IF_FALSE(record_ctx[i].state == DVR_RECORD_STATE_CLOSED);
   p_ctx = &record_ctx[i];
   DVR_DEBUG(1, "%s , current state:%d, dmx_id:%d, notification_size:%zu", __func__,
       p_ctx->state, params->dmx_dev_id, params->notification_size);
@@ -156,10 +156,10 @@ int dvr_record_close(DVR_RecordHandle_t handle)
     if (p_ctx == &record_ctx[i])
       break;
   }
-  DVR_ASSERT(p_ctx == &record_ctx[i]);
+  DVR_RETURN_IF_FALSE(p_ctx == &record_ctx[i]);
 
   DVR_DEBUG(1, "%s , current state:%d", __func__, p_ctx->state);
-  DVR_ASSERT(p_ctx->state != DVR_RECORD_STATE_CLOSED);
+  DVR_RETURN_IF_FALSE(p_ctx->state != DVR_RECORD_STATE_CLOSED);
 
   ret = record_device_close(p_ctx->dev_handle);
   if (ret != DVR_SUCCESS) {
@@ -192,21 +192,21 @@ int dvr_record_start_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t 
     if (p_ctx == &record_ctx[i])
       break;
   }
-  DVR_ASSERT(p_ctx == &record_ctx[i]);
+  DVR_RETURN_IF_FALSE(p_ctx == &record_ctx[i]);
 
   DVR_DEBUG(1, "%s , current state:%d", __func__, p_ctx->state);
-  DVR_ASSERT(p_ctx->state != DVR_RECORD_STATE_STARTED);
-  DVR_ASSERT(p_ctx->state != DVR_RECORD_STATE_CLOSED);
-  DVR_ASSERT(params);
+  DVR_RETURN_IF_FALSE(p_ctx->state != DVR_RECORD_STATE_STARTED);
+  DVR_RETURN_IF_FALSE(p_ctx->state != DVR_RECORD_STATE_CLOSED);
+  DVR_RETURN_IF_FALSE(params);
 
-  DVR_ASSERT(strlen((const char *)params->location) < DVR_MAX_LOCATION_SIZE);
+  DVR_RETURN_IF_FALSE(strlen((const char *)params->location) < DVR_MAX_LOCATION_SIZE);
   memset(&open_params, 0, sizeof(open_params));
   memcpy(open_params.location, params->location, strlen(params->location));
   open_params.segment_id = params->segment.segment_id;
   open_params.mode = SEGMENT_MODE_WRITE;
 
   ret = segment_open(&open_params, &p_ctx->segment_handle);
-  DVR_ASSERT(ret == DVR_SUCCESS);
+  DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
 
   /*process params*/
   {
@@ -222,11 +222,11 @@ int dvr_record_start_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t 
 
   for (i = 0; i < params->segment.nb_pids; i++) {
     ret = record_device_add_pid(p_ctx->dev_handle, params->segment.pids[i].pid);
-    DVR_ASSERT(ret == DVR_SUCCESS);
+    DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
   }
 
   ret = record_device_start(p_ctx->dev_handle);
-  DVR_ASSERT(ret == DVR_SUCCESS);
+  DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
   p_ctx->state = DVR_RECORD_STATE_STARTED;
   pthread_create(&p_ctx->thread, NULL, record_thread, p_ctx);
 
@@ -245,17 +245,17 @@ int dvr_record_next_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t *
     if (p_ctx == &record_ctx[i])
       break;
   }
-  DVR_ASSERT(p_ctx == &record_ctx[i]);
+  DVR_RETURN_IF_FALSE(p_ctx == &record_ctx[i]);
 
   DVR_DEBUG(1, "%s , current state:%d", __func__, p_ctx->state);
-  DVR_ASSERT(p_ctx->state == DVR_RECORD_STATE_STARTED);
-  //DVR_ASSERT(p_ctx->state != DVR_RECORD_STATE_CLOSED);
-  DVR_ASSERT(params);
-  DVR_ASSERT(p_info);
+  DVR_RETURN_IF_FALSE(p_ctx->state == DVR_RECORD_STATE_STARTED);
+  //DVR_RETURN_IF_FALSE(p_ctx->state != DVR_RECORD_STATE_CLOSED);
+  DVR_RETURN_IF_FALSE(params);
+  DVR_RETURN_IF_FALSE(p_info);
 
   /*Stop the on going record segment*/
   //ret = record_device_stop(p_ctx->dev_handle);
-  //DVR_ASSERT(ret == DVR_SUCCESS);
+  //DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
 
   p_ctx->state = DVR_RECORD_STATE_STOPPED;
   pthread_join(p_ctx->thread, NULL);
@@ -264,14 +264,14 @@ int dvr_record_next_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t *
   memcpy(p_info, &p_ctx->segment_info, sizeof(p_ctx->segment_info));
 
   ret = segment_store_info(p_ctx->segment_handle, p_info);
-  DVR_ASSERT(ret == DVR_SUCCESS);
+  DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
 
   DVR_DEBUG(1, "%s dump segment info, id:%lld, nb_pids:%d, duration:%ld ms, size:%zu, nb_packets:%d",
       __func__, p_info->id, p_info->nb_pids, p_info->duration, p_info->size, p_info->nb_packets);
 
   /*Close current segment*/
   ret = segment_close(p_ctx->segment_handle);
-  DVR_ASSERT(ret == DVR_SUCCESS);
+  DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
   /*Open the new record segment*/
   memset(&open_params, 0, sizeof(open_params));
   memcpy(open_params.location, p_ctx->location, strlen(p_ctx->location));
@@ -279,7 +279,7 @@ int dvr_record_next_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t *
   open_params.mode = SEGMENT_MODE_WRITE;
 
   ret = segment_open(&open_params, &p_ctx->segment_handle);
-  DVR_ASSERT(ret == DVR_SUCCESS);
+  DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
   /*process params*/
   {
     //need all params??
@@ -297,7 +297,7 @@ int dvr_record_next_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t *
         DVR_DEBUG(1, "%s create pid:%d", __func__, params->segment.pids[i].pid);
         ret = record_device_add_pid(p_ctx->dev_handle, params->segment.pids[i].pid);
         p_ctx->segment_info.nb_pids++;
-        DVR_ASSERT(ret == DVR_SUCCESS);
+        DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
         break;
       case DVR_RECORD_PID_KEEP:
         DVR_DEBUG(1, "%s keep pid:%d", __func__, params->segment.pids[i].pid);
@@ -306,7 +306,7 @@ int dvr_record_next_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t *
       case DVR_RECORD_PID_CLOSE:
         DVR_DEBUG(1, "%s close pid:%d", __func__, params->segment.pids[i].pid);
         ret = record_device_remove_pid(p_ctx->dev_handle, params->segment.pids[i].pid);
-        DVR_ASSERT(ret == DVR_SUCCESS);
+        DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
         break;
       default:
         DVR_DEBUG(1, "%s wrong action pid:%d", __func__, params->segment.pids[i].pid);
@@ -315,7 +315,7 @@ int dvr_record_next_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t *
   }
 
   //ret = record_device_start(p_ctx->dev_handle);
-  //DVR_ASSERT(ret == DVR_SUCCESS);
+  //DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
 
   pthread_create(&p_ctx->thread, NULL, record_thread, p_ctx);
   p_ctx->state = DVR_RECORD_STATE_STARTED;
@@ -333,15 +333,15 @@ int dvr_record_stop_segment(DVR_RecordHandle_t handle, DVR_RecordSegmentInfo_t *
     if (p_ctx == &record_ctx[i])
       break;
   }
-  DVR_ASSERT(p_ctx == &record_ctx[i]);
+  DVR_RETURN_IF_FALSE(p_ctx == &record_ctx[i]);
 
   DVR_DEBUG(1, "%s , current state:%d", __func__, p_ctx->state);
-  DVR_ASSERT(p_ctx->state != DVR_RECORD_STATE_STOPPED);
-  DVR_ASSERT(p_ctx->state != DVR_RECORD_STATE_CLOSED);
-  DVR_ASSERT(p_info);
+  DVR_RETURN_IF_FALSE(p_ctx->state != DVR_RECORD_STATE_STOPPED);
+  DVR_RETURN_IF_FALSE(p_ctx->state != DVR_RECORD_STATE_CLOSED);
+  DVR_RETURN_IF_FALSE(p_info);
 
   ret = record_device_stop(p_ctx->dev_handle);
-  DVR_ASSERT(ret == DVR_SUCCESS);
+  DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
 
   p_ctx->state = DVR_RECORD_STATE_STOPPED;
   pthread_join(p_ctx->thread, NULL);
@@ -350,13 +350,13 @@ int dvr_record_stop_segment(DVR_RecordHandle_t handle, DVR_RecordSegmentInfo_t *
   memcpy(p_info, &p_ctx->segment_info, sizeof(p_ctx->segment_info));
 
   ret = segment_store_info(p_ctx->segment_handle, p_info);
-  DVR_ASSERT(ret == DVR_SUCCESS);
+  DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
 
   DVR_DEBUG(1, "%s dump segment info, id:%lld, nb_pids:%d, duration:%ld ms, size:%zu, nb_packets:%d",
       __func__, p_info->id, p_info->nb_pids, p_info->duration, p_info->size, p_info->nb_packets);
 
   ret = segment_close(p_ctx->segment_handle);
-  DVR_ASSERT(ret == DVR_SUCCESS);
+  DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
   return DVR_SUCCESS;
 }
 
@@ -370,9 +370,9 @@ int dvr_record_resume_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t
     if (p_ctx == &record_ctx[i])
       break;
   }
-  DVR_ASSERT(p_ctx == &record_ctx[i]);
-  DVR_ASSERT(params);
-  DVR_ASSERT(p_resume_size);
+  DVR_RETURN_IF_FALSE(p_ctx == &record_ctx[i]);
+  DVR_RETURN_IF_FALSE(params);
+  DVR_RETURN_IF_FALSE(p_resume_size);
 
   DVR_DEBUG(1, "%s , current state:%d", __func__, p_ctx->state);
   return DVR_SUCCESS;

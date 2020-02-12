@@ -14,9 +14,7 @@
 #define MAX_PTS_THRESHOLD (10*1000)
 /**\brief Segment context*/
 typedef struct {
-  //char            location[DVR_MAX_LOCATION_SIZE];    /**< Segment file location*/
-  //uint64_t        segment_id;                         /**< Segment index*/
-  FILE            *ts_fp;                             /**< Segment ts file fd*/
+  int             ts_fd;                              /**< Segment ts file fd*/
   FILE            *index_fp;                          /**< Time index file fd*/
   FILE            *dat_fp;                            /**< Information file fd*/
   uint64_t        first_pts;                          /**< First pts value, use for write mode*/
@@ -52,20 +50,38 @@ static void segment_get_fname(char fname[MAX_SEGMENT_PATH_SIZE],
     strncpy(fname + offset, ".dat", 4);
 }
 
+static void segment_get_dirname(char dir_name[MAX_SEGMENT_PATH_SIZE],
+    const char location[DVR_MAX_LOCATION_SIZE])
+{
+  char *p;
+  int i;
+  int found = 0;
+
+  for (i = 0; i < (int)strlen(location); i++) {
+    if (location[i] == '/') {
+      p = (char *)location + i;
+      found = 1;
+    }
+  }
+  if (found)
+    memcpy(dir_name, location, p - location);
+}
+
 int segment_open(Segment_OpenParams_t *params, Segment_Handle_t *p_handle)
 {
   Segment_Context_t *p_ctx;
   char ts_fname[MAX_SEGMENT_PATH_SIZE];
   char index_fname[MAX_SEGMENT_PATH_SIZE];
   char dat_fname[MAX_SEGMENT_PATH_SIZE];
+  char dir_name[MAX_SEGMENT_PATH_SIZE];
 
-  DVR_ASSERT(params);
-  DVR_ASSERT(p_handle);
+  DVR_RETURN_IF_FALSE(params);
+  DVR_RETURN_IF_FALSE(p_handle);
 
   DVR_DEBUG(1, "%s, location:%s, id:%llu", __func__, params->location, params->segment_id);
 
   p_ctx = (void*)malloc(sizeof(Segment_Context_t));
-  DVR_ASSERT(p_ctx);
+  DVR_RETURN_IF_FALSE(p_ctx);
   memset(p_ctx, 0, sizeof(Segment_Context_t));
 
   memset(ts_fname, 0, sizeof(ts_fname));
@@ -77,24 +93,31 @@ int segment_open(Segment_OpenParams_t *params, Segment_Handle_t *p_handle)
   memset(dat_fname, 0, sizeof(dat_fname));
   segment_get_fname(dat_fname, params->location, params->segment_id, SEGMENT_FILE_TYPE_DAT);
 
+  memset(dir_name, 0, sizeof(dir_name));
+  segment_get_dirname(dir_name, params->location);
+  if (access(dir_name, F_OK) == -1) {
+    DVR_DEBUG(1, "%s dir %s is not exist, create it", __func__, dir_name);
+    mkdir(dir_name, 0666);
+  }
+
   if (params->mode == SEGMENT_MODE_READ) {
-    p_ctx->ts_fp = fopen(ts_fname, "r");
+    p_ctx->ts_fd = open(ts_fname, O_RDONLY);
     p_ctx->index_fp = fopen(index_fname, "r");
     p_ctx->dat_fp = fopen(dat_fname, "r");
   } else if (params->mode == SEGMENT_MODE_WRITE) {
-    p_ctx->ts_fp = fopen(ts_fname, "w+");
+    p_ctx->ts_fd = open(ts_fname, O_CREAT | O_RDWR | O_TRUNC, 0644);
     p_ctx->index_fp = fopen(index_fname, "w+");
     p_ctx->dat_fp = fopen(dat_fname, "w+");
     p_ctx->first_pts = ULLONG_MAX;
     p_ctx->last_pts = ULLONG_MAX;
   } else {
     DVR_DEBUG(1, "%s, unknow mode use default", __func__);
-    p_ctx->ts_fp = fopen(ts_fname, "r");
+    p_ctx->ts_fd = open(ts_fname, O_RDONLY);
     p_ctx->index_fp = fopen(index_fname, "r");
     p_ctx->dat_fp = fopen(dat_fname, "r");
   }
 
-  if (!p_ctx->ts_fp || !p_ctx->index_fp || !p_ctx->dat_fp) {
+  if (p_ctx->ts_fd == -1 || !p_ctx->index_fp || !p_ctx->dat_fp) {
     DVR_DEBUG(1, "%s open file failed [%s, %s, %s], reason:%s", __func__,
         ts_fname, index_fname, dat_fname, strerror(errno));
     free(p_ctx);
@@ -112,10 +135,10 @@ int segment_close(Segment_Handle_t handle)
   Segment_Context_t *p_ctx;
 
   p_ctx = (void *)handle;
-  DVR_ASSERT(p_ctx);
+  DVR_RETURN_IF_FALSE(p_ctx);
 
-  if (p_ctx->ts_fp) {
-    fclose(p_ctx->ts_fp);
+  if (p_ctx->ts_fd != -1) {
+    close(p_ctx->ts_fd);
   }
 
   if (p_ctx->index_fp) {
@@ -135,11 +158,11 @@ ssize_t segment_read(Segment_Handle_t handle, void *buf, size_t count)
   Segment_Context_t *p_ctx;
 
   p_ctx = (Segment_Context_t *)handle;
-  DVR_ASSERT(p_ctx);
-  DVR_ASSERT(buf);
-  DVR_ASSERT(p_ctx->ts_fp);
+  DVR_RETURN_IF_FALSE(p_ctx);
+  DVR_RETURN_IF_FALSE(buf);
+  DVR_RETURN_IF_FALSE(p_ctx->ts_fd != -1);
 
-  return fread(buf, 1, count, p_ctx->ts_fp);
+  return read(p_ctx->ts_fd, buf, count);
 }
 
 ssize_t segment_write(Segment_Handle_t handle, void *buf, size_t count)
@@ -147,21 +170,21 @@ ssize_t segment_write(Segment_Handle_t handle, void *buf, size_t count)
   Segment_Context_t *p_ctx;
 
   p_ctx = (Segment_Context_t *)handle;
-  DVR_ASSERT(p_ctx);
-  DVR_ASSERT(buf);
-  DVR_ASSERT(p_ctx->ts_fp);
+  DVR_RETURN_IF_FALSE(p_ctx);
+  DVR_RETURN_IF_FALSE(buf);
+  DVR_RETURN_IF_FALSE(p_ctx->ts_fd != -1);
 
-  return fwrite(buf, 1, count, p_ctx->ts_fp);
+  return write(p_ctx->ts_fd, buf, count);
 }
 
-int segment_update_pts(Segment_Handle_t handle, uint64_t pts, off_t offset)
+int segment_update_pts(Segment_Handle_t handle, uint64_t pts, loff_t offset)
 {
   Segment_Context_t *p_ctx;
   char buf[256];
 
   p_ctx = (Segment_Context_t *)handle;
-  DVR_ASSERT(p_ctx);
-  DVR_ASSERT(p_ctx->index_fp);
+  DVR_RETURN_IF_FALSE(p_ctx);
+  DVR_RETURN_IF_FALSE(p_ctx->index_fp);
 
   if (p_ctx->first_pts == ULLONG_MAX) {
     p_ctx->first_pts = pts;
@@ -169,15 +192,15 @@ int segment_update_pts(Segment_Handle_t handle, uint64_t pts, off_t offset)
   memset(buf, 0, sizeof(buf));
   if (p_ctx->last_pts == ULLONG_MAX) {
     /*Last pts is init value*/
-    sprintf(buf, "{time=%llu, offset=%ld}\n", pts - p_ctx->first_pts, offset);
+    sprintf(buf, "{time=%llu, offset=%lld}\n", pts - p_ctx->first_pts, offset);
   } else {
     /*Last pts has valid value*/
     if (pts - p_ctx->last_pts > MAX_PTS_THRESHOLD) {
       /*Current pts has a transition*/
-      sprintf(buf, "{time=%llu, offset=%ld}\n", p_ctx->last_pts - p_ctx->first_pts, offset);
+      sprintf(buf, "{time=%llu, offset=%lld}\n", p_ctx->last_pts - p_ctx->first_pts, offset);
     } else {
       /*This is a normal pts, record it*/
-      sprintf(buf, "{time=%llu, offset=%ld}\n", pts - p_ctx->first_pts, offset);
+      sprintf(buf, "{time=%llu, offset=%lld}\n", pts - p_ctx->first_pts, offset);
     }
   }
 
@@ -189,24 +212,24 @@ int segment_update_pts(Segment_Handle_t handle, uint64_t pts, off_t offset)
   return DVR_SUCCESS;
 }
 
-off_t segment_seek(Segment_Handle_t handle, uint64_t time)
+loff_t segment_seek(Segment_Handle_t handle, uint64_t time)
 {
   Segment_Context_t *p_ctx;
   char buf[256];
   char value[256];
   uint64_t pts;
-  off_t offset;
+  loff_t offset;
   char *p1, *p2;
 
   p_ctx = (Segment_Context_t *)handle;
-  DVR_ASSERT(p_ctx);
-  DVR_ASSERT(p_ctx->index_fp);
-  DVR_ASSERT(p_ctx->ts_fp);
+  DVR_RETURN_IF_FALSE(p_ctx);
+  DVR_RETURN_IF_FALSE(p_ctx->index_fp);
+  DVR_RETURN_IF_FALSE(p_ctx->ts_fd != -1);
 
-	memset(buf, 0, sizeof(buf));
-  DVR_ASSERT(fseek(p_ctx->index_fp, 0, SEEK_SET) != -1);
+  memset(buf, 0, sizeof(buf));
+  DVR_RETURN_IF_FALSE(fseek(p_ctx->index_fp, 0, SEEK_SET) != -1);
 
-	while (fgets(buf, sizeof(buf), p_ctx->index_fp) != NULL) {
+  while (fgets(buf, sizeof(buf), p_ctx->index_fp) != NULL) {
     memset(value, 0, sizeof(value));
     if ((p1 = strstr(buf, "time="))) {
       p1 += 4;
@@ -226,9 +249,9 @@ off_t segment_seek(Segment_Handle_t handle, uint64_t time)
     }
 
     memset(buf, 0, sizeof(buf));
-    DVR_DEBUG(1, "time=%llu, offset=%ld\n", pts, offset);
+    DVR_DEBUG(1, "time=%llu, offset=%lld\n", pts, offset);
     if (time < pts) {
-      DVR_ASSERT(fseeko(p_ctx->ts_fp, offset, SEEK_SET) != -1);
+      DVR_RETURN_IF_FALSE(lseek64(p_ctx->ts_fd, offset, SEEK_SET) != -1);
       return offset;
     }
 	}
@@ -236,15 +259,63 @@ off_t segment_seek(Segment_Handle_t handle, uint64_t time)
   return DVR_FAILURE;
 }
 
-off_t segment_tell(Segment_Handle_t handle)
+loff_t segment_tell_position(Segment_Handle_t handle)
 {
   Segment_Context_t *p_ctx;
 
   p_ctx = (Segment_Context_t *)handle;
-  DVR_ASSERT(p_ctx);
-  DVR_ASSERT(p_ctx->ts_fp);
+  DVR_RETURN_IF_FALSE(p_ctx);
+  DVR_RETURN_IF_FALSE(p_ctx->ts_fd != -1);
 
-  return ftello(p_ctx->ts_fp);
+  return lseek64(p_ctx->ts_fd, 0, SEEK_CUR);
+}
+
+uint64_t segment_tell_time(Segment_Handle_t handle)
+{
+  Segment_Context_t *p_ctx;
+  char buf[256];
+  char value[256];
+  uint64_t pts;
+  loff_t offset, position;
+  char *p1, *p2;
+
+  p_ctx = (Segment_Context_t *)handle;
+  DVR_RETURN_IF_FALSE(p_ctx);
+  DVR_RETURN_IF_FALSE(p_ctx->index_fp);
+  DVR_RETURN_IF_FALSE(p_ctx->ts_fd);
+
+  memset(buf, 0, sizeof(buf));
+  DVR_RETURN_IF_FALSE(fseek(p_ctx->index_fp, 0, SEEK_SET) != -1);
+  position = lseek64(p_ctx->ts_fd, 0, SEEK_CUR);
+  DVR_RETURN_IF_FALSE(position != -1);
+
+  while (fgets(buf, sizeof(buf), p_ctx->index_fp) != NULL) {
+    memset(value, 0, sizeof(value));
+    if ((p1 = strstr(buf, "time="))) {
+      p1 += 4;
+      if ((p2 = strstr(buf, ","))) {
+        memcpy(value, p1, p2 - p1);
+      }
+      pts = strtoull(value, NULL, 10);
+    }
+
+    memset(value, 0, sizeof(value));
+    if ((p1 = strstr(buf, "offset="))) {
+      p1 += 7;
+      if ((p2 = strstr(buf, "}"))) {
+        memcpy(value, p1, p2 - p1);
+      }
+      offset = strtoull(value, NULL, 10);
+    }
+
+    memset(buf, 0, sizeof(buf));
+    DVR_DEBUG(1, "time=%llu, offset=%lld, position=%lld\n", pts, offset, position);
+    if (position < offset) {
+      return pts;
+    }
+  }
+
+  return DVR_FAILURE;
 }
 
 int segment_store_info(Segment_Handle_t handle, Segment_StoreInfo_t *p_info)
@@ -254,9 +325,9 @@ int segment_store_info(Segment_Handle_t handle, Segment_StoreInfo_t *p_info)
   uint32_t i;
 
   p_ctx = (Segment_Context_t *)handle;
-  DVR_ASSERT(p_ctx);
-  DVR_ASSERT(p_ctx->dat_fp);
-  DVR_ASSERT(p_info);
+  DVR_RETURN_IF_FALSE(p_ctx);
+  DVR_RETURN_IF_FALSE(p_ctx->dat_fp);
+  DVR_RETURN_IF_FALSE(p_info);
 
   /*Save segment id*/
   memset(buf, 0, sizeof(buf));
@@ -304,25 +375,25 @@ int segment_load_info(Segment_Handle_t handle, Segment_StoreInfo_t *p_info)
   char *p1, *p2;
 
   p_ctx = (Segment_Context_t *)handle;
-  DVR_ASSERT(p_ctx);
-  DVR_ASSERT(p_info);
+  DVR_RETURN_IF_FALSE(p_ctx);
+  DVR_RETURN_IF_FALSE(p_info);
 
   /*Load segment id*/
   p1 = fgets(buf, sizeof(buf), p_ctx->dat_fp);
-  DVR_ASSERT(p1);
+  DVR_RETURN_IF_FALSE(p1);
   p1 = strstr(buf, "id=");
   p_info->id = strtoull(p1 + 3, NULL, 10);
 
   /*Save number of pids*/
   p1 = fgets(buf, sizeof(buf), p_ctx->dat_fp);
-  DVR_ASSERT(p1);
+  DVR_RETURN_IF_FALSE(p1);
   p1 = strstr(buf, "nb_pids=");
   p_info->nb_pids = strtoull(p1 + 8, NULL, 10);
 
   /*Save pid information*/
   for (i = 0; i < p_info->nb_pids; i++) {
     p1 = fgets(buf, sizeof(buf), p_ctx->dat_fp);
-    DVR_ASSERT(p1);
+    DVR_RETURN_IF_FALSE(p1);
     memset(value, 0, sizeof(value));
     if ((p1 = strstr(buf, "pid="))) {
       p1 += 4;
@@ -344,19 +415,19 @@ int segment_load_info(Segment_Handle_t handle, Segment_StoreInfo_t *p_info)
 
   /*Save segment duration*/
   p1 = fgets(buf, sizeof(buf), p_ctx->dat_fp);
-  DVR_ASSERT(p1);
+  DVR_RETURN_IF_FALSE(p1);
   p1 = strstr(buf, "duration=");
   p_info->duration = strtoull(p1 + 9, NULL, 10);
 
   /*Save segment size*/
   p1 = fgets(buf, sizeof(buf), p_ctx->dat_fp);
-  DVR_ASSERT(p1);
+  DVR_RETURN_IF_FALSE(p1);
   p1 = strstr(buf, "size=");
   p_info->size = strtoull(p1 + 5, NULL, 10);
 
   /*Save number of packets*/
   p1 = fgets(buf, sizeof(buf), p_ctx->dat_fp);
-  DVR_ASSERT(p1);
+  DVR_RETURN_IF_FALSE(p1);
   p1 = strstr(buf, "nb_packets=");
   p_info->nb_packets = strtoull(p1 + 11, NULL, 10);
 
@@ -368,48 +439,48 @@ int segment_delete(const char *location, uint64_t segment_id)
   char fname[MAX_SEGMENT_PATH_SIZE];
   int ret;
 
-  DVR_ASSERT(location);
+  DVR_RETURN_IF_FALSE(location);
 
   /*delete ts file*/
   memset(fname, 0, sizeof(fname));
   segment_get_fname(fname, location, segment_id, SEGMENT_FILE_TYPE_TS);
   ret = unlink(fname);
   DVR_DEBUG(1, "%s, [%s] return:%s", __func__, fname, strerror(errno));
-  DVR_ASSERT(ret == 0);
+  DVR_RETURN_IF_FALSE(ret == 0);
 
   /*delete index file*/
   memset(fname, 0, sizeof(fname));
   segment_get_fname(fname, location, segment_id, SEGMENT_FILE_TYPE_INDEX);
   unlink(fname);
   DVR_DEBUG(1, "%s, [%s] return:%s", __func__, fname, strerror(errno));
-  DVR_ASSERT(ret == 0);
+  DVR_RETURN_IF_FALSE(ret == 0);
 
   /*delete store information file*/
   memset(fname, 0, sizeof(fname));
   segment_get_fname(fname, location, segment_id, SEGMENT_FILE_TYPE_DAT);
   unlink(fname);
   DVR_DEBUG(1, "%s, [%s] return:%s", __func__, fname, strerror(errno));
-  DVR_ASSERT(ret == 0);
+  DVR_RETURN_IF_FALSE(ret == 0);
 
   return DVR_SUCCESS;
 }
 
-off_t segment_dump_pts(Segment_Handle_t handle)
+loff_t segment_dump_pts(Segment_Handle_t handle)
 {
   Segment_Context_t *p_ctx;
   char buf[256];
   char value[256];
   uint64_t pts;
-  off_t offset;
+  loff_t offset;
   char *p1, *p2;
 
   p_ctx = (Segment_Context_t *)handle;
-  DVR_ASSERT(p_ctx);
-  DVR_ASSERT(p_ctx->index_fp);
-  DVR_ASSERT(p_ctx->ts_fp);
+  DVR_RETURN_IF_FALSE(p_ctx);
+  DVR_RETURN_IF_FALSE(p_ctx->index_fp);
+  DVR_RETURN_IF_FALSE(p_ctx->ts_fd != -1);
 
   memset(buf, 0, sizeof(buf));
-  DVR_ASSERT(fseek(p_ctx->index_fp, 0, SEEK_SET) != -1);
+  DVR_RETURN_IF_FALSE(fseek(p_ctx->index_fp, 0, SEEK_SET) != -1);
   printf("start gets pts\n");
   while (fgets(buf, sizeof(buf), p_ctx->index_fp) != NULL) {
     printf("buf[%s]\n", buf);
@@ -432,7 +503,7 @@ off_t segment_dump_pts(Segment_Handle_t handle)
     }
 
     memset(buf, 0, sizeof(buf));
-    printf("pts=%llu, offset=%ld\n", pts, offset);
+    printf("pts=%llu, offset=%lld\n", pts, offset);
   }
 
   return 0;

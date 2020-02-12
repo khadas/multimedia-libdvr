@@ -49,7 +49,7 @@ int main(int argc, char **argv)
       buf[i] = i & 0xff;
       segment_write(w_handle, buf, BUF_LEN);
       segment_update_pts(w_handle, i, (off_t)((i + 1) * BUF_LEN));
-      printf( "write offset[%d] pts[%d] tell[%lld]\r\n", (i + 1) * BUF_LEN, i, segment_tell(w_handle));
+      printf( "write offset[%d] pts[%d] tell_position[%lld]\r\n", (i + 1) * BUF_LEN, i, segment_tell_position(w_handle));
   }
   printf("start open segment read mode\r\n");
   //dump file len write ptr pos
@@ -65,15 +65,15 @@ int main(int argc, char **argv)
   for (i = 0; i < 100; i++) {
       memset(buf, 0 , BUF_LEN);
       read_len = segment_read(r_handle, buf, BUF_LEN);
-      printf( "read buf[%d][%d][%d] read_len= %d BUF_LEN=%d offset=%d\r\n", i, buf[i], buf[i + 1], read_len, BUF_LEN, (int)segment_tell(r_handle));
+      printf( "read buf[%d][%d][%d] read_len= %d BUF_LEN=%d offset=%d\r\n", i, buf[i], buf[i + 1], read_len, BUF_LEN, (int)segment_tell_position(r_handle));
   }
-  printf( "read offset[%d]\r\n", (int)segment_tell(r_handle));
+  printf( "read offset[%d]\r\n", (int)segment_tell_position(r_handle));
   //continus to write data
   segment_write(w_handle, buf, BUF_LEN);
-  printf( "read offset[%d]\r\n",(int)segment_tell(r_handle));
+  printf( "read offset[%d]\r\n",(int)segment_tell_position(r_handle));
   segment_write(w_handle, buf, BUF_LEN);
   //dump file len read pts pos
-  printf( "read offset[%d]\r\n",(int)segment_tell(r_handle));
+  printf( "read offset[%d]\r\n",(int)segment_tell_position(r_handle));
   segment_close(w_handle);
   segment_close(r_handle);
   return ret;
