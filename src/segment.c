@@ -19,6 +19,7 @@ typedef struct {
   FILE            *dat_fp;                            /**< Information file fd*/
   uint64_t        first_pts;                          /**< First pts value, use for write mode*/
   uint64_t        last_pts;                           /**< Last pts value, use for write mode*/
+  uint64_t        cur_time;                           /**< Current time save in index file */
 } Segment_Context_t;
 
 /**\brief Segment file type*/
@@ -187,20 +188,24 @@ int segment_update_pts(Segment_Handle_t handle, uint64_t pts, loff_t offset)
   DVR_RETURN_IF_FALSE(p_ctx->index_fp);
 
   if (p_ctx->first_pts == ULLONG_MAX) {
+    DVR_DEBUG(1, "%s first pcr:%llu", __func__, pts);
     p_ctx->first_pts = pts;
   }
   memset(buf, 0, sizeof(buf));
   if (p_ctx->last_pts == ULLONG_MAX) {
     /*Last pts is init value*/
     sprintf(buf, "{time=%llu, offset=%lld}\n", pts - p_ctx->first_pts, offset);
+    p_ctx->cur_time = pts - p_ctx->first_pts;
   } else {
     /*Last pts has valid value*/
     if (pts - p_ctx->last_pts > MAX_PTS_THRESHOLD) {
       /*Current pts has a transition*/
-      sprintf(buf, "{time=%llu, offset=%lld}\n", p_ctx->last_pts - p_ctx->first_pts, offset);
+      DVR_DEBUG(1, "Current pts has a transition, [%llu, %llu, %llu]",
+          p_ctx->first_pts, p_ctx->last_pts, pts);
     } else {
       /*This is a normal pts, record it*/
-      sprintf(buf, "{time=%llu, offset=%lld}\n", pts - p_ctx->first_pts, offset);
+      p_ctx->cur_time += (pts - p_ctx->last_pts);
+      sprintf(buf, "{time=%llu, offset=%lld}\n", p_ctx->cur_time, offset);
     }
   }
 
@@ -309,7 +314,7 @@ uint64_t segment_tell_time(Segment_Handle_t handle)
     }
 
     memset(buf, 0, sizeof(buf));
-    DVR_DEBUG(1, "time=%llu, offset=%lld, position=%lld\n", pts, offset, position);
+    //DVR_DEBUG(1, "time=%llu, offset=%lld, position=%lld\n", pts, offset, position);
     if (position < offset) {
       return pts;
     }
@@ -318,6 +323,7 @@ uint64_t segment_tell_time(Segment_Handle_t handle)
   return DVR_FAILURE;
 }
 
+/* Should consider the case of cut power, todo... */
 int segment_store_info(Segment_Handle_t handle, Segment_StoreInfo_t *p_info)
 {
   Segment_Context_t *p_ctx;
@@ -366,6 +372,7 @@ int segment_store_info(Segment_Handle_t handle, Segment_StoreInfo_t *p_info)
   return DVR_SUCCESS;
 }
 
+/* Should consider the case of cut power, todo... */
 int segment_load_info(Segment_Handle_t handle, Segment_StoreInfo_t *p_info)
 {
   Segment_Context_t *p_ctx;

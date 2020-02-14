@@ -80,6 +80,7 @@ typedef DVR_Result_t (*DVR_RecordEventFunction_t) (DVR_RecordEvent_t event, void
 /**\brief DVR record open parameters*/
 typedef struct {
   int                         dmx_dev_id;         /**< Demux device id*/
+  int                         data_from_memory;   /**< Indicate record data from demux or memory*/
   DVR_RecordFlag_t            flags;              /**< DVR record flag*/
   DVR_RecordEventFunction_t   event_fn;           /**< DVR record event callback function*/
   void                        *event_userdata;    /**< DVR event userdata*/
@@ -157,6 +158,23 @@ int dvr_record_stop_segment(DVR_RecordHandle_t handle, DVR_RecordSegmentInfo_t *
  * \return error code on failure
  */
 int dvr_record_resume_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t *params, uint64_t *p_resume_size);
+
+/**\brief DVR record write data, used for VOD mode
+ * \param[in] handle, DVR recording session handle
+ * \param[in] buffer, The redcord data buffer
+ * \param[in] len, The record data length
+ * \return DVR_SUCCESS on success
+ * \return error code on failure
+ */
+int dvr_record_write(DVR_RecordHandle_t handle, void *buffer, uint32_t len);
+
+/**\brief DVR record get status
+ * \param[in] handle, DVR recording session handle
+ * \param[out] p_status, Return current DVR record status
+ * \return DVR_SUCCESS on success
+ * \return error code on failure
+ */
+int dvr_record_get_status(DVR_RecordHandle_t handle, DVR_RecordStatus_t *p_status);
 
 #ifdef __cplusplus
 }

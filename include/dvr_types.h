@@ -65,6 +65,16 @@ extern "C"
     }\
   } while (0);
 
+/**Return DVR_FAILURE and unlock the mutex when the expression is false.*/
+#define DVR_RETURN_IF_FALSE_WITH_UNLOCK(expr, lock)\
+  do {\
+    if (!(expr)) {\
+      DVR_DEBUG(1, "%s-%d failed", __func__, __LINE__);\
+      pthread_mutex_unlock(lock);\
+      return DVR_FAILURE;\
+    }\
+  } while (0);
+
 /**\brief Boolean value*/
 typedef uint8_t        DVR_Bool_t;
 
