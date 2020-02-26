@@ -86,12 +86,19 @@ loff_t segment_seek(Segment_Handle_t handle, uint64_t time);
  */
 loff_t segment_tell_position(Segment_Handle_t handle);
 
-/**\brief Tell the current time for the giving segment
+/**\brief Tell the current time for the giving segment, used for playback
  * \param[in] handle, Segment handle
  * \return The segment current time on success
  * \return error code on failure
  */
-uint64_t segment_tell_time(Segment_Handle_t handle);
+uint64_t segment_tell_current_time(Segment_Handle_t handle);
+
+/**\brief Tell the total time for the giving segment
+ * \param[in] handle, Segment handle
+ * \return The segment total time on success
+ * \return error code on failure
+ */
+uint64_t segment_tell_total_time(Segment_Handle_t handle);
 
 /**\brief Store the segment information to a file
  * \param[in] handle, The segment handle
