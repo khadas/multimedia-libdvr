@@ -191,7 +191,7 @@ void *record_thread(void *arg)
     p_ctx->segment_info.size += len;
     /*Duration need use pcr to calculate, todo...*/
     if (index_type == DVR_INDEX_TYPE_PCR) {
-      p_ctx->segment_info.duration = segment_tell_time(p_ctx->segment_handle);
+      p_ctx->segment_info.duration = segment_tell_total_time(p_ctx->segment_handle);
     } else if (index_type == DVR_INDEX_TYPE_LOCAL_CLOCK) {
       clock_gettime(CLOCK_MONOTONIC, &end_ts);
       p_ctx->segment_info.duration = (end_ts.tv_sec*1000 + end_ts.tv_nsec/1000000) -
@@ -486,7 +486,7 @@ int dvr_record_stop_segment(DVR_RecordHandle_t handle, DVR_RecordSegmentInfo_t *
 
   p_ctx->state = DVR_RECORD_STATE_STOPPED;
   if (p_ctx->is_vod) {
-    p_ctx->segment_info.duration = segment_tell_time(p_ctx->segment_handle);
+    p_ctx->segment_info.duration = segment_tell_total_time(p_ctx->segment_handle);
     p_ctx->segment_info.duration = 10*1000; //debug, should delete it
   } else {
     ret = record_device_stop(p_ctx->dev_handle);

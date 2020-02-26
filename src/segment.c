@@ -275,7 +275,7 @@ loff_t segment_tell_position(Segment_Handle_t handle)
   return lseek64(p_ctx->ts_fd, 0, SEEK_CUR);
 }
 
-uint64_t segment_tell_time(Segment_Handle_t handle)
+uint64_t segment_tell_current_time(Segment_Handle_t handle)
 {
   Segment_Context_t *p_ctx;
   char buf[256];
@@ -321,6 +321,60 @@ uint64_t segment_tell_time(Segment_Handle_t handle)
   }
 
   return DVR_FAILURE;
+}
+
+uint64_t segment_tell_total_time(Segment_Handle_t handle)
+{
+  Segment_Context_t *p_ctx;
+  char buf[256];
+  char last_buf[256];
+  char value[256];
+  uint64_t pts = ULLONG_MAX;
+  loff_t offset = 0, position = 0;
+  char *p1, *p2;
+  int line = 0;
+
+  p_ctx = (Segment_Context_t *)handle;
+  DVR_RETURN_IF_FALSE(p_ctx);
+  DVR_RETURN_IF_FALSE(p_ctx->index_fp);
+  DVR_RETURN_IF_FALSE(p_ctx->ts_fd);
+
+  memset(buf, 0, sizeof(buf));
+  memset(last_buf, 0, sizeof(last_buf));
+  position = lseek64(p_ctx->ts_fd, 0, SEEK_CUR);
+  DVR_RETURN_IF_FALSE(position != -1);
+
+  DVR_RETURN_IF_FALSE(fseek(p_ctx->index_fp, -100L, SEEK_END) != -1);
+  /* Save last line buffer */
+  while (fgets(buf, sizeof(buf), p_ctx->index_fp) != NULL) {
+    memset(last_buf, 0, sizeof(last_buf));
+    memcpy(last_buf, buf, strlen(buf));
+    memset(buf, 0, sizeof(buf));
+    line++;
+  }
+
+  /* Extract time value */
+  memset(value, 0, sizeof(value));
+  if ((p1 = strstr(last_buf, "time="))) {
+    p1 += 5;
+    if ((p2 = strstr(last_buf, ","))) {
+      memcpy(value, p1, p2 - p1);
+    }
+    pts = strtoull(value, NULL, 10);
+  }
+
+  memset(value, 0, sizeof(value));
+  if ((p1 = strstr(last_buf, "offset="))) {
+    p1 += 7;
+    if ((p2 = strstr(last_buf, "}"))) {
+      memcpy(value, p1, p2 - p1);
+    }
+    offset = strtoull(value, NULL, 10);
+  }
+  if (line < 2)
+    DVR_DEBUG(1, "time=%llu, offset=%lld, position=%lld, line:%d\n", pts, offset, position, line);
+
+  return (pts == ULLONG_MAX ? DVR_FAILURE : pts);
 }
 
 /* Should consider the case of cut power, todo... */
