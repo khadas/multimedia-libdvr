@@ -167,6 +167,8 @@ int playback_device_close(Playback_DeviceHandle_t handle) {
   Playback_Device_t *dev = (Playback_Device_t *) handle;
   char buf[128];
   dev->isopen = 0;
+  DVR_DEBUG(1, "start Closing mpts");
+
   if (dev->fd != -1)
   {
       DVR_DEBUG(1, "Closing mpts");
@@ -192,19 +194,32 @@ int playback_device_audio_start(Playback_DeviceHandle_t handle, Playback_DeviceA
   int val = 0;
 
   val = param->fmt;
-  if (ioctl(dev->fd, AMSTREAM_IOC_AFORMAT, val) == -1)
+  if (dev == NULL || dev->fd < 0) {
+    DVR_DEBUG(1, "dev is NULL");
+    return DVR_PLAYBACK_ERR_SYS;
+  }
+  if (dev->fd < 0) {
+      DVR_DEBUG(1, "dev fd is < 0");
+      return DVR_PLAYBACK_ERR_SYS;
+  }
+
+  DVR_DEBUG(1, "audio start fmt");
+
+ /* if (ioctl(dev->fd, AMSTREAM_IOC_AFORMAT, val) == -1)
   {
       DVR_DEBUG(1, "set audio format failed");
       return DVR_PLAYBACK_ERR_SYS;
   }
+  DVR_DEBUG(1, "audio start pid");
 
   val = param->pid;
   if (ioctl(dev->fd, AMSTREAM_IOC_AID, val) == -1)
   {
       DVR_DEBUG(1, "set audio PID failed");
       return DVR_PLAYBACK_ERR_SYS;
-  }
+  }*/
   //start play
+  DVR_DEBUG(1, "audio start");
   if (ioctl(dev->fd, AMSTREAM_IOC_PORT_INIT, 0) == -1)
   {
       DVR_DEBUG(1, "amport init failed");
@@ -229,15 +244,10 @@ int playback_device_audio_start(Playback_DeviceHandle_t handle, Playback_DeviceA
 int playback_device_audio_stop(Playback_DeviceHandle_t handle) {
 
   Playback_Device_t *dev = (Playback_Device_t *) handle;
-
-  if (dev->fd != -1)
-      close(dev->fd);
-  if (dev->vid_fd != -1)
-      close(dev->vid_fd);
   //adec_stop_decode
   dev->adec_start = 0;
   dev->has_audio = 0;
-  DVR_DEBUG(1, "audio stop end");
+  DVR_DEBUG(1, "dev audio stop end---");
   return DVR_SUCCESS;
 }
 
@@ -295,7 +305,7 @@ int playback_device_video_stop(Playback_DeviceHandle_t handle) {
   if (dev->vid_fd == -1) {
      return 0;
   }
-  DVR_DEBUG(1, "Closing video");
+  DVR_DEBUG(1, "dev Closing video");
   if (dev->vid_fd != -1)
       close(dev->vid_fd);
   dev->vid_fd = -1;
@@ -400,20 +410,20 @@ ssize_t playback_device_write(Playback_DeviceHandle_t handle, Playback_DeviceWBu
         DVR_DEBUG(1, "timeshift write error");
   }
 inject_end:
-    DVR_DEBUG(1, "timeshift write [%d]", ret);
+  //DVR_DEBUG(1, "timeshift write [%d]", ret);
 
   return real_written;
 }
 
 /**Miute/unmute the audio output.*/
 int playback_device_mute_audio (Playback_DeviceHandle_t handle, int mute) {
-
+  DVR_DEBUG(1, "audio mute %d", mute);
   return 0;
 }
 
 /**Miute/unmute the video output.*/
 int playback_device_mute_video (Playback_DeviceHandle_t handle, int mute) {
-
+  DVR_DEBUG(1, "video mute %d", mute);
   return 0;
 }
 
@@ -422,12 +432,14 @@ int playback_device_trick_mode (Playback_DeviceHandle_t handle, int set) {
   if (set == 0) {
       //clear
       if (dev->vid_fd > 0) {
-          ioctl(dev->vid_fd, AMSTREAM_IOC_TRICKMODE, TRICKMODE_NONE);
+        DVR_DEBUG(1, "set trick mode NOne");
+        ioctl(dev->vid_fd, AMSTREAM_IOC_TRICKMODE, TRICKMODE_NONE);
       }
   } else {
       //set trick mode
       if (dev->vid_fd > 0) {
-          ioctl(dev->vid_fd, AMSTREAM_IOC_TRICKMODE, TRICKMODE_FFFB);
+        DVR_DEBUG(1, "set trick mode fffb");
+        ioctl(dev->vid_fd, AMSTREAM_IOC_TRICKMODE, TRICKMODE_FFFB);
       }
   }
   return 0;

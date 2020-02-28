@@ -87,6 +87,15 @@ typedef struct
 /**Playback handle.*/
 typedef void* DVR_PlaybackHandle_t;
 
+
+/**\brief playback error reason*/
+typedef enum
+{
+  DVR_PLAYBACK_PID_ERROR,            /**< uninit state */
+  DVR_PLAYBACK_FMT_ERROR           /**< fmt not surport backword */
+} DVR_PlaybackError_t;
+
+
 /**\brief playback play state*/
 typedef enum
 {
@@ -104,12 +113,45 @@ typedef struct
 {
   DVR_PlaybackPlayState_t state;  /**< playback play state */
   uint64_t segment_id;                 /**< playback ongoing segment index */
-  int time_cur;                   /**< playback cur time,0 <--> time_end Ms*/
-  int time_end;                   /**< playback ongoing segment dur,Ms */
+  uint32_t time_cur;                   /**< playback cur time,0 <--> time_end Ms*/
+  uint32_t time_end;                   /**< playback ongoing segment dur,Ms */
   DVR_PlaybackPids_t pids;        /**< playback played pids */
   int                    speed;  /**< playback speed */
   DVR_PlaybackSegmentFlag_t flags; /**< playback played segment flag */
 } DVR_PlaybackStatus_t;
+
+/**\brief DVR playback event*/
+typedef enum {
+  DVR_PLAYBACK_EVENT_ERROR              = 0x1000,   /**< Signal a critical playback error*/
+  DVR_PLAYBACK_EVENT_TRANSITION_OK    ,             /**< transition ok*/
+  DVR_PLAYBACK_EVENT_TRANSITION_FAILED,             /**< transition failed*/
+  DVR_PLAYBACK_EVENT_KEY_FAILURE,                   /**< key failure*/
+  DVR_PLAYBACK_EVENT_NO_KEY,                        /**< no key*/
+  DVR_PLAYBACK_EVENT_REACHED_BEGIN     ,            /**< reached begin*/
+  DVR_PLAYBACK_EVENT_REACHED_END                    /**< reached end*/
+} DVR_PlaybackEvent_t;
+
+/**\brief DVR playback event notify function*/
+typedef struct
+{
+  DVR_PlaybackEvent_t  event;      /**< event type*/
+  DVR_PlaybackStatus_t play_status;  /**< play status*/
+  union
+  {
+    uint8_t               unused;
+    uint8_t          error_reason;    /**< error reason*/
+    struct
+    {
+      uint64_t         segment_id;      /**< error segment id*/
+      uint32_t         key_data_id;    /**< key data id*/
+      uint8_t          error;         /**< error*/
+    } transition_failed_data;
+  } info;
+} DVR_Play_Notify_t;
+
+/**\brief DVR playback event notify function*/
+typedef DVR_Result_t (*DVR_PlaybackEventFunction_t) (DVR_PlaybackEvent_t event, void *params, void *userdata);
+
 
 /**\brief playback open params*/
 typedef struct
@@ -121,6 +163,9 @@ typedef struct
   DVR_CryptoFunction_t   crypto_fn;       /**< Crypto function.*/
   void                  *crypto_data;     /**< Crypto function's user data.*/
   DVR_Bool_t             has_pids;        /**< has video audo pid fmt info*/
+  DVR_PlaybackEventFunction_t  event_fn;           /**< playback event callback function*/
+  void                        *event_userdata;    /**< event userdata*/
+  size_t                      notification_size;  /**< playback notification size, playback moudle would send a notifaction when the size of current segment is multiple of this value. Put 0 in this argument if you don't want to receive the notification*/
 } DVR_PlaybackOpenParams_t;
 
 /**\brief playback play state*/
@@ -165,8 +210,11 @@ typedef struct
 typedef struct
 {
   Playback_DeviceHandle_t    handle;             /**< device handle */
+  DVR_Bool_t                 segment_is_open;  /**<segment is opend*/
   uint64_t                   cur_segment_id;        /**< Current segment id*/
   DVR_PlaybackSegmentInfo_t  cur_segment;          /**< Current playing segment*/
+  uint64_t                   last_segment_id;        /**< last segment id*/
+  DVR_PlaybackSegmentInfo_t  last_segment;          /**< last playing segment*/
   struct list_head           segment_list;         /**< segment list head*/
   pthread_t                  playback_thread;    /**< playback thread*/
   pthread_mutex_t            lock;               /**< playback lock*/
@@ -178,6 +226,7 @@ typedef struct
   int                        is_running;           /**< playback htread is runing*/
   DVR_PlaybackCmdInfo_t      cmd;           /**< playback cmd*/
   int                        offset;         /**< segment read offset*/
+  uint32_t                   dur;         /**< segment dur*/
   Segment_Handle_t           r_handle;           /**< playback current segment handle*/
   DVR_PlaybackOpenParams_t   openParams;           /**< playback openParams*/
   DVR_Bool_t                 has_video;    /**< has video playing*/
@@ -302,7 +351,7 @@ int dvr_playback_pause(DVR_PlaybackHandle_t handle, DVR_Bool_t flush);
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int dvr_playback_seek(DVR_PlaybackHandle_t handle, uint64_t segment_id, int time_offset);
+int dvr_playback_seek(DVR_PlaybackHandle_t handle, uint64_t segment_id, uint32_t time_offset);
 
 /**\brief Set play speed
  * \param[in] handle playback handle

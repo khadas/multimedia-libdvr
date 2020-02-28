@@ -92,10 +92,10 @@ int main(int argc, char **argv)
   Playback_DeviceHandle_t device_handle;
   Playback_DeviceOpenParams_t dev_params;
 
-  int vpid = 1019, apid = 1018, vfmt = 0, afmt = 0;
+  int vpid = 2064, apid = 2068, vfmt = DVR_VIDEO_FORMAT_MPEG1, afmt = DVR_AUDIO_FORMAT_MPEG;
   int bsize = 256 * 1024;
   int pause = 0;
-  int segid = 1;
+  int segid = 0;
   int dmx = 0;
   int i;
 
@@ -134,17 +134,17 @@ int main(int argc, char **argv)
   dvr_playback_open(&handle, &params);
   //add chunk info
   DVR_PlaybackSegmentInfo_t info;
+  memset(&info, 0, sizeof(DVR_PlaybackSegmentInfo_t));
   info.segment_id = segid;
   info.flags = 1;
-  memcpy(info.location, "/data/data/", 12);
+  //strncpy(info.location, "/data/pvr/tsthal_rec1", 21);
+  memcpy(info.location, "/data/pvr/tsthal_rec1", 21);
   info.pids.video.pid = vpid;
   info.pids.video.format = vfmt;
+  info.pids.video.type = DVR_STREAM_TYPE_VIDEO;
   info.pids.audio.pid = apid;
   info.pids.audio.format = afmt;
-  // info.pids.pcr.pid = 0x30;
-  // info.pids.pcr.format = 0x30;
-  // info.pids.ad.pid = 0x31;
-  // info.pids.ad.format = 0x31;
+  info.pids.audio.type = DVR_STREAM_TYPE_AUDIO;
   dvr_playback_add_segment(handle, &info);
   start_playback_test(handle);
   dvr_playback_stop(handle, 0);

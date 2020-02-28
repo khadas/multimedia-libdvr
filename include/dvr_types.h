@@ -134,7 +134,9 @@ typedef enum {
   DVR_AUDIO_FORMAT_MPEG, /**< MPEG audio*/
   DVR_AUDIO_FORMAT_AC3,  /**< AC3 audio.*/
   DVR_AUDIO_FORMAT_EAC3, /**< EAC3 audio.*/
-  DVR_AUDIO_FORMAT_DTS   /**< DTS audio.*/
+  DVR_AUDIO_FORMAT_DTS  , /**< DTS audio.*/
+  DVR_AUDIO_FORMAT_AAC, /**< AAC audio.*/
+  DVR_AUDIO_FORMAT_HEAAC /**<HE AAC audio.*/
 } DVR_AudioFormat_t;
 
 /**Buffer type.*/

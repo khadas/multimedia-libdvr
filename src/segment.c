@@ -223,7 +223,7 @@ loff_t segment_seek(Segment_Handle_t handle, uint64_t time)
   char buf[256];
   char value[256];
   uint64_t pts;
-  loff_t offset;
+  loff_t offset = 0LL;
   char *p1, *p2;
 
   p_ctx = (Segment_Context_t *)handle;
@@ -237,7 +237,7 @@ loff_t segment_seek(Segment_Handle_t handle, uint64_t time)
   while (fgets(buf, sizeof(buf), p_ctx->index_fp) != NULL) {
     memset(value, 0, sizeof(value));
     if ((p1 = strstr(buf, "time="))) {
-      p1 += 4;
+      p1 += 5;
       if ((p2 = strstr(buf, ","))) {
         memcpy(value, p1, p2 - p1);
       }
@@ -254,8 +254,9 @@ loff_t segment_seek(Segment_Handle_t handle, uint64_t time)
     }
 
     memset(buf, 0, sizeof(buf));
-    DVR_DEBUG(1, "time=%llu, offset=%lld\n", pts, offset);
-    if (time < pts) {
+    //DVR_DEBUG(1, "seek time=%llu, offset=%lld\n", pts, offset);
+    if (time <= pts) {
+      DVR_DEBUG(1, "seek time=%llu, offset=%lld time--%llu\n", pts, offset, time);
       DVR_RETURN_IF_FALSE(lseek64(p_ctx->ts_fd, offset, SEEK_SET) != -1);
       return offset;
     }
@@ -297,7 +298,7 @@ uint64_t segment_tell_current_time(Segment_Handle_t handle)
   while (fgets(buf, sizeof(buf), p_ctx->index_fp) != NULL) {
     memset(value, 0, sizeof(value));
     if ((p1 = strstr(buf, "time="))) {
-      p1 += 4;
+      p1 += 5;
       if ((p2 = strstr(buf, ","))) {
         memcpy(value, p1, p2 - p1);
       }
@@ -314,7 +315,7 @@ uint64_t segment_tell_current_time(Segment_Handle_t handle)
     }
 
     memset(buf, 0, sizeof(buf));
-    //DVR_DEBUG(1, "time=%llu, offset=%lld, position=%lld\n", pts, offset, position);
+    //DVR_DEBUG(1, "tell cur time=%llu, offset=%lld, position=%lld\n", pts, offset, position);
     if (position < offset) {
       return pts;
     }
@@ -372,7 +373,7 @@ uint64_t segment_tell_total_time(Segment_Handle_t handle)
     offset = strtoull(value, NULL, 10);
   }
   if (line < 2)
-    DVR_DEBUG(1, "time=%llu, offset=%lld, position=%lld, line:%d\n", pts, offset, position, line);
+    DVR_DEBUG(1, "totle time=%llu, offset=%lld, position=%lld, line:%d\n", pts, offset, position, line);
 
   return (pts == ULLONG_MAX ? DVR_FAILURE : pts);
 }
@@ -547,7 +548,7 @@ loff_t segment_dump_pts(Segment_Handle_t handle)
     printf("buf[%s]\n", buf);
     memset(value, 0, sizeof(value));
     if ((p1 = strstr(buf, "time="))) {
-      p1 += 4;
+      p1 += 5;
       if ((p2 = strstr(buf, ","))) {
         memcpy(value, p1, p2 - p1);
       }
