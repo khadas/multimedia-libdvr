@@ -17,7 +17,6 @@
  ***************************************************************************/
 #include "stdio.h"
 #include "dvr_playback.h"
-#include "playback_device.h"
 
 static void display_usage(void)
 {
@@ -89,8 +88,8 @@ int start_playback_test(DVR_PlaybackHandle_t handle)
 
 int main(int argc, char **argv)
 {
-  Playback_DeviceHandle_t device_handle;
-  Playback_DeviceOpenParams_t dev_params;
+  am_tsplayer_handle device_handle;
+  am_tsplayer_init_params dev_params;
 
   int vpid = 2064, apid = 2068, vfmt = DVR_VIDEO_FORMAT_MPEG1, afmt = DVR_AUDIO_FORMAT_MPEG;
   int bsize = 256 * 1024;
@@ -121,15 +120,15 @@ int main(int argc, char **argv)
   printf("video:%d:%d(pid/fmt) audio:%d:%d(pid/fmt)\n", vpid, vfmt, apid, afmt);
   printf("segid:%d bsize:%d dmx:%d\n", segid, bsize, dmx);
   printf("pause:%d\n", pause);
-  dev_params.dmx = dmx;
+  dev_params.dmx_dev_id = dmx;
 
-  int ret = playback_device_open(&device_handle, &dev_params);
+  int ret = AmTsPlayer_create(dev_params, &device_handle);
 
   DVR_PlaybackHandle_t handle = 0;
   DVR_PlaybackOpenParams_t params;
   params.dmx_dev_id = dmx;
   params.block_size = bsize;
-  params.playback_handle = device_handle;
+  params.player_handle = device_handle;
   printf("open dvr playback device\r\n");
   dvr_playback_open(&handle, &params);
   //add chunk info
@@ -149,7 +148,7 @@ int main(int argc, char **argv)
   start_playback_test(handle);
   dvr_playback_stop(handle, 0);
   dvr_playback_close(handle);
-  playback_device_close(device_handle);
+  AmTsPlayer_release(device_handle);
   return ret;
 }
 

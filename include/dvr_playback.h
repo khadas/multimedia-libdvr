@@ -8,7 +8,7 @@
 #include "list.h"
 #include "dvr_types.h"
 #include "segment.h"
-#include "playback_device.h"
+#include "AmTsPlayer.h"
 #include "dvr_types.h"
 #include "dvr_crypto.h"
 
@@ -66,13 +66,33 @@ typedef enum
   DVR_PLAYBACK_FAST_BACKWARD = 1,       /**< fast backward */
 } DVR_PlaybackSpeedMode_t;
 
+/**\brief playback speed*/
+typedef enum
+{
+  PLAYBACK_SPEED_S16 = 6,         /**<slow 1/16 speed*/
+  PLAYBACK_SPEED_S8 = 12,          /**<slow 1/8 speed*/
+  PLAYBACK_SPEED_S4 = 26,          /**<slow 1/4 speed*/
+  PLAYBACK_SPEED_S2 = 50,          /**<slow 1/2 speed*/
+  PLAYBACK_SPEED_X1 = 100,          /**< X 1 normal speed*/
+  PLAYBACK_SPEED_X2 = 200,          /**< X 2 speed*/
+  PLAYBACK_SPEED_X4 = 400,          /**< X 4 speed*/
+  PLAYBACK_SPEED_X8 = 800,          /**< X 8 speed*/
+  PLAYBACK_SPEED_X16 = 1600,         /**< X 16 speed*/
+  PLAYBACK_SPEED_X32    = 3200,         /**< X 32 speed*/
+  PlayBack_Speed_MAX,
+} Playback_SpeedValue_t;
+
+typedef struct Playback_Speeds_s {
+  int speed; /**< playback speed*/
+} Playback_Speeds_t;
 
 /**\brief playback play speed*/
 typedef struct
 {
-  Playback_DeviceSpeeds_t speed;  /**< playback speed */
+  Playback_Speeds_t speed;  /**< playback speed */
   DVR_PlaybackSpeedMode_t mode;   /**< playback 0: fast forword or 1: fast backword*/
 } DVR_PlaybackSpeed_t;
+
 
 /**Maximum supported speed modes.*/
 #define DVR_MAX_SUPPORTED_SPEEDS  32
@@ -99,8 +119,6 @@ typedef enum
 /**\brief playback play state*/
 typedef enum
 {
-  DVR_PLAYBACK_STATE_UNINIT,      /**< uninit state */
-  DVR_PLAYBACK_STATE_INIT,        /**< init state, open device */
   DVR_PLAYBACK_STATE_START,       /**< start play */
   DVR_PLAYBACK_STATE_STOP,        /**< stop */
   DVR_PLAYBACK_STATE_PAUSE,       /**< pause */
@@ -128,7 +146,8 @@ typedef enum {
   DVR_PLAYBACK_EVENT_KEY_FAILURE,                   /**< key failure*/
   DVR_PLAYBACK_EVENT_NO_KEY,                        /**< no key*/
   DVR_PLAYBACK_EVENT_REACHED_BEGIN     ,            /**< reached begin*/
-  DVR_PLAYBACK_EVENT_REACHED_END                    /**< reached end*/
+  DVR_PLAYBACK_EVENT_REACHED_END,                    /**< reached end*/
+  DVR_PLAYBACK_EVENT_FIRST_FRAME                    /**< first frame*/
 } DVR_PlaybackEvent_t;
 
 /**\brief DVR playback event notify function*/
@@ -159,7 +178,7 @@ typedef struct
   int                    dmx_dev_id;      /**< playback used dmx device index*/
   int                    block_size;      /**< playback inject block size*/
   DVR_Bool_t             is_timeshift;    /**< 0:playback mode, 1 : is timeshift mode*/
-  Playback_DeviceHandle_t playback_handle; /**< Playback device handle.*/
+  am_tsplayer_handle     player_handle;   /**< am tsplayer handle.*/
   DVR_CryptoFunction_t   crypto_fn;       /**< Crypto function.*/
   void                  *crypto_data;     /**< Crypto function's user data.*/
   DVR_Bool_t             has_pids;        /**< has video audo pid fmt info*/
@@ -209,7 +228,7 @@ typedef struct
 /**\brief playback struct*/
 typedef struct
 {
-  Playback_DeviceHandle_t    handle;             /**< device handle */
+  am_tsplayer_handle         handle;             /**< tsplayer handle */
   DVR_Bool_t                 segment_is_open;  /**<segment is opend*/
   uint64_t                   cur_segment_id;        /**< Current segment id*/
   DVR_PlaybackSegmentInfo_t  cur_segment;          /**< Current playing segment*/
@@ -218,6 +237,7 @@ typedef struct
   struct list_head           segment_list;         /**< segment list head*/
   pthread_t                  playback_thread;    /**< playback thread*/
   pthread_mutex_t            lock;               /**< playback lock*/
+  pthread_mutex_t            segment_lock;      /**< playback segment lock*/
   pthread_cond_t             cond;               /**< playback cond*/
   void                       *user_data;         /**< playback userdata, used to send event*/
   int                        speed;           /**< playback speed*/
@@ -235,6 +255,7 @@ typedef struct
   int                        fffb_start;    /**< fffb start time ms*/
   int                        fffb_current;  /**< fffb current time*/
   int                        fffb_start_pcr;     /**< fffb start pcr time*/
+  int                        next_fffb_time;
   int                        seek_time;
 } DVR_Playback_t;
 
@@ -312,7 +333,7 @@ int dvr_playback_stop(DVR_PlaybackHandle_t handle, DVR_Bool_t clear);
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int dvr_playback_audio_start(DVR_PlaybackHandle_t handle, Playback_DeviceAudioParams_t *param);
+int dvr_playback_audio_start(DVR_PlaybackHandle_t handle, am_tsplayer_audio_params *param);
 
 /**\brief Stop play audio
  * \param[in] handle playback handle
@@ -327,7 +348,7 @@ int dvr_playback_audio_stop(DVR_PlaybackHandle_t handle);
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int dvr_playback_video_start(DVR_PlaybackHandle_t handle, Playback_DeviceVideoParams_t *param);
+int dvr_playback_video_start(DVR_PlaybackHandle_t handle, am_tsplayer_video_params *param);
 
 /**\brief Stop play video
  * \param[in] handle playback handle
