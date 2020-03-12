@@ -151,6 +151,8 @@ void *record_thread(void *arg)
   DVR_RecordStatus_t record_status;
   int has_pcr;
   int index_type = DVR_INDEX_TYPE_INVALID;
+  time_t pre_time = 0;
+  #define DVR_STORE_INFO_TIME (1000)
 
   buf = (uint8_t *)malloc(block_size);
   if (!buf) {
@@ -192,17 +194,25 @@ void *record_thread(void *arg)
     /*Duration need use pcr to calculate, todo...*/
     if (index_type == DVR_INDEX_TYPE_PCR) {
       p_ctx->segment_info.duration = segment_tell_total_time(p_ctx->segment_handle);
+      if (pre_time == 0)
+       pre_time = p_ctx->segment_info.duration;
     } else if (index_type == DVR_INDEX_TYPE_LOCAL_CLOCK) {
       clock_gettime(CLOCK_MONOTONIC, &end_ts);
       p_ctx->segment_info.duration = (end_ts.tv_sec*1000 + end_ts.tv_nsec/1000000) -
         (start_ts.tv_sec*1000 + start_ts.tv_nsec/1000000);
+            if (pre_time == 0)
+       pre_time = p_ctx->segment_info.duration;
       segment_update_pts(p_ctx->segment_handle, p_ctx->segment_info.duration, pos);
     } else {
       DVR_DEBUG(1, "%s can NOT do time index", __func__);
     }
     p_ctx->segment_info.nb_packets = p_ctx->segment_info.size/188;
 
-    /*Event notification*/
+    if (p_ctx->segment_info.duration - pre_time > DVR_STORE_INFO_TIME) {
+      pre_time = p_ctx->segment_info.duration + DVR_STORE_INFO_TIME;
+      segment_store_info(p_ctx->segment_handle, &(p_ctx->segment_info));
+    }
+     /*Event notification*/
     if (p_ctx->notification_size &&
         p_ctx->event_notify_fn &&
         !(p_ctx->segment_info.size % p_ctx->notification_size) &&

@@ -124,6 +124,14 @@ int segment_load_info(Segment_Handle_t handle, Segment_StoreInfo_t *p_info);
  */
 int segment_delete(const char *location, uint64_t segment_id);
 
+/**\brief check the segment is ongoing file
+ * \param[in] handle, The segment handle
+ * \return DVR_SUCCESS On success
+ * \return Error code not ongoing
+ */
+int segment_ongoing(Segment_Handle_t handle);
+
+
 #ifdef __cplusplus
 }
 #endif

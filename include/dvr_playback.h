@@ -69,16 +69,11 @@ typedef enum
 /**\brief playback speed*/
 typedef enum
 {
-  PLAYBACK_SPEED_S16 = 6,         /**<slow 1/16 speed*/
-  PLAYBACK_SPEED_S8 = 12,          /**<slow 1/8 speed*/
-  PLAYBACK_SPEED_S4 = 26,          /**<slow 1/4 speed*/
   PLAYBACK_SPEED_S2 = 50,          /**<slow 1/2 speed*/
   PLAYBACK_SPEED_X1 = 100,          /**< X 1 normal speed*/
   PLAYBACK_SPEED_X2 = 200,          /**< X 2 speed*/
   PLAYBACK_SPEED_X4 = 400,          /**< X 4 speed*/
   PLAYBACK_SPEED_X8 = 800,          /**< X 8 speed*/
-  PLAYBACK_SPEED_X16 = 1600,         /**< X 16 speed*/
-  PLAYBACK_SPEED_X32    = 3200,         /**< X 32 speed*/
   PlayBack_Speed_MAX,
 } Playback_SpeedValue_t;
 
@@ -257,6 +252,7 @@ typedef struct
   int                        fffb_start_pcr;     /**< fffb start pcr time*/
   int                        next_fffb_time;
   int                        seek_time;
+  DVR_Bool_t                 auto_pause;
 } DVR_Playback_t;
 
 /**\brief Open an dvr palyback

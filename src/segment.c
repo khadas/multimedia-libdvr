@@ -17,9 +17,12 @@ typedef struct {
   int             ts_fd;                              /**< Segment ts file fd*/
   FILE            *index_fp;                          /**< Time index file fd*/
   FILE            *dat_fp;                            /**< Information file fd*/
+  FILE        *ongoing_fp;                            /**< Ongoing file fd, used to verify timedhift mode*/
   uint64_t        first_pts;                          /**< First pts value, use for write mode*/
   uint64_t        last_pts;                           /**< Last pts value, use for write mode*/
   uint64_t        cur_time;                           /**< Current time save in index file */
+  uint64_t      segment_id;
+  char            location[MAX_SEGMENT_PATH_SIZE];/**< Current time save in index file */
 } Segment_Context_t;
 
 /**\brief Segment file type*/
@@ -27,6 +30,7 @@ typedef enum {
   SEGMENT_FILE_TYPE_TS,                       /**< Used for store TS data*/
   SEGMENT_FILE_TYPE_INDEX,                    /**< Used for store index data*/
   SEGMENT_FILE_TYPE_DAT,                      /**< Used for store information data, such as duration etc*/
+  SEGMENT_FILE_TYPE_ONGOING,                      /**< Used for store information data, such as duration etc*/
 } Segment_FileType_t;
 
 static void segment_get_fname(char fname[MAX_SEGMENT_PATH_SIZE],
@@ -49,6 +53,8 @@ static void segment_get_fname(char fname[MAX_SEGMENT_PATH_SIZE],
     strncpy(fname + offset, ".idx", 4);
   else if (type == SEGMENT_FILE_TYPE_DAT)
     strncpy(fname + offset, ".dat", 4);
+  else if (type == SEGMENT_FILE_TYPE_ONGOING)
+    strncpy(fname + offset, ".going", 6);
 }
 
 static void segment_get_dirname(char dir_name[MAX_SEGMENT_PATH_SIZE],
@@ -75,6 +81,7 @@ int segment_open(Segment_OpenParams_t *params, Segment_Handle_t *p_handle)
   char index_fname[MAX_SEGMENT_PATH_SIZE];
   char dat_fname[MAX_SEGMENT_PATH_SIZE];
   char dir_name[MAX_SEGMENT_PATH_SIZE];
+  char going_name[MAX_SEGMENT_PATH_SIZE];
 
   DVR_RETURN_IF_FALSE(params);
   DVR_RETURN_IF_FALSE(p_handle);
@@ -94,6 +101,9 @@ int segment_open(Segment_OpenParams_t *params, Segment_Handle_t *p_handle)
   memset(dat_fname, 0, sizeof(dat_fname));
   segment_get_fname(dat_fname, params->location, params->segment_id, SEGMENT_FILE_TYPE_DAT);
 
+  memset(going_name, 0, sizeof(going_name));
+  segment_get_fname(going_name, params->location, params->segment_id, SEGMENT_FILE_TYPE_ONGOING);
+
   memset(dir_name, 0, sizeof(dir_name));
   segment_get_dirname(dir_name, params->location);
   if (access(dir_name, F_OK) == -1) {
@@ -105,10 +115,12 @@ int segment_open(Segment_OpenParams_t *params, Segment_Handle_t *p_handle)
     p_ctx->ts_fd = open(ts_fname, O_RDONLY);
     p_ctx->index_fp = fopen(index_fname, "r");
     p_ctx->dat_fp = fopen(dat_fname, "r");
+    p_ctx->ongoing_fp = NULL;
   } else if (params->mode == SEGMENT_MODE_WRITE) {
     p_ctx->ts_fd = open(ts_fname, O_CREAT | O_RDWR | O_TRUNC, 0644);
     p_ctx->index_fp = fopen(index_fname, "w+");
     p_ctx->dat_fp = fopen(dat_fname, "w+");
+    p_ctx->ongoing_fp = fopen(going_name, "w+");
     p_ctx->first_pts = ULLONG_MAX;
     p_ctx->last_pts = ULLONG_MAX;
   } else {
@@ -116,6 +128,7 @@ int segment_open(Segment_OpenParams_t *params, Segment_Handle_t *p_handle)
     p_ctx->ts_fd = open(ts_fname, O_RDONLY);
     p_ctx->index_fp = fopen(index_fname, "r");
     p_ctx->dat_fp = fopen(dat_fname, "r");
+    p_ctx->ongoing_fp = NULL;
   }
 
   if (p_ctx->ts_fd == -1 || !p_ctx->index_fp || !p_ctx->dat_fp) {
@@ -125,8 +138,10 @@ int segment_open(Segment_OpenParams_t *params, Segment_Handle_t *p_handle)
     *p_handle = NULL;
     return DVR_FAILURE;
   }
+  p_ctx->segment_id = params->segment_id;
+  strncpy(p_ctx->location, params->location, strlen(params->location));
 
-  DVR_DEBUG(1, "%s, open file success", __func__);
+  DVR_DEBUG(1, "%s, open file success p_ctx->location [%s]", __func__, p_ctx->location);
   *p_handle = (Segment_Handle_t)p_ctx;
   return DVR_SUCCESS;
 }
@@ -148,6 +163,15 @@ int segment_close(Segment_Handle_t handle)
 
   if (p_ctx->dat_fp) {
     fclose(p_ctx->dat_fp);
+  }
+
+  if (p_ctx->ongoing_fp != NULL) {
+    fclose(p_ctx->ongoing_fp);
+    char going_name[MAX_SEGMENT_PATH_SIZE];
+    memset(going_name, 0, sizeof(going_name));
+    segment_get_fname(going_name, p_ctx->location, p_ctx->segment_id, SEGMENT_FILE_TYPE_ONGOING);
+    DVR_DEBUG(1, "segment close del [%s]", going_name);
+    unlink(going_name);
   }
 
   free(p_ctx);
@@ -350,10 +374,11 @@ uint64_t segment_tell_total_time(Segment_Handle_t handle)
   position = lseek64(p_ctx->ts_fd, 0, SEEK_CUR);
   DVR_RETURN_IF_FALSE(position != -1);
 
-  //DVR_RETURN_IF_FALSE(fseek(p_ctx->index_fp, -1000L, SEEK_END) != -1);
+  DVR_RETURN_IF_FALSE(fseek(p_ctx->index_fp, -1000L, SEEK_END) != -1);
   /* Save last line buffer */
   while (fgets(buf, sizeof(buf), p_ctx->index_fp) != NULL) {
     if (strlen(buf) <= 0) {
+      DVR_DEBUG(1, "read index buf is len 0");
       continue;
     }
     memset(last_buf, 0, sizeof(last_buf));
@@ -380,8 +405,8 @@ uint64_t segment_tell_total_time(Segment_Handle_t handle)
     }
     offset = strtoull(value, NULL, 10);
   }
-  if (line < 2)
-    DVR_DEBUG(1, "totle time=%llu, offset=%lld, position=%lld, line:%d\n", pts, offset, position, line);
+  //if (line < 2)
+  //DVR_DEBUG(1, "totle time=%llu, offset=%lld, position=%lld, line:%d\n", pts, offset, position, line);
 
   return (pts == ULLONG_MAX ? DVR_FAILURE : pts);
 }
@@ -397,6 +422,8 @@ int segment_store_info(Segment_Handle_t handle, Segment_StoreInfo_t *p_info)
   DVR_RETURN_IF_FALSE(p_ctx);
   DVR_RETURN_IF_FALSE(p_ctx->dat_fp);
   DVR_RETURN_IF_FALSE(p_info);
+  //seek 0, rewrite info
+  DVR_RETURN_IF_FALSE(fseek(p_ctx->dat_fp, 0, SEEK_SET) != -1);
 
   /*Save segment id*/
   memset(buf, 0, sizeof(buf));
@@ -417,6 +444,7 @@ int segment_store_info(Segment_Handle_t handle, Segment_StoreInfo_t *p_info)
 
   /*Save segment duration*/
   memset(buf, 0, sizeof(buf));
+  DVR_DEBUG(1, "duration store:[%ld]", p_info->duration);
   sprintf(buf, "duration=%ld\n", p_info->duration);
   fputs(buf, p_ctx->dat_fp);
 
@@ -495,6 +523,7 @@ int segment_load_info(Segment_Handle_t handle, Segment_StoreInfo_t *p_info)
   p1 = strstr(buf, "duration=");
   DVR_RETURN_IF_FALSE(p1);
   p_info->duration = strtoull(p1 + 9, NULL, 10);
+  DVR_DEBUG(1, "load info p_info->duration:%lld", p_info->duration);
 
   /*Save segment size*/
   p1 = fgets(buf, sizeof(buf), p_ctx->dat_fp);
@@ -544,6 +573,22 @@ int segment_delete(const char *location, uint64_t segment_id)
   return DVR_SUCCESS;
 }
 
+int segment_ongoing(Segment_Handle_t handle)
+{
+  Segment_Context_t *p_ctx;
+  p_ctx = (Segment_Context_t *)handle;
+  struct stat mstat;
+
+  char going_name[MAX_SEGMENT_PATH_SIZE];
+  memset(going_name, 0, sizeof(going_name));
+  segment_get_fname(going_name, p_ctx->location, p_ctx->segment_id, SEGMENT_FILE_TYPE_ONGOING);
+  int ret = stat(going_name, &mstat);
+  DVR_DEBUG(1, "segment check ongoing  [%s] ret [%d]", going_name, ret);
+  if (ret != 0) {
+    return DVR_FAILURE;
+  }
+  return DVR_SUCCESS;
+}
 loff_t segment_dump_pts(Segment_Handle_t handle)
 {
   Segment_Context_t *p_ctx;
