@@ -142,6 +142,7 @@ typedef enum {
   DVR_PLAYBACK_EVENT_NO_KEY,                        /**< no key*/
   DVR_PLAYBACK_EVENT_REACHED_BEGIN     ,            /**< reached begin*/
   DVR_PLAYBACK_EVENT_REACHED_END,                    /**< reached end*/
+  DVR_PLAYBACK_EVENT_NOTIFY_PLAYTIME,               /**< notify play cur segmeng time ms*/
   DVR_PLAYBACK_EVENT_FIRST_FRAME                    /**< first frame*/
 } DVR_PlaybackEvent_t;
 
@@ -179,7 +180,6 @@ typedef struct
   DVR_Bool_t             has_pids;        /**< has video audo pid fmt info*/
   DVR_PlaybackEventFunction_t  event_fn;           /**< playback event callback function*/
   void                        *event_userdata;    /**< event userdata*/
-  size_t                      notification_size;  /**< playback notification size, playback moudle would send a notifaction when the size of current segment is multiple of this value. Put 0 in this argument if you don't want to receive the notification*/
 } DVR_PlaybackOpenParams_t;
 
 /**\brief playback play state*/
@@ -253,6 +253,9 @@ typedef struct
   int                        next_fffb_time;
   int                        seek_time;
   DVR_Bool_t                 auto_pause;
+  event_callback             player_callback_func;
+  void                       *player_callback_userdata;
+  int                         send_time;
 } DVR_Playback_t;
 
 /**\brief Open an dvr palyback
