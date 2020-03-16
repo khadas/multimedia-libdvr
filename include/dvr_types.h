@@ -121,7 +121,8 @@ typedef enum {
   DVR_STREAM_TYPE_SUBTITLE,  /**< Subtitle stream.*/
   DVR_STREAM_TYPE_TELETEXT,  /**< Teletext stream.*/
   DVR_STREAM_TYPE_ECM,       /**< ECM stream.*/
-  DVR_STREAM_TYPE_EMM        /**< EMM stream.*/
+  DVR_STREAM_TYPE_EMM,       /**< EMM stream.*/
+  DVR_STREAM_TYPE_OTHER,     /**< other stream.*/
 } DVR_StreamType_t;
 
 /**Video format.*/

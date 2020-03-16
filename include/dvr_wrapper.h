@@ -38,27 +38,54 @@ typedef void* DVR_WrapperRecord_t;
 /**Playback wrapper handle.*/
 typedef void* DVR_WrapperPlayback_t;
 
+typedef void* Playback_DeviceHandle_t;
+
+typedef struct {
+  time_t              time;       /**< time duration, unit on ms*/
+  loff_t              size;       /**< size*/
+  uint32_t            pkts;       /**< number of ts packets*/
+} DVR_WrapperInfo_t;
+
+typedef struct {
+  uint32_t              nb_pids;                         /**< Number of PIDs.*/
+  DVR_StreamPid_t       pids[DVR_MAX_RECORD_PIDS_COUNT]; /**< PIDs to be recorded.*/
+} DVR_WrapperPidsInfo_t;
+
+typedef struct {
+  DVR_PlaybackPlayState_t state;
+  DVR_WrapperInfo_t info_cur;
+  DVR_WrapperInfo_t info_full;
+  DVR_PlaybackPids_t pids;
+  float speed;
+  DVR_PlaybackSegmentFlag_t flags;
+} DVR_WrapperPlaybackStatus_t;
+
+typedef struct {
+  DVR_RecordState_t state;            /**< DVR record state*/
+  DVR_WrapperInfo_t info;             /**< DVR record information*/
+  DVR_WrapperPidsInfo_t pids;         /**< DVR record pids info*/
+} DVR_WrapperRecordStatus_t;
+
 /**Record wrapper open parameters.*/
 typedef struct {
   int                   dmx_dev_id;                      /**< Demux device's index.*/
   char                  location[DVR_MAX_LOCATION_SIZE]; /**< Location of the record file.*/
   DVR_Bool_t            is_timeshift;                    /**< The record file is used by timeshift.*/
   loff_t                segment_size;                    /**< Segment file's size.*/
-  size_t                max_size;                        /**< Maximum record file size in bytes.*/
-  int                   max_time;                        /**< Maximum record time in seconds.*/
+  loff_t                max_size;                        /**< Maximum record file size in bytes.*/
+  time_t                max_time;                        /**< Maximum record time in seconds.*/
   DVR_RecordFlag_t      flags;                           /**< Flags.*/
   DVR_CryptoPeriod_t    crypto_period;                   /**< Crypto period.*/
   DVR_CryptoFunction_t  crypto_fn;                       /**< Crypto callback function.*/
   void                 *crypto_data;                     /**< User data of crypto function.*/
+  DVR_RecordEventFunction_t   event_fn;                  /**< DVR record event callback function*/
+  void                        *event_userdata;           /**< DVR event userdata*/
 } DVR_WrapperRecordOpenParams_t;
 
-/**Record start parameters.*/
 typedef struct {
-  uint32_t              nb_pids;                         /**< Number of PIDs.*/
-  DVR_StreamPid_t       pids[DVR_MAX_RECORD_PIDS_COUNT]; /**< PIDs to be recorded.*/
+  DVR_WrapperPidsInfo_t pids_info;
 } DVR_WrapperRecordStartParams_t;
 
-/**Update PID parameters.*/
 typedef struct {
   uint32_t              nb_pids;                               /**< Number of PID actions.*/
   DVR_StreamPid_t       pids[DVR_MAX_RECORD_PIDS_COUNT];       /**< PIDs.*/
@@ -74,6 +101,8 @@ typedef struct {
   Playback_DeviceHandle_t playback_handle;                 /**< Playback device handle.*/
   DVR_CryptoFunction_t    crypto_fn;                       /**< Crypto function.*/
   void                   *crypto_data;                     /**< Crypto function's user data.*/
+  DVR_PlaybackEventFunction_t  event_fn;                   /**< playback event callback function*/
+  void                        *event_userdata;             /**< event userdata*/
 } DVR_WrapperPlaybackOpenParams_t;
 
 /**
@@ -120,6 +149,15 @@ int dvr_wrapper_stop_record (DVR_WrapperRecord_t rec);
 int dvr_wrapper_update_record_pids (DVR_WrapperRecord_t rec, DVR_WrapperUpdatePidsParams_t *params);
 
 /**
+ * Get the current recording status.
+ * \param rec The record handle.
+ * \param status The recording status returned.
+ * \retval DVR_SUCCESS On success.
+ * \return Error code.
+ */
+int dvr_wrapper_get_record_status (DVR_WrapperRecord_t rec, DVR_WrapperRecordStatus_t *status);
+
+/**
  * Open a new playback wrapper handle.
  * \param[out] playback Return the new playback handle.
  * \param params Playback handle open parameters.
@@ -143,7 +181,7 @@ int dvr_wrapper_close_playback (DVR_WrapperPlayback_t playback);
  * \retval DVR_SUCCESS On success.
  * \return Error code.
  */
-int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag_t flags);
+int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag_t flags, DVR_PlaybackPids_t *p_pids);
 
 /**
  * Stop playback.
@@ -162,13 +200,21 @@ int dvr_wrapper_stop_playback (DVR_WrapperPlayback_t playback);
 int dvr_wrapper_pause_playback (DVR_WrapperPlayback_t playback);
 
 /**
+ * resume the playback.
+ * \param playback The playback handle.
+ * \retval DVR_SUCCESS On success.
+ * \return Error code.
+ */
+int dvr_wrapper_resume_playback (DVR_WrapperPlayback_t playback);
+
+/**
  * Set the playback speed.
  * \param playback The playback handle.
  * \param speed The new speed.
  * \retval DVR_SUCCESS On success.
  * \return Error code.
  */
-int dvr_wrapper_set_playback_speed (DVR_WrapperPlayback_t playback, Playback_DeviceSpeeds_t speed);
+int dvr_wrapper_set_playback_speed (DVR_WrapperPlayback_t playback, float speed);
 
 /**
  * Seek the current playback position.
@@ -177,7 +223,26 @@ int dvr_wrapper_set_playback_speed (DVR_WrapperPlayback_t playback, Playback_Dev
  * \retval DVR_SUCCESS On success.
  * \return Error code.
  */
-int dvr_wrapper_seek_playback (DVR_WrapperPlayback_t playback, int time_offset);
+int dvr_wrapper_seek_playback (DVR_WrapperPlayback_t playback, uint32_t time_offset);
+
+/**
+ * Get the current playback status.
+ * \param playback The playback handle.
+ * \param status The playback status returned.
+ * \retval DVR_SUCCESS On success.
+ * \return Error code.
+ */
+int dvr_wrapper_get_playback_status (DVR_WrapperPlayback_t playback, DVR_WrapperPlaybackStatus_t *status);
+
+/**
+ * Update playback.
+ * \param playback The playback handle.
+ * \param flags Playback flags.
+ * \retval DVR_SUCCESS On success.
+ * \return Error code.
+ */
+int dvr_wrapper_update_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackPids_t *p_pids);
+
 
 #ifdef __cplusplus
 }

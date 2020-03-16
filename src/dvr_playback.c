@@ -1040,7 +1040,7 @@ int dvr_playback_open(DVR_PlaybackHandle_t *p_handle, DVR_PlaybackOpenParams_t *
   DVR_Playback_t *player;
   pthread_condattr_t  cattr;
 
-  player = (DVR_Playback_t*)malloc(sizeof(DVR_Playback_t));
+  player = (DVR_Playback_t*)calloc(1, sizeof(DVR_Playback_t));
 
   pthread_mutex_init(&player->lock, NULL);
   pthread_mutex_init(&player->segment_lock, NULL);

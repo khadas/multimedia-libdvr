@@ -524,7 +524,7 @@ int dvr_record_stop_segment(DVR_RecordHandle_t handle, DVR_RecordSegmentInfo_t *
   DVR_DEBUG(1, "%s , current state:%d", __func__, p_ctx->state);
   DVR_RETURN_IF_FALSE(p_ctx->state != DVR_RECORD_STATE_STOPPED);
   DVR_RETURN_IF_FALSE(p_ctx->state != DVR_RECORD_STATE_CLOSED);
-  DVR_RETURN_IF_FALSE(p_info);
+  DVR_RETURN_IF_FALSE(p_info);/*should support NULL*/
 
   p_ctx->state = DVR_RECORD_STATE_STOPPED;
   if (p_ctx->is_vod) {
