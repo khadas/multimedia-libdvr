@@ -35,9 +35,12 @@ extern "C"
 /**Maximum path size.*/
 #define DVR_MAX_LOCATION_SIZE     512
 
+/**Logcat TAG of libdvr*/
 #define DVR_LOG_TAG "libdvr"
+/**Default debug level*/
 #define DVR_DEBUG_LEVEL 1
 
+/**Log output*/
 #define dvr_log_print(...) __android_log_print(ANDROID_LOG_INFO, DVR_LOG_TAG, __VA_ARGS__)
 
 /**Output debug message.*/
