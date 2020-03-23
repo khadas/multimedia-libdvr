@@ -407,7 +407,6 @@ uint64_t segment_tell_total_time(Segment_Handle_t handle)
   }
   //if (line < 2)
   //DVR_DEBUG(1, "totle time=%llu, offset=%lld, position=%lld, line:%d\n", pts, offset, position, line);
-
   return (pts == ULLONG_MAX ? DVR_FAILURE : pts);
 }
 

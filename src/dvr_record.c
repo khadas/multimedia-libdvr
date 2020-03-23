@@ -274,7 +274,7 @@ int dvr_record_open(DVR_RecordHandle_t *p_handle, DVR_RecordOpenParams_t *params
   } else {
     p_ctx->is_vod = 0;
     /* data from dmx, normal dvr case */
-    dev_open_params.dmx_dev_id = params->dmx_dev_id;
+    dev_open_params.dmx_dev_id = 1;params->dmx_dev_id;
     dev_open_params.buf_size = 256*1024;
 
     ret = record_device_open(&p_ctx->dev_handle, &dev_open_params);

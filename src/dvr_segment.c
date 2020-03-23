@@ -28,7 +28,7 @@ void *dvr_segment_thread(void *arg)
 
 int dvr_segment_delete(const char *location, uint64_t segment_id)
 {
-  return DVR_SUCCESS;
+
   pthread_t thread;
   static DVR_SegmentFile_t segment;
 

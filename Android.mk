@@ -16,7 +16,7 @@ LOCAL_SRC_FILES := $(LOCAL_FILE_LIST:$(LOCAL_PATH)/%=%)
 LOCAL_SHARED_LIBRARIES += libcutils liblog libdl libc libmediahal_tsplayer
 
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/include \
-                    media_hal/AmTsplayer/include \
+                    vendor/amlogic/common/mediahal_sdk/include\
                     $(AMADEC_C_INCLUDES)
                     $(ANDROID_LOG_INCLUDE)
 

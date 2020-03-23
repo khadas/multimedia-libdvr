@@ -30,6 +30,22 @@ static int _dvr_playback_replay(DVR_PlaybackHandle_t handle, DVR_Bool_t trick) ;
 
 static int first_frame = 0;
 
+static char* _dvr_playback_state_toString(int stat)
+{
+  char *string[DVR_PLAYBACK_STATE_FB+1]={
+        "start",
+        "pause",
+        "stop",
+        "ff",
+        "fb"
+  };
+
+  if (stat > DVR_PLAYBACK_STATE_FB) {
+    return "unkown";
+  } else {
+    return string[stat];
+  }
+}
 void _dvr_tsplayer_callback_test(void *user_data, am_tsplayer_event *event)
 {
   DVR_DEBUG(1, "in callback test ");
@@ -47,14 +63,6 @@ void _dvr_tsplayer_callback_test(void *user_data, am_tsplayer_event *event)
               event->event.video_format.frame_rate);
           break;
       }
-      case AM_TSPLAYER_EVENT_TYPE_MPEG_USERDATA:
-      {
-          uint8_t* pbuf = event->event.mpeg_user_data.data;
-          uint32_t size = event->event.mpeg_user_data.len;
-          DVR_DEBUG(1, "[evt] test AM_TSPLAYER_EVENT_TYPE_MPEG_USERDATA: %x-%x-%x-%x ,size %d\n",
-              pbuf[0], pbuf[1], pbuf[2], pbuf[3], size);
-          break;
-      }
       case AM_TSPLAYER_EVENT_TYPE_FIRST_FRAME:
       {
           DVR_DEBUG(1, "[evt] test  AM_TSPLAYER_EVENT_TYPE_FIRST_FRAME\n");
@@ -70,7 +78,7 @@ void _dvr_tsplayer_callback(void *user_data, am_tsplayer_event *event)
   DVR_Playback_t *player = NULL;
   if (user_data != NULL) {
     player = (DVR_Playback_t *) user_data;
-    DVR_DEBUG(1, "play speed [%d] in callback", player->speed);
+    DVR_DEBUG(1, "play speed [%d] in-- callback", player->speed);
   }
   switch (event->type) {
     case AM_TSPLAYER_EVENT_TYPE_VIDEO_CHANGED:
@@ -81,14 +89,6 @@ void _dvr_tsplayer_callback(void *user_data, am_tsplayer_event *event)
             event->event.video_format.frame_rate);
         break;
     }
-    case AM_TSPLAYER_EVENT_TYPE_MPEG_USERDATA:
-    {
-        uint8_t* pbuf = event->event.mpeg_user_data.data;
-        uint32_t size = event->event.mpeg_user_data.len;
-        DVR_DEBUG(1, "[evt] AM_TSPLAYER_EVENT_TYPE_MPEG_USERDATA: %x-%x-%x-%x ,size %d\n",
-            pbuf[0], pbuf[1], pbuf[2], pbuf[3], size);
-        break;
-    }
     case AM_TSPLAYER_EVENT_TYPE_FIRST_FRAME:
     {
         DVR_DEBUG(1, "[evt] AM_TSPLAYER_EVENT_TYPE_FIRST_FRAME\n");
@@ -96,9 +96,11 @@ void _dvr_tsplayer_callback(void *user_data, am_tsplayer_event *event)
         break;
     }
     default:
+      DVR_DEBUG(1, "[evt]unkown event [%d]\n", event->type);
       break;
   }
   if (player&&player->player_callback_func) {
+    DVR_DEBUG(1, "player is nonull, --call callback\n");
     player->player_callback_func(player->player_callback_userdata, event);
   } else if (player == NULL){
     DVR_DEBUG(1, "player is null, get userdata error\n");
@@ -618,7 +620,7 @@ static void* _dvr_playback_thread(void *arg)
   am_tsplayer_input_buffer     wbufs;
   int ret = DVR_SUCCESS;
 
-  int timeout = 100;//ms
+  int timeout = 300;//ms
   uint64_t write_timeout_ms = 50;
   uint8_t *buf = NULL;
   int buf_len = player->openParams.block_size > 0 ? player->openParams.block_size : (256 * 1024);
@@ -644,6 +646,8 @@ static void* _dvr_playback_thread(void *arg)
   //get play statue not here
   _dvr_playback_sent_transition_ok((DVR_PlaybackHandle_t)player);
   _dvr_check_cur_segment_flag((DVR_PlaybackHandle_t)player);
+  //set video show
+  AmTsPlayer_showVideo(player->handle);
 
   int trick_stat = 0;
   while (player->is_running/* || player->cmd.last_cmd != player->cmd.cur_cmd*/) {
@@ -792,32 +796,6 @@ static void* _dvr_playback_thread(void *arg)
       pthread_mutex_unlock(&player->lock);
     }
     real_read = real_read + read;
-    if (0 && real_read < buf_len ) {//no used
-      if (player->openParams.is_timeshift) {
-        //send end event to hal
-        DVR_Play_Notify_t notify;
-        memset(&notify, 0 , sizeof(DVR_Play_Notify_t));
-        notify.event = DVR_PLAYBACK_EVENT_REACHED_END;
-        //get play statue not here
-        _dvr_playback_sent_event((DVR_PlaybackHandle_t)player, DVR_PLAYBACK_EVENT_REACHED_END, &notify);
-
-        //continue,timeshift mode, when read end,need wait cur recording segment
-        DVR_DEBUG(1, "playback is timeshift---");
-        pthread_mutex_lock(&player->lock);
-        _dvr_playback_timeoutwait((DVR_PlaybackHandle_t)player, timeout);
-        pthread_mutex_unlock(&player->lock);
-        continue;
-      }
-      //continue to read
-      pthread_mutex_lock(&player->lock);
-      _dvr_playback_timeoutwait((DVR_PlaybackHandle_t)player, timeout);
-      pthread_mutex_unlock(&player->lock);
-      if (!player->is_running) {
-         break;
-      }
-      DVR_DEBUG(1, "playback continue read");
-      continue;
-    }
 inject:
     wbufs.buf_size = real_read;
 rewrite:
@@ -829,7 +807,7 @@ rewrite:
       real_read = 0;
       continue;
     } else {
-      //DVR_DEBUG(1, "write time out");
+      DVR_DEBUG(1, "write time out");
       pthread_mutex_lock(&player->lock);
       _dvr_playback_timeoutwait((DVR_PlaybackHandle_t)player, timeout);
       pthread_mutex_unlock(&player->lock);
@@ -1061,7 +1039,7 @@ int dvr_playback_start(DVR_PlaybackHandle_t handle, DVR_PlaybackFlag_t flag) {
       AmTsPlayer_setAudioParams(player->handle,  &aparams);
       AmTsPlayer_startAudioDecoding(player->handle);
     }
-    DVR_DEBUG(1, "player->cmd.cur_cmd:%d", player->cmd.cur_cmd);
+    DVR_DEBUG(1, "player->cmd.cur_cmd:%d vpid[0x%x]apis[0x%x]", player->cmd.cur_cmd, vparams.pid, aparams.pid);
     if (player->cmd.cur_cmd == DVR_PLAYBACK_CMD_FB
       || player->cmd.cur_cmd == DVR_PLAYBACK_CMD_FF) {
       player->cmd.state = DVR_PLAYBACK_STATE_START;
@@ -2093,11 +2071,13 @@ int dvr_playback_set_speed(DVR_PlaybackHandle_t handle, DVR_PlaybackSpeed_t spee
     player->cmd.last_cmd = player->cmd.cur_cmd;
   }
   //only set mode and speed info, we will deal ff fb at playback thread.
+  //case 1. cur speed is 100,set 50.
   if ((speed.speed.speed == PLAYBACK_SPEED_X1 )) {
     //we think x1 and s2 is normal speed. is not ff fb.
     if (speed.speed.speed == PLAYBACK_SPEED_X1) {
       //if last speed is x2 or s2, we need stop fast
       //AmTsPlayer_stopFast(player->handle);
+      //AmTsPlayer_startFast
     }
   } else {
       if (speed.mode == DVR_PLAYBACK_FAST_FORWARD)
@@ -2109,8 +2089,8 @@ int dvr_playback_set_speed(DVR_PlaybackHandle_t handle, DVR_PlaybackSpeed_t spee
   player->cmd.speed.speed = speed.speed;
   player->speed = speed.speed.speed/100;
   if (speed.speed.speed == PLAYBACK_SPEED_X1 &&
-    (player->state == DVR_PLAYBACK_STATE_FB ||
-    player->state == DVR_PLAYBACK_STATE_FF)) {
+    (player->cmd.cur_cmd == DVR_PLAYBACK_CMD_FF ||
+    player->cmd.cur_cmd == DVR_PLAYBACK_CMD_FB)) {
     //restart play at normal speed exit ff fb
     DVR_DEBUG(1, "set speed normal and replay playback");
     _dvr_playback_replay(handle, DVR_FALSE);
@@ -2136,7 +2116,7 @@ int dvr_playback_get_status(DVR_PlaybackHandle_t handle,
   DVR_Playback_t *player = (DVR_Playback_t *) handle;
   //pthread_mutex_lock(&player->lock);
   //DVR_DEBUG(1, "lock func: %s", __func__);
-  DVR_DEBUG(1, "get stat start id[%lld]", player->cur_segment_id);
+  //DVR_DEBUG(1, "get stat start id[%lld]", player->cur_segment_id);
 
   p_status->state = player->state;
   if ((player->play_flag&DVR_PLAYBACK_STARTED_PAUSEDLIVE) == DVR_PLAYBACK_STARTED_PAUSEDLIVE &&
@@ -2152,7 +2132,10 @@ int dvr_playback_get_status(DVR_PlaybackHandle_t handle,
   p_status->flags = player->cur_segment.flags;
   //pthread_mutex_unlock(&player->lock);
   //DVR_DEBUG(1, "unlock func: %s", __func__);
-  DVR_DEBUG(1, "get stat end [%d][%d] id[%lld]", p_status->time_cur, p_status->time_end, p_status->segment_id);
+  DVR_DEBUG(1, "get stat end player state[%s]state[%s]cur[%d]end[%d] id[%lld]playflag[%d]",
+  _dvr_playback_state_toString(player->state),
+  _dvr_playback_state_toString(p_status->state),
+  p_status->time_cur, p_status->time_end, p_status->segment_id,player->play_flag);
   return DVR_SUCCESS;
 }
 

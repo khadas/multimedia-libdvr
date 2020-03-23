@@ -235,7 +235,7 @@ typedef struct
   pthread_mutex_t            segment_lock;      /**< playback segment lock*/
   pthread_cond_t             cond;               /**< playback cond*/
   void                       *user_data;         /**< playback userdata, used to send event*/
-  int                        speed;           /**< playback speed*/
+  float                      speed;           /**< playback speed*/
   DVR_PlaybackPlayState_t    state;           /**< playback state*/
   DVR_PlaybackFlag_t         play_flag;           /**< playback play flag*/
   int                        is_running;           /**< playback htread is runing*/
