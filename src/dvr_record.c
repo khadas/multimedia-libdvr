@@ -10,6 +10,7 @@
 #include "segment.h"
 
 #define MAX_DVR_RECORD_SESSION_COUNT 2
+#define RECORD_BLOCK_SIZE (64 * 1024)
 
 /**\brief DVR index file type*/
 typedef enum {
@@ -26,6 +27,12 @@ typedef struct {
   uint32_t                        buf_len;                              /**< VOD buffer len*/
 } DVR_VodContext_t;
 
+/**\brief DVR record secure mode buffer*/
+typedef struct {
+  uint32_t addr;                                                        /**< Secure mode record buffer address*/
+  uint32_t len;                                                         /**< Secure mode record buffer length*/
+} DVR_SecureBuffer_t;
+
 /**\brief DVR record context*/
 typedef struct {
   pthread_t                       thread;                               /**< DVR thread handle*/
@@ -40,6 +47,9 @@ typedef struct {
   void                            *event_userdata;                      /**< DVR record event userdata*/
   //DVR_VodContext_t                vod;                                  /**< DVR record vod context*/
   int                             is_vod;                               /**< Indicate current mode is VOD record mode*/
+  DVR_RecordEncryptFunction_t     enc_func;                             /**< Encrypt function*/
+  void                            *enc_userdata;                        /**< Encrypt userdata*/
+  int                             is_secure_mode;                       /**< Record session run in secure pipeline */
 } DVR_RecordContext_t;
 
 static DVR_RecordContext_t record_ctx[MAX_DVR_RECORD_SESSION_COUNT] = {
@@ -50,19 +60,6 @@ static DVR_RecordContext_t record_ctx[MAX_DVR_RECORD_SESSION_COUNT] = {
     .state = DVR_RECORD_STATE_CLOSED
   }
 };
-
-//#define USE_TEST_DATA
-#ifdef USE_TEST_DATA
-static int test_data_read(uint8_t *buf, int len)
-{
-  int i;
-  for (i = 0; i < len; i++) {
-    buf[i] = i % 0xff;
-  }
-  usleep(50*1000);
-  return len;
-}
-#endif
 
 static int record_save_pcr(DVR_RecordContext_t *p_ctx, uint8_t *buf, loff_t pos)
 {
@@ -143,8 +140,8 @@ void *record_thread(void *arg)
 {
   DVR_RecordContext_t *p_ctx = (DVR_RecordContext_t *)arg;
   ssize_t len;
-  uint8_t *buf;
-  int block_size = 256*1024;
+  uint8_t *buf, *buf_out;
+  int block_size = RECORD_BLOCK_SIZE;//256*1024;
   loff_t pos = 0;
   int ret;
   struct timespec start_ts, end_ts;
@@ -152,7 +149,9 @@ void *record_thread(void *arg)
   int has_pcr;
   int index_type = DVR_INDEX_TYPE_INVALID;
   time_t pre_time = 0;
+  uint32_t out_len;
   #define DVR_STORE_INFO_TIME (1000)
+  DVR_SecureBuffer_t secure_buf;
 
   buf = (uint8_t *)malloc(block_size);
   if (!buf) {
@@ -160,21 +159,51 @@ void *record_thread(void *arg)
     return NULL;
   }
 
+  buf_out = (uint8_t *)malloc(block_size + 188);
+  if (!buf_out) {
+    DVR_DEBUG(1, "%s, malloc failed", __func__);
+    return NULL;
+  }
+
   clock_gettime(CLOCK_MONOTONIC, &start_ts);
   while (p_ctx->state == DVR_RECORD_STATE_STARTED) {
     /* data from dmx, normal dvr case */
-#ifdef USE_TEST_DATA
-    len = test_data_read(buf, block_size);
-#else
-    len = record_device_read(p_ctx->dev_handle, buf, block_size, 1000);
-#endif
+    if (p_ctx->is_secure_mode) {
+      memset(&secure_buf, 0, sizeof(secure_buf));
+      len = record_device_read(p_ctx->dev_handle, &secure_buf, sizeof(secure_buf), 1000);
+    } else {
+      len = record_device_read(p_ctx->dev_handle, buf, block_size, 1000);
+    }
     if (len == DVR_FAILURE) {
       usleep(10*1000);
       continue;
     }
-    /* got data from device, record it */
+
+    /* Got data from device, record it */
+    if (p_ctx->enc_func) {
+      /* Encrypt record data */
+      uint8_t *input_buf;
+      uint32_t input_len;
+      /* Out buffer length may not equal in buffer length */
+      if (p_ctx->is_secure_mode) {
+        input_buf = (uint8_t *)secure_buf.addr;
+        input_len = secure_buf.len;
+      } else {
+        input_buf = buf;
+        input_len = len;
+      }
+      out_len = block_size + 188;
+      p_ctx->enc_func(input_buf, input_len, buf_out, &out_len, p_ctx->enc_userdata);
+      ret = segment_write(p_ctx->segment_handle, buf_out, out_len);
+      len = out_len;
+    } else {
+      ret = segment_write(p_ctx->segment_handle, buf, len);
+    }
+
+    /* Do time index */
+    uint8_t *index_buf = p_ctx->enc_func ? buf_out : buf;
     pos = segment_tell_position(p_ctx->segment_handle);
-    has_pcr = record_do_pcr_index(p_ctx, buf, len);
+    has_pcr = record_do_pcr_index(p_ctx, index_buf, len);
     if (has_pcr == 0 && index_type == DVR_INDEX_TYPE_INVALID) {
       clock_gettime(CLOCK_MONOTONIC, &end_ts);
       if ((end_ts.tv_sec*1000 + end_ts.tv_nsec/1000000) -
@@ -187,7 +216,6 @@ void *record_thread(void *arg)
       DVR_DEBUG(1, "%s use pcr time index", __func__);
       index_type = DVR_INDEX_TYPE_PCR;
     }
-    ret = segment_write(p_ctx->segment_handle, buf, len);
 
     /* Update segment info */
     p_ctx->segment_info.size += len;
@@ -232,6 +260,7 @@ void *record_thread(void *arg)
   }
 
   free((void *)buf);
+  free((void *)buf_out);
   DVR_DEBUG(1, "exit %s", __func__);
   return NULL;
 }
@@ -275,7 +304,7 @@ int dvr_record_open(DVR_RecordHandle_t *p_handle, DVR_RecordOpenParams_t *params
     p_ctx->is_vod = 0;
     /* data from dmx, normal dvr case */
     dev_open_params.dmx_dev_id = params->dmx_dev_id;
-    dev_open_params.buf_size = 256*1024;
+    dev_open_params.buf_size = (params->flush_size > 0 ? params->flush_size : RECORD_BLOCK_SIZE);
 
     ret = record_device_open(&p_ctx->dev_handle, &dev_open_params);
     if (ret != DVR_SUCCESS) {
@@ -284,6 +313,9 @@ int dvr_record_open(DVR_RecordHandle_t *p_handle, DVR_RecordOpenParams_t *params
     }
   }
 
+  p_ctx->enc_func = NULL;
+  p_ctx->enc_userdata = NULL;
+  p_ctx->is_secure_mode = 0;
   p_ctx->state = DVR_RECORD_STATE_OPENED;
 
   *p_handle = p_ctx;
@@ -595,4 +627,52 @@ int dvr_record_write(DVR_RecordHandle_t handle, void *buffer, uint32_t len)
   p_ctx->segment_info.nb_packets = p_ctx->segment_info.size/188;
 
   return DVR_SUCCESS;
+}
+
+int dvr_record_set_encrypt_callback(DVR_RecordHandle_t handle, DVR_RecordEncryptFunction_t func, void *userdata)
+{
+  DVR_RecordContext_t *p_ctx;
+  uint32_t i;
+
+  p_ctx = (DVR_RecordContext_t *)handle;
+  for (i = 0; i < MAX_DVR_RECORD_SESSION_COUNT; i++) {
+    if (p_ctx == &record_ctx[i])
+      break;
+  }
+  DVR_RETURN_IF_FALSE(p_ctx == &record_ctx[i]);
+  DVR_RETURN_IF_FALSE(func);
+
+  DVR_DEBUG(1, "%s , current state:%d", __func__, p_ctx->state);
+  DVR_RETURN_IF_FALSE(p_ctx->state != DVR_RECORD_STATE_STARTED);
+  DVR_RETURN_IF_FALSE(p_ctx->state != DVR_RECORD_STATE_CLOSED);
+
+  p_ctx->enc_func = func;
+  p_ctx->enc_userdata = userdata;
+  return DVR_SUCCESS;
+}
+
+int dvr_record_set_secure_buffer(DVR_RecordHandle_t handle, uint8_t *p_secure_buf, uint32_t len)
+{
+  DVR_RecordContext_t *p_ctx;
+  uint32_t i;
+  int ret;
+
+  p_ctx = (DVR_RecordContext_t *)handle;
+  for (i = 0; i < MAX_DVR_RECORD_SESSION_COUNT; i++) {
+    if (p_ctx == &record_ctx[i])
+      break;
+  }
+  DVR_RETURN_IF_FALSE(p_ctx == &record_ctx[i]);
+  DVR_RETURN_IF_FALSE(p_secure_buf);
+  DVR_RETURN_IF_FALSE(len);
+
+  DVR_DEBUG(1, "%s , current state:%d", __func__, p_ctx->state);
+  DVR_RETURN_IF_FALSE(p_ctx->state != DVR_RECORD_STATE_STARTED);
+  DVR_RETURN_IF_FALSE(p_ctx->state != DVR_RECORD_STATE_CLOSED);
+
+  ret = record_device_set_secure_buffer(p_ctx->dev_handle, p_secure_buf, len);
+  DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
+
+  p_ctx->is_secure_mode = 1;
+  return ret;
 }

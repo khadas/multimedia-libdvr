@@ -41,7 +41,7 @@ typedef struct {
   pthread_mutex_t               lock;                                  /**< Record device lock*/
 } Record_DeviceContext_t;
 
-Record_DeviceContext_t record_ctx[MAX_RECORD_DEVICE_COUNT] = {
+static Record_DeviceContext_t record_ctx[MAX_RECORD_DEVICE_COUNT] = {
   {
     .state = RECORD_DEVICE_STATE_CLOSED,
     .lock = PTHREAD_MUTEX_INITIALIZER
@@ -91,22 +91,30 @@ int record_device_open(Record_DeviceHandle_t *p_handle, Record_DeviceOpenParams_
   }
   fcntl(p_ctx->fd, F_SETFL, fcntl(p_ctx->fd, F_GETFL, 0) | O_NONBLOCK, 0);
 
-  /*Configure buffer size*/
-#if 0
-  ret = ioctl(p_ctx->fd, DMX_SET_BUFFER_SIZE, params->buf_size);
-  if (ret == -1) {
-    DVR_DEBUG(1, "%s set buffer size failed (%s)", __func__, strerror(errno));
-    pthread_mutex_lock(&p_ctx->lock);
-    return DVR_FAILURE;
-  }
-#endif
+  /*Configure flush size*/
+  memset(buf, 0, sizeof(buf));
+  snprintf(buf, sizeof(buf), "/sys/class/stb/asyncfifo%d_flush_size", dev_no);
+  memset(cmd, 0, sizeof(cmd));
+  snprintf(cmd, sizeof(cmd), "%d", params->buf_size);
+  dvr_file_echo(buf, cmd);
 
   /*Configure source*/
+  memset(buf, 0, sizeof(buf));
   snprintf(buf, sizeof(buf), "/sys/class/stb/asyncfifo%d_source", dev_no);
   memset(cmd, 0, sizeof(cmd));
   snprintf(cmd, sizeof(cmd), "dmx%d", params->dmx_dev_id);
   p_ctx->dmx_dev_id = params->dmx_dev_id;
   dvr_file_echo(buf, cmd);
+
+  /*Configure Non secure mode*/
+  memset(buf, 0, sizeof(buf));
+  snprintf(buf, sizeof(buf), "/sys/class/stb/asyncfifo%d_secure_enable", dev_no);
+  dvr_file_echo(buf, "0");
+
+  memset(buf, 0, sizeof(buf));
+  snprintf(buf, sizeof(buf), "/sys/class/stb/asyncfifo%d_secure_addr", dev_no);
+  dvr_file_echo(buf, "0");
+
   p_ctx->state = RECORD_DEVICE_STATE_OPENED;
   *p_handle = p_ctx;
   pthread_mutex_unlock(&p_ctx->lock);
@@ -370,4 +378,43 @@ ssize_t record_device_read(Record_DeviceHandle_t handle, void *buf, size_t len, 
   }
   pthread_mutex_unlock(&p_ctx->lock);
   return ret;
+}
+
+int record_device_set_secure_buffer(Record_DeviceHandle_t handle, uint8_t *sec_buf, uint32_t len)
+{
+  Record_DeviceContext_t *p_ctx;
+  int i;
+  char buf[64];
+  char cmd[32];
+
+  p_ctx = (Record_DeviceContext_t *)handle;
+  DVR_RETURN_IF_FALSE(p_ctx);
+  DVR_RETURN_IF_FALSE(sec_buf);
+  DVR_RETURN_IF_FALSE(len);
+
+  for (i = 0; i < MAX_RECORD_DEVICE_COUNT; i++) {
+    if (p_ctx == &record_ctx[i])
+      break;
+  }
+  DVR_RETURN_IF_FALSE(p_ctx == &record_ctx[i]);
+
+  pthread_mutex_lock(&p_ctx->lock);
+  if (p_ctx->state != RECORD_DEVICE_STATE_OPENED &&
+      p_ctx->state != RECORD_DEVICE_STATE_STOPPED) {
+    pthread_mutex_unlock(&p_ctx->lock);
+    DVR_DEBUG(1, "%s, %d, wrong state:%d", __func__, __LINE__,p_ctx->state);
+    return DVR_FAILURE;
+  }
+
+  memset(buf, 0, sizeof(buf));
+  snprintf(buf, sizeof(buf), "/sys/class/stb/asyncfifo%d_secure_enable", i);
+  dvr_file_echo(buf, "1");
+
+  memset(buf, 0, sizeof(buf));
+  snprintf(buf, sizeof(buf), "/sys/class/stb/asyncfifo%d_secure_addr", i);
+  snprintf(cmd, sizeof(cmd), "%llu", (uint64_t)sec_buf);
+  dvr_file_echo(buf, cmd);
+
+  pthread_mutex_unlock(&p_ctx->lock);
+  return DVR_SUCCESS;
 }

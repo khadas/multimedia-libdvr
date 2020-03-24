@@ -82,6 +82,7 @@ typedef struct {
   int                         dmx_dev_id;         /**< Demux device id*/
   int                         data_from_memory;   /**< Indicate record data from demux or memory*/
   DVR_RecordFlag_t            flags;              /**< DVR record flag*/
+  int                         flush_size;         /**< DVR record interrupt flush size*/
   DVR_RecordEventFunction_t   event_fn;           /**< DVR record event callback function*/
   void                        *event_userdata;    /**< DVR event userdata*/
   size_t                      notification_size;  /**< DVR record notification size, record moudle would send a notifaction when the size of current segment is multiple of this value. Put 0 in this argument if you don't want to receive the notification*/
@@ -97,6 +98,13 @@ typedef struct {
   DVR_StreamPid_t pids[DVR_MAX_RECORD_PIDS_COUNT];                /**< Pids information*/
   DVR_RecordPidAction_t pid_action[DVR_MAX_RECORD_PIDS_COUNT];    /**< Pids action*/
 } DVR_RecordSegmentStartParams_t;
+
+/**\brief DVR record encrypt function*/
+typedef DVR_Result_t (*DVR_RecordEncryptFunction_t) (uint8_t *p_in,
+    uint32_t in_len,
+    uint8_t *p_out,
+    uint32_t *p_out_len,
+    void *userdata);
 
 /**\brief DVR record current status*/
 typedef struct {
@@ -175,6 +183,24 @@ int dvr_record_write(DVR_RecordHandle_t handle, void *buffer, uint32_t len);
  * \return error code on failure
  */
 int dvr_record_get_status(DVR_RecordHandle_t handle, DVR_RecordStatus_t *p_status);
+
+/**\brief Set DVR record encrypt function
+ * \param[in] handle, DVR recording session handle
+ * \param[in] func, DVR recording encrypt function
+ * \param[in] userdata, DVR record userdata from the caller
+ * \return DVR_SUCCESS on success
+ * \return error code on failure
+ */
+int dvr_record_set_encrypt_callback(DVR_RecordHandle_t handle, DVR_RecordEncryptFunction_t func, void *userdata);
+
+/**\brief Set DVR record secure buffer used for protect the secure content
+ * \param[in] handle, DVR recording session handle
+ * \param[in] p_secure_buf, Secure buffer address which can NOT access by ACPU
+ * \param[in] len, Secure buffer length
+ * \return DVR_SUCCESS on success
+ * \return error code on failure
+ */
+int dvr_record_set_secure_buffer(DVR_RecordHandle_t handle, uint8_t *p_secure_buf, uint32_t len);
 
 #ifdef __cplusplus
 }

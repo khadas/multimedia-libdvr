@@ -754,18 +754,38 @@ static void* _dvr_playback_thread(void *arg)
   DVR_Playback_t *player = (DVR_Playback_t *) arg;
   //int need_open_segment = 1;
   am_tsplayer_input_buffer     wbufs;
+  am_tsplayer_input_buffer     dec_bufs;
   int ret = DVR_SUCCESS;
 
   int timeout = 300;//ms
   uint64_t write_timeout_ms = 50;
   uint8_t *buf = NULL;
   int buf_len = player->openParams.block_size > 0 ? player->openParams.block_size : (256 * 1024);
+  int dec_buf_size = buf_len + 188;
   int real_read = 0;
   DVR_Bool_t goto_rewrite = DVR_FALSE;
 
+  if (player->is_secure_mode) {
+    if (dec_buf_size > player->secure_buffer_size) {
+      DVR_DEBUG(1, "%s, playback blocksize too large", __func__);
+      return NULL;
+    }
+  }
   buf = malloc(buf_len);
+  if (!buf) {
+    DVR_DEBUG(1, "%s, Malloc buffer failed", __func__);
+    return NULL;
+  }
   wbufs.buf_type = TS_INPUT_BUFFER_TYPE_NORMAL;
   wbufs.buf_size = 0;
+
+  dec_bufs.buf_data = malloc(dec_buf_size);
+  if (!dec_bufs.buf_data) {
+    DVR_DEBUG(1, "%s, Malloc dec buffer failed", __func__);
+    return NULL;
+  }
+  dec_bufs.buf_type = TS_INPUT_BUFFER_TYPE_NORMAL;
+  dec_bufs.buf_size = dec_buf_size;
 
   if (player->segment_is_open == DVR_FALSE) {
     ret = _change_to_next_segment((DVR_PlaybackHandle_t)player);
@@ -776,6 +796,7 @@ static void* _dvr_playback_thread(void *arg)
       free(buf);
       buf = NULL;
     }
+    free(dec_bufs.buf_data);
     DVR_DEBUG(1, "get segment error");
     return NULL;
   }
@@ -914,17 +935,29 @@ static void* _dvr_playback_thread(void *arg)
     real_read = real_read + read;
     wbufs.buf_size = real_read;
     wbufs.buf_data = buf;
-rewrite:
-    //read data
-    //descramble data
-    //read data to inject
     //check read data len,iflen < 0, we need continue
     if (wbufs.buf_size == 0 || wbufs.buf_data == NULL) {
       DVR_DEBUG(1, "error occur read_read [%d],buf=[%p]",wbufs.buf_size, wbufs.buf_data);
       real_read = 0;
       continue;
     }
-    if ( AmTsPlayer_writeData(player->handle, &wbufs, write_timeout_ms) == AM_TSPLAYER_OK) {
+    if (player->dec_func) {
+      int dec_len = dec_buf_size;
+      if (player->is_secure_mode) {
+        ret = player->dec_func(buf, real_read, player->secure_buffer, &dec_len, player->dec_userdata);
+        wbufs.buf_data = player->secure_buffer;
+      } else {
+        ret = player->dec_func(buf, real_read, dec_bufs.buf_data, &dec_len, player->dec_userdata);
+        wbufs.buf_data = dec_bufs.buf_data;
+      }
+      if (ret != DVR_SUCCESS) {
+        DVR_DEBUG(1, "%s, decrypt failed", __func__);
+      }
+      wbufs.buf_size = dec_len;
+    }
+rewrite:
+    ret = AmTsPlayer_writeData(player->handle, &wbufs, write_timeout_ms);
+    if (ret == AM_TSPLAYER_OK) {
       real_read = 0;
       write_success++;
       continue;
@@ -943,6 +976,8 @@ rewrite:
     }
   }
   DVR_DEBUG(1, "playback thread is end");
+  free(buf);
+  free(dec_bufs.buf_data);
   return NULL;
 }
 
@@ -1058,6 +1093,14 @@ int dvr_playback_open(DVR_PlaybackHandle_t *p_handle, DVR_PlaybackOpenParams_t *
   //seek time
   player->seek_time = 0;
   player->send_time = 0;
+
+  //init secure stuff
+  player->dec_func = NULL;
+  player->dec_userdata = NULL;
+  player->is_secure_mode = 0;
+  player->secure_buffer = NULL;
+  player->secure_buffer_size = 0;
+
   *p_handle = player;
   return DVR_SUCCESS;
 }
@@ -2546,4 +2589,40 @@ int dvr_dump_segmentinfo(DVR_PlaybackHandle_t handle, uint64_t segment_id) {
     }
   }
   return 0;
+}
+
+int dvr_playback_set_decrypt_callback(DVR_PlaybackHandle_t handle, DVR_PlaybackDecryptFunction_t func, void *userdata)
+{
+  DVR_Playback_t *player = (DVR_Playback_t *) handle;
+  DVR_RETURN_IF_FALSE(player);
+  DVR_RETURN_IF_FALSE(func);
+
+  DVR_DEBUG(1, "in %s", __func__);
+  pthread_mutex_lock(&player->lock);
+
+  player->dec_func = func;
+  player->dec_userdata = userdata;
+
+  pthread_mutex_unlock(&player->lock);
+  DVR_DEBUG(1, "out %s", __func__);
+  return DVR_SUCCESS;
+}
+
+int dvr_playback_set_secure_buffer(DVR_PlaybackHandle_t handle, uint8_t *p_secure_buf, uint32_t len)
+{
+  DVR_Playback_t *player = (DVR_Playback_t *) handle;
+  DVR_RETURN_IF_FALSE(player);
+  DVR_RETURN_IF_FALSE(p_secure_buf);
+  DVR_RETURN_IF_FALSE(len);
+
+  DVR_DEBUG(1, "in %s", __func__);
+  pthread_mutex_lock(&player->lock);
+
+  player->is_secure_mode = 1;
+  player->secure_buffer = p_secure_buf;
+  player->secure_buffer_size = len;
+
+  pthread_mutex_unlock(&player->lock);
+  DVR_DEBUG(1, "out %s", __func__);
+  return DVR_SUCCESS;
 }

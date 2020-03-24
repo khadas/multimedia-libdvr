@@ -69,6 +69,15 @@ int record_device_stop(Record_DeviceHandle_t handle);
  */
 int record_device_read(Record_DeviceHandle_t handle, void *buf, size_t len, int timeout);
 
+/**\brief Configure secure buffer for the given record device
+ * \param[in] handle, DVR device handle
+ * \param[out] sec_buf, secure buffer address
+ * \param[in] len, secure buffer length
+ * \return DVR_SUCCESS On success
+ * \return Error code On failure
+ */
+int record_device_set_secure_buffer(Record_DeviceHandle_t handle, uint8_t *sec_buf, uint32_t len);
+
 #ifdef __cplusplus
 }
 #endif

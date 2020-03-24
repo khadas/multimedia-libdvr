@@ -230,6 +230,12 @@ typedef struct
   int                       pos;        /**< seek pos at cur segment*/
 } DVR_PlaybackCmdInfo_t;
 
+/**\brief DVR playback decrypt function*/
+typedef DVR_Result_t (*DVR_PlaybackDecryptFunction_t) (uint8_t *p_in,
+    uint32_t in_len,
+    uint8_t *p_out,
+    uint32_t *p_out_len,
+    void *userdata);
 
 /**\cond */
 /**\brief playback struct*/
@@ -268,6 +274,11 @@ typedef struct
   void                       *player_callback_userdata;/**< tsplayer cb data*/
   int                         send_time;/**< send event time*/
   int                         first_frame;/**< show first frame*/
+  DVR_PlaybackDecryptFunction_t   dec_func;                             /**< Decrypt function*/
+  void                            *dec_userdata;                        /**< Decrypt userdata*/
+  int                             is_secure_mode;                       /**< Playback session run in secure pipeline */
+  uint8_t                         *secure_buffer;                       /* Playback session secure buffer */
+  uint32_t                        secure_buffer_size;                   /* Playback session secure buffer size */
 } DVR_Playback_t;
 /**\endcond*/
 
@@ -426,6 +437,24 @@ int dvr_playback_get_capabilities(DVR_PlaybackCapability_t *p_capability);
  * \return Error code
  */
 int dvr_dump_segmentinfo(DVR_PlaybackHandle_t handle, uint64_t segment_id);
+
+/**\brief Set DVR playback decrypt function
+ * \param[in] handle, DVR playback session handle
+ * \param[in] func, DVR playback encrypt function
+ * \param[in] userdata, DVR playback userdata from the caller
+ * \return DVR_SUCCESS on success
+ * \return error code on failure
+ */
+int dvr_playback_set_decrypt_callback(DVR_PlaybackHandle_t handle, DVR_PlaybackDecryptFunction_t func, void *userdata);
+
+/**\brief Set DVR playback secure buffer used for protect the secure content
+ * \param[in] handle, DVR playback session handle
+ * \param[in] p_secure_buf, Secure buffer address which can NOT access by ACPU
+ * \param[in] len, Secure buffer length
+ * \return DVR_SUCCESS on success
+ * \return error code on failure
+ */
+int dvr_playback_set_secure_buffer(DVR_PlaybackHandle_t handle, uint8_t *p_secure_buf, uint32_t len);
 
 #ifdef __cplusplus
 }
