@@ -1,6 +1,6 @@
 /**
  * \file
- * Playback module.
+ * \brief Playback module.
  */
 
 #ifndef DVR_PLAYBACK_H_
@@ -21,7 +21,7 @@ typedef enum
 {
   DVR_PLAYBACK_SEGMENT_ENCRYPTED   = (1 << 0), /**< encrypted stream */
   DVR_PLAYBACK_SEGMENT_DISPLAYABLE = (1 << 1), /**< displayable stream */
-  DVR_PLAYBACK_SEGMENT_CONTINUOUS   = (1 << 2)/**< continuous stream with pre one */
+  DVR_PLAYBACK_SEGMENT_CONTINUOUS  = (1 << 2)  /**< continuous stream with pre one */
 } DVR_PlaybackSegmentFlag_t;
 
 /**\brief dvr pid type*/
@@ -77,8 +77,9 @@ typedef enum
   PlayBack_Speed_MAX,
 } Playback_SpeedValue_t;
 
+/**\brief playback speed*/
 typedef struct Playback_Speeds_s {
-  int speed; /**< playback speed*/
+  int speed; /**< playback speed value*/
 } Playback_Speeds_t;
 
 /**\brief playback play speed*/
@@ -149,19 +150,19 @@ typedef enum {
 /**\brief DVR playback event notify function*/
 typedef struct
 {
-  DVR_PlaybackEvent_t  event;      /**< event type*/
-  DVR_PlaybackStatus_t play_status;  /**< play status*/
+  DVR_PlaybackEvent_t  event;       /**< event type*/
+  DVR_PlaybackStatus_t play_status; /**< play status*/
   union
   {
-    uint8_t               unused;
-    uint8_t          error_reason;    /**< error reason*/
+    uint8_t            unused;
+    uint8_t            error_reason;/**< error reason*/
     struct
     {
-      uint64_t         segment_id;      /**< error segment id*/
-      uint32_t         key_data_id;    /**< key data id*/
-      uint8_t          error;         /**< error*/
+      uint64_t         segment_id;  /**< error segment id*/
+      uint32_t         key_data_id; /**< key data id*/
+      uint8_t          error;       /**< error*/
     } transition_failed_data;
-  } info;
+  } info;                           /**< information*/
 } DVR_Play_Notify_t;
 
 /**\brief DVR playback event notify function*/
@@ -220,6 +221,7 @@ typedef struct
 } DVR_PlaybackCmdInfo_t;
 
 
+/**\cond */
 /**\brief playback struct*/
 typedef struct
 {
@@ -257,6 +259,7 @@ typedef struct
   void                       *player_callback_userdata;
   int                         send_time;
 } DVR_Playback_t;
+/**\endcond*/
 
 /**\brief Open an dvr palyback
  * \param[out] p_handle dvr playback addr
@@ -276,7 +279,7 @@ int dvr_playback_close(DVR_PlaybackHandle_t handle);
 
 /**\brief Start play audio and video, used start auido api and start video api
  * \param[in] handle playback handle
- * \param[in] params audio playback params,contains fmt and pid...
+ * \param[in] flag playback flag
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
@@ -300,25 +303,28 @@ int dvr_playback_remove_segment(DVR_PlaybackHandle_t handle, uint64_t segmentid)
 
 /**\brief dvr play back add segment info
  * \param[in] handle playback handle
- * \param[in] info added segment info,con vpid fmt apid fmt.....
+ * \param[in] segment_id the segment's index
+ * \param[in] flags the segment's flags
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
 int dvr_playback_update_segment_flags(DVR_PlaybackHandle_t handle,
     uint64_t segment_id,
     DVR_PlaybackSegmentFlag_t flags);
+
 /**\brief dvr play back up1date segment pids
  * if updated segment is ongoing segment, we need start new
  * add pid stream and stop remove pid stream.
  * \param[in] handle playback handle
  * \param[in] segment_id need updated pids segment id
+ * \param[in] p_pids the new PIDs
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int dvr_playback_update_segment_pids(DVR_PlaybackHandle_t handle, uint64_t segmentid,
+int dvr_playback_update_segment_pids(DVR_PlaybackHandle_t handle, uint64_t segment_id,
 DVR_PlaybackPids_t *p_pids);
 
-/**\brief Stop play, will stop video and audio
+/**\brief Stop playing, will stop video and audio
  * \param[in] handle playback handle
  * \param[in] clear is clear last frame
  * \retval DVR_SUCCESS On success
@@ -326,28 +332,28 @@ DVR_PlaybackPids_t *p_pids);
  */
 int dvr_playback_stop(DVR_PlaybackHandle_t handle, DVR_Bool_t clear);
 
-/**\brief Start play audio
+/**\brief Start audio playing
  * \param[in] handle playback handle
  * \param[in] params audio playback params,contains fmt and pid...
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int dvr_playback_audio_start(DVR_PlaybackHandle_t handle, am_tsplayer_audio_params *param);
+int dvr_playback_audio_start(DVR_PlaybackHandle_t handle, am_tsplayer_audio_params *params);
 
-/**\brief Stop play audio
+/**\brief Stop audio playing
  * \param[in] handle playback handle
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
 int dvr_playback_audio_stop(DVR_PlaybackHandle_t handle);
 
-/**\brief Start play video
+/**\brief Start video playing
  * \param[in] handle playback handle
  * \param[in] params video playback params,contains fmt and pid...
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int dvr_playback_video_start(DVR_PlaybackHandle_t handle, am_tsplayer_video_params *param);
+int dvr_playback_video_start(DVR_PlaybackHandle_t handle, am_tsplayer_video_params *params);
 
 /**\brief Stop play video
  * \param[in] handle playback handle
@@ -365,8 +371,9 @@ int dvr_playback_video_stop(DVR_PlaybackHandle_t handle);
 int dvr_playback_pause(DVR_PlaybackHandle_t handle, DVR_Bool_t flush);
 
 
-/**\brief seek
+/**\brief Seek the playing position
  * \param[in] handle playback handle
+ * \param[in] segment_id the segment's index
  * \param[in] time_offset time offset base cur segment
  * \retval DVR_SUCCESS On success
  * \return Error code
@@ -397,8 +404,8 @@ int dvr_playback_get_status(DVR_PlaybackHandle_t handle, DVR_PlaybackStatus_t *p
 int dvr_playback_get_capabilities(DVR_PlaybackCapability_t *p_capability);
 
 /**\brief dump segmentinfo throw print log
- * \param[int] handle playback
- * \param[int] segment_id if segment_id > 0, only dump this log. else dump all segment info
+ * \param[in] handle playback
+ * \param[in] segment_id if segment_id > 0, only dump this log. else dump all segment info
  * \retval DVR_SUCCESS On success
  * \return Error code
  */

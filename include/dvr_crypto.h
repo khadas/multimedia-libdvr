@@ -1,6 +1,9 @@
 /**
  * \file
- * Crypto function definition.
+ * \brief Crypto function
+ *
+ * Crypto function is used as a callback function in dvr_record and dvr_playback module.
+ * User can used it to encrypt the TS data in recording and decrypt the TS data in playback process.
  */
 
 #ifndef _DVR_CRYPTO_H_

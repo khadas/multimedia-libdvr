@@ -1,6 +1,24 @@
 /**
+ * \mainpage Amlogic DVR library
+ *
+ * \section Introduction
+ * "libdvr" is a library provides basic DVR functions used by Amlogic platform.
+ * It supports:
+ * \li Record
+ * \li Playback
+ * \li Index file generated
+ * \li Segment split
+ * \li Encrypt and decrypt
+ * \endsection
+ *
  * \file
- * DVR wrapper.
+ * \brief libdvr wrapper layer
+ *
+ * Wrapper layer is upper layer of libdvr.
+ * It is on top of dvr_record and dvr_playback.
+ * It supports:
+ * \li Separate record segments automatically.
+ * \li Load segments automatically.
  */
 
 #ifndef DVR_WRAPPER_H_

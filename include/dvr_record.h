@@ -1,6 +1,6 @@
-/*
+/**
  * \file
- * Record module
+ * \brief Record module
  */
 
 #ifndef _DVR_RECORD_H_
@@ -111,66 +111,66 @@ typedef struct {
 } DVR_RecordStartParams_t;
 
 /**\brief Open a recording session for a target giving some open parameters
- * \param[out] p_handle, Return the handle of the newly created dvr session
- * \param[in] params, Open parameters
+ * \param[out] p_handle Return the handle of the newly created dvr session
+ * \param[in] params Open parameters
  * \return DVR_SUCCESS on success
  * \return error code on failure
  */
 int dvr_record_open(DVR_RecordHandle_t *p_handle, DVR_RecordOpenParams_t *params);
 
 /**\brief Close a recording session
- * \param[in] handle, DVR recording session handle
+ * \param[in] handle DVR recording session handle
  * \return DVR_SUCCESS on success
  * \return error code on failure
  */
 int dvr_record_close(DVR_RecordHandle_t handle);
 
 /**\brief Start recording on a segment
- * \param[in] handle, DVR recording session handle
- * \param[in] params, DVR start parameters
+ * \param[in] handle DVR recording session handle
+ * \param[in] params DVR start parameters
  * \return DVR_SUCCESS on success
  * \return error code on failure
  */
 int dvr_record_start_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t *params);
 
 /**\brief Stop the ongoing segment and start recording a new segment
- * \param[in] handle, DVR recording session handle
- * \param[in] params, DVR start parameters
- * \param[out] p_info, DVR record segment information
+ * \param[in] handle DVR recording session handle
+ * \param[in] params DVR start parameters
+ * \param[out] p_info DVR record segment information
  * \return DVR_SUCCESS on success
  * \return error code on failure
  */
 int dvr_record_next_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t *params, DVR_RecordSegmentInfo_t *p_info);
 
 /**\brief Stop the ongoing segment
- * \param[in] handle, DVR recording session handle
- * \param[out] p_info, DVR record segment information
+ * \param[in] handle DVR recording session handle
+ * \param[out] p_info DVR record segment information
  * \return DVR_SUCCESS on success
  * \return error code on failure
  */
 int dvr_record_stop_segment(DVR_RecordHandle_t handle, DVR_RecordSegmentInfo_t *p_info);
 
 /**\brief Resume the recording on a segment
- * \param[in] handle, DVR recording session handle
- * \param[in] params, DVR start parameters
- * \param[in/out] p_resume_size, HAL propose a resume size as a input parameter and output is the real resume size
+ * \param[in] handle DVR recording session handle
+ * \param[in] params DVR start parameters
+ * \param[inout] p_resume_size HAL propose a resume size as a input parameter and output is the real resume size
  * \return DVR_SUCCESS on success
  * \return error code on failure
  */
 int dvr_record_resume_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t *params, uint64_t *p_resume_size);
 
 /**\brief DVR record write data, used for VOD mode
- * \param[in] handle, DVR recording session handle
- * \param[in] buffer, The redcord data buffer
- * \param[in] len, The record data length
+ * \param[in] handle DVR recording session handle
+ * \param[in] buffer The redcord data buffer
+ * \param[in] len The record data length
  * \return DVR_SUCCESS on success
  * \return error code on failure
  */
 int dvr_record_write(DVR_RecordHandle_t handle, void *buffer, uint32_t len);
 
 /**\brief DVR record get status
- * \param[in] handle, DVR recording session handle
- * \param[out] p_status, Return current DVR record status
+ * \param[in] handle DVR recording session handle
+ * \param[out] p_status Return current DVR record status
  * \return DVR_SUCCESS on success
  * \return error code on failure
  */
