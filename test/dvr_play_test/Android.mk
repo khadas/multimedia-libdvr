@@ -6,8 +6,8 @@ LOCAL_VENDOR_MODULE := true
 
 
 #for amstream.h
-AMADEC_C_INCLUDES:=hardware/amlogic/media/amcodec/include\
-ANDROID_LOG_INCLUDE:=system/core/liblog/include\
+AMADEC_C_INCLUDES:=hardware/amlogic/media/amcodec/include \
+ANDROID_LOG_INCLUDE:=system/core/liblog/include \
 
 LOCAL_SRC_FILES:= dvr_play_test.c
 
@@ -18,11 +18,12 @@ LOCAL_MODULE_TAGS := optional
 #LOCAL_MULTILIB := 32
 
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/include \
+                    vendor/amlogic/common/mediahal_sdk/include \
                     $(LOCAL_PATH)/../../include/ \
                     $(AMADEC_C_INCLUDES)
                     $(ANDROID_LOG_INCLUDE)
 
-LOCAL_SHARED_LIBRARIES := libamdvr
+LOCAL_SHARED_LIBRARIES := libamdvr libmediahal_tsplayer
 LOCAL_SHARED_LIBRARIES += libcutils liblog libdl libc
 
 include $(BUILD_EXECUTABLE)
