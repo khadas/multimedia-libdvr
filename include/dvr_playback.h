@@ -64,6 +64,7 @@ typedef enum
 {
   DVR_PLAYBACK_FAST_FORWARD = 0,        /**< fast forward */
   DVR_PLAYBACK_FAST_BACKWARD = 1,       /**< fast backward */
+  DVR_PLAYBACK_KERNEL_SUPPORT = 2,      /**< kernel support mode */
 } DVR_PlaybackSpeedMode_t;
 
 /**\brief playback speed*/
@@ -370,6 +371,12 @@ int dvr_playback_video_stop(DVR_PlaybackHandle_t handle);
  */
 int dvr_playback_pause(DVR_PlaybackHandle_t handle, DVR_Bool_t flush);
 
+/**\brief resume play
+ * \param[in] handle playback handle
+ * \retval DVR_SUCCESS On success
+ * \return Error code
+ */
+int dvr_playback_resume(DVR_PlaybackHandle_t handle);
 
 /**\brief Seek the playing position
  * \param[in] handle playback handle

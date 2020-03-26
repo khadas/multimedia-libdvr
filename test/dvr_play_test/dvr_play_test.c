@@ -20,7 +20,9 @@
 
 static void display_usage(void)
 {
+    fprintf(stderr, "dvr_play_test v=vpid:vfmt a=apid:afmt segid=segmentid location=dir\n");
     fprintf(stderr, "==================\n");
+    fprintf(stderr, "*startpause\n");
     fprintf(stderr, "*play\n");
     fprintf(stderr, "*pause\n");
     fprintf(stderr, "*resume\n");
@@ -35,18 +37,23 @@ int start_playback_test(DVR_PlaybackHandle_t handle)
 {
     DVR_Bool_t  go = DVR_TRUE;
     char buf[256];
-
+    int start_flag = 0;
     display_usage();
 
     while (go) {
+        sleep(1);
         if (fgets(buf, sizeof(buf), stdin)) {
-
             if (!strncmp(buf, "quit", 4)) {
                 go = DVR_FALSE;
                 continue;
             }
+            else if (!strncmp(buf, "startpause", 10)) {
+              int flags = 0;
+              flags = flags | DVR_PLAYBACK_STARTED_PAUSEDLIVE;
+              dvr_playback_start(handle, flags);
+            }
             else if (!strncmp(buf, "play", 4)) {
-              dvr_playback_start(handle, 1);
+              dvr_playback_start(handle, 0);
             }
             else if (!strncmp(buf, "pause", 5)) {
                 dvr_playback_pause(handle, 1);
@@ -97,6 +104,15 @@ int main(int argc, char **argv)
   int segid = 0;
   int dmx = 0;
   int i;
+  display_usage();
+  if (argc < 4) {
+    printf("input param is error");
+    return 0;
+  }
+  //add chunk info
+  DVR_PlaybackSegmentInfo_t info;
+  memset(&info, 0, sizeof(DVR_PlaybackSegmentInfo_t));
+
 
   for (i = 1; i < argc; i++) {
       if (!strncmp(argv[i], "v", 1))
@@ -111,6 +127,8 @@ int main(int argc, char **argv)
           sscanf(argv[i], "pause=%i", &pause);
       else if (!strncmp(argv[i], "segid", 5))
           sscanf(argv[i], "segid=%i", &segid);
+      else if (!strncmp(argv[i], "location", 8))
+          sscanf(argv[i], "location=%s", info.location);
       else if (!strncmp(argv[i], "help", 4)) {
           printf("Usage: %s  [dmx=id] [segid=id] [v=pid:fmt] [a=pid:fmt] [bsize=size] [pause=n]\n", argv[0]);
           exit(0);
@@ -120,24 +138,28 @@ int main(int argc, char **argv)
   printf("video:%d:%d(pid/fmt) audio:%d:%d(pid/fmt)\n", vpid, vfmt, apid, afmt);
   printf("segid:%d bsize:%d dmx:%d\n", segid, bsize, dmx);
   printf("pause:%d\n", pause);
+  printf("info.location:%s\n", info.location);
+  memset(&dev_params, 0, sizeof(dev_params));
   dev_params.dmx_dev_id = dmx;
+  dev_params.source = TS_MEMORY;
 
   int ret = AmTsPlayer_create(dev_params, &device_handle);
+  AmTsPlayer_setWorkMode(device_handle, TS_PLAYER_MODE_NORMAL);
+  AmTsPlayer_setSyncMode(device_handle, TS_SYNC_VMASTER);
 
   DVR_PlaybackHandle_t handle = 0;
   DVR_PlaybackOpenParams_t params;
   params.dmx_dev_id = dmx;
   params.block_size = bsize;
   params.player_handle = device_handle;
+
   printf("open dvr playback device\r\n");
   dvr_playback_open(&handle, &params);
-  //add chunk info
-  DVR_PlaybackSegmentInfo_t info;
-  memset(&info, 0, sizeof(DVR_PlaybackSegmentInfo_t));
+
   info.segment_id = segid;
-  info.flags = 1;
-  //strncpy(info.location, "/data/pvr/tsthal_rec1", 21);
-  memcpy(info.location, "/data/pvr/tsthal_rec1", 21);
+  info.flags = 0;
+  info.flags = info.flags | DVR_PLAYBACK_SEGMENT_DISPLAYABLE;
+  info.flags = info.flags | DVR_PLAYBACK_SEGMENT_CONTINUOUS;
   info.pids.video.pid = vpid;
   info.pids.video.format = vfmt;
   info.pids.video.type = DVR_STREAM_TYPE_VIDEO;
@@ -145,6 +167,7 @@ int main(int argc, char **argv)
   info.pids.audio.format = afmt;
   info.pids.audio.type = DVR_STREAM_TYPE_AUDIO;
   dvr_playback_add_segment(handle, &info);
+  dvr_playback_seek(handle, info.segment_id, 0);
   start_playback_test(handle);
   dvr_playback_stop(handle, 0);
   dvr_playback_close(handle);

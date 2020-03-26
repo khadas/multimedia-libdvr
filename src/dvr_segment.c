@@ -17,6 +17,7 @@ void *dvr_segment_thread(void *arg)
   DVR_SegmentFile_t file;
   int ret;
 
+  pthread_detach(pthread_self());
   memcpy(&file, arg, sizeof(DVR_SegmentFile_t));
   DVR_DEBUG(1, "%s try to delete [%s-%lld]", __func__, file.location, file.id);
   ret = segment_delete(file.location, file.id);
@@ -40,7 +41,6 @@ int dvr_segment_delete(const char *location, uint64_t segment_id)
   segment.id = segment_id;
   pthread_create(&thread, NULL, dvr_segment_thread, &segment);
   usleep(10*1000);
-
   return DVR_SUCCESS;
 }
 
