@@ -106,15 +106,7 @@ int record_device_open(Record_DeviceHandle_t *p_handle, Record_DeviceOpenParams_
   memset(cmd, 0, sizeof(cmd));
   snprintf(cmd, sizeof(cmd), "dmx%d", params->dmx_dev_id);
   p_ctx->dmx_dev_id = params->dmx_dev_id;
-  DVR_FileEcho(buf, cmd);
-  /*Configure dmx source*/
-  //memset(buf, 0, sizeof(buf));
-  //snprintf(buf, sizeof(buf), "/sys/class/stb/demux%d_source", params->dmx_dev_id);
-  //memset(cmd, 0, sizeof(cmd));
-  //snprintf(cmd, sizeof(cmd), "ts0", params->dmx_dev_id);
-  //DVR_DEBUG(1, "[%s] %s %s",__func__,buf, cmd);
-  //DVR_FileEcho(buf, cmd);
-
+  dvr_file_echo(buf, cmd);
   p_ctx->state = RECORD_DEVICE_STATE_OPENED;
   *p_handle = p_ctx;
   pthread_mutex_unlock(&p_ctx->lock);

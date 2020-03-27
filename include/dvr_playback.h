@@ -70,10 +70,19 @@ typedef enum
 /**\brief playback speed*/
 typedef enum
 {
+  PLAYBACK_SPEED_FBX2 = -200,          /**<FB X 2 speed*/
+  PLAYBACK_SPEED_FBX4 = -400,          /**<FB X 4 speed*/
+  PLAYBACK_SPEED_FBX8 = -800,          /**<FB X 8 speed*/
+  PLAYBACK_SPEED_S8 = 12,          /**<slow 1/8 speed*/
+  PLAYBACK_SPEED_S4 = 25,          /**<slow 1/4 speed*/
   PLAYBACK_SPEED_S2 = 50,          /**<slow 1/2 speed*/
   PLAYBACK_SPEED_X1 = 100,          /**< X 1 normal speed*/
   PLAYBACK_SPEED_X2 = 200,          /**< X 2 speed*/
+  PLAYBACK_SPEED_X3 = 300,          /**< X 3 speed*/
   PLAYBACK_SPEED_X4 = 400,          /**< X 4 speed*/
+  PLAYBACK_SPEED_X5 = 500,          /**< X 5 speed*/
+  PLAYBACK_SPEED_X6 = 600,          /**< X 6 speed*/
+  PLAYBACK_SPEED_X7 = 700,          /**< X 7 speed*/
   PLAYBACK_SPEED_X8 = 800,          /**< X 8 speed*/
   PlayBack_Speed_MAX,
 } Playback_SpeedValue_t;
@@ -253,12 +262,12 @@ typedef struct
   int                        fffb_start;    /**< fffb start time ms*/
   int                        fffb_current;  /**< fffb current time*/
   int                        fffb_start_pcr;     /**< fffb start pcr time*/
-  int                        next_fffb_time;
-  int                        seek_time;
-  DVR_Bool_t                 auto_pause;
-  event_callback             player_callback_func;
-  void                       *player_callback_userdata;
-  int                         send_time;
+  int                        next_fffb_time;/**< fffb start pcr time*/
+  int                        seek_time;/**< fffb start pcr time*/
+  event_callback             player_callback_func;/**< tsplayer cb*/
+  void                       *player_callback_userdata;/**< tsplayer cb data*/
+  int                         send_time;/**< send event time*/
+  int                         first_frame;/**< show first frame*/
 } DVR_Playback_t;
 /**\endcond*/
 

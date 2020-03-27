@@ -86,7 +86,7 @@ int segment_open(Segment_OpenParams_t *params, Segment_Handle_t *p_handle)
   DVR_RETURN_IF_FALSE(params);
   DVR_RETURN_IF_FALSE(p_handle);
 
-  DVR_DEBUG(1, "%s, location:%s, id:%llu", __func__, params->location, params->segment_id);
+  //DVR_DEBUG(1, "%s, location:%s, id:%llu", __func__, params->location, params->segment_id);
 
   p_ctx = (void*)malloc(sizeof(Segment_Context_t));
   DVR_RETURN_IF_FALSE(p_ctx);
@@ -141,7 +141,7 @@ int segment_open(Segment_OpenParams_t *params, Segment_Handle_t *p_handle)
   p_ctx->segment_id = params->segment_id;
   strncpy(p_ctx->location, params->location, strlen(params->location));
 
-  DVR_DEBUG(1, "%s, open file success p_ctx->location [%s]", __func__, p_ctx->location);
+  //DVR_DEBUG(1, "%s, open file success p_ctx->location [%s]", __func__, p_ctx->location);
   *p_handle = (Segment_Handle_t)p_ctx;
   return DVR_SUCCESS;
 }
@@ -349,7 +349,7 @@ uint64_t segment_tell_current_time(Segment_Handle_t handle)
       return pts;
     }
   }
-  DVR_DEBUG(1, "tell cur time=%llu, offset=%lld, position=%lld\n", pts, offset, position);
+  //DVR_DEBUG(1, "tell cur time=%llu, offset=%lld, position=%lld\n", pts, offset, position);
   return pts;
 }
 
@@ -522,7 +522,7 @@ int segment_load_info(Segment_Handle_t handle, Segment_StoreInfo_t *p_info)
   p1 = strstr(buf, "duration=");
   DVR_RETURN_IF_FALSE(p1);
   p_info->duration = strtoull(p1 + 9, NULL, 10);
-  DVR_DEBUG(1, "load info p_info->duration:%lld", p_info->duration);
+  //DVR_DEBUG(1, "load info p_info->duration:%lld", p_info->duration);
 
   /*Save segment size*/
   p1 = fgets(buf, sizeof(buf), p_ctx->dat_fp);

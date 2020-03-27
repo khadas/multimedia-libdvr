@@ -16,6 +16,9 @@
  * \date 2010-06-07: create the document
  ***************************************************************************/
 #include "stdio.h"
+#include <string.h>
+#include <stdlib.h>
+
 #include "dvr_playback.h"
 
 static void display_usage(void)
@@ -37,49 +40,47 @@ int start_playback_test(DVR_PlaybackHandle_t handle)
 {
     DVR_Bool_t  go = DVR_TRUE;
     char buf[256];
-    int start_flag = 0;
     display_usage();
 
     while (go) {
-        sleep(1);
         if (fgets(buf, sizeof(buf), stdin)) {
-            if (!strncmp(buf, "quit", 4)) {
+            if (!strncmp(buf, "quit", 4u)) {
                 go = DVR_FALSE;
                 continue;
             }
-            else if (!strncmp(buf, "startpause", 10)) {
+            else if (!strncmp(buf, "startpause", 10u)) {
               int flags = 0;
               flags = flags | DVR_PLAYBACK_STARTED_PAUSEDLIVE;
               dvr_playback_start(handle, flags);
             }
-            else if (!strncmp(buf, "play", 4)) {
+            else if (!strncmp(buf, "play", 4u)) {
               dvr_playback_start(handle, 0);
             }
-            else if (!strncmp(buf, "pause", 5)) {
+            else if (!strncmp(buf, "pause", 5u)) {
                 dvr_playback_pause(handle, 1);
             }
-            else if (!strncmp(buf, "resume", 6)) {
+            else if (!strncmp(buf, "resume", 6u)) {
                 dvr_playback_resume(handle);
             }
-            else if (!strncmp(buf, "ff", 2)) {
+            else if (!strncmp(buf, "ff", 2u)) {
                int speed;
                 sscanf(buf + 2, "%d", &speed);
-                printf("fast forward not suport  is %d, speed is %d  \n",speed);
+                printf("fast forward speed is %d\n", speed);
                 DVR_PlaybackSpeed_t speeds;
                 speeds.mode = DVR_PLAYBACK_FAST_FORWARD;
                 speeds.speed.speed = speed;
                 dvr_playback_set_speed(handle, speeds);
             }
-            else if (!strncmp(buf, "fb", 2)) {
+            else if (!strncmp(buf, "fb", 2u)) {
                 int speed;
                 sscanf(buf + 2, "%d", &speed);
-                printf("fast forward not suport  is %d, speed is %d  \n",speed);
+                printf("fast forward speed is %d\n",speed);
                 DVR_PlaybackSpeed_t speeds;
                 speeds.mode = DVR_PLAYBACK_FAST_BACKWARD;
                 speeds.speed.speed = speed;
                 dvr_playback_set_speed(handle, speeds);
             }
-            else if (!strncmp(buf, "seek", 4)) {
+            else if (!strncmp(buf, "seek", 4u)) {
                 int time;
                 sscanf(buf + 4, "%d", &time);
                 dvr_playback_seek(handle, 0,time);
@@ -145,7 +146,7 @@ int main(int argc, char **argv)
 
   int ret = AmTsPlayer_create(dev_params, &device_handle);
   AmTsPlayer_setWorkMode(device_handle, TS_PLAYER_MODE_NORMAL);
-  AmTsPlayer_setSyncMode(device_handle, TS_SYNC_VMASTER);
+  AmTsPlayer_setSyncMode(device_handle, TS_SYNC_AMASTER);
 
   DVR_PlaybackHandle_t handle = 0;
   DVR_PlaybackOpenParams_t params;

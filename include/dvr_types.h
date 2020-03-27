@@ -129,7 +129,8 @@ typedef enum {
   DVR_VIDEO_FORMAT_MPEG1, /**< MPEG1 video.*/
   DVR_VIDEO_FORMAT_MPEG2, /**< MPEG2 video.*/
   DVR_VIDEO_FORMAT_H264,  /**< H264.*/
-  DVR_VIDEO_FORMAT_HEVC   /**< HEVC.*/
+  DVR_VIDEO_FORMAT_HEVC ,  /**< HEVC.*/
+  DVR_VIDEO_FORMAT_VP9  /**< VP9.*/
 } DVR_VideoFormat_t;
 
 /**Audio format.*/
@@ -139,7 +140,9 @@ typedef enum {
   DVR_AUDIO_FORMAT_EAC3, /**< EAC3 audio.*/
   DVR_AUDIO_FORMAT_DTS  , /**< DTS audio.*/
   DVR_AUDIO_FORMAT_AAC, /**< AAC audio.*/
-  DVR_AUDIO_FORMAT_HEAAC /**<HE AAC audio.*/
+  DVR_AUDIO_FORMAT_HEAAC, /**<HE AAC audio.*/
+  DVR_AUDIO_FORMAT_LATM, /**<LATM audio.*/
+  DVR_AUDIO_FORMAT_PCM /**<PCM audio.*/
 } DVR_AudioFormat_t;
 
 /**Buffer type.*/
