@@ -826,10 +826,11 @@ int dvr_wrapper_open_record (DVR_WrapperRecord_t *rec, DVR_WrapperRecordOpenPara
 
   wrapper_requestThreadFor(ctx);
 
+  memset(&open_param, 0, sizeof(open_param));
   open_param.dmx_dev_id = params->dmx_dev_id;
   open_param.data_from_memory = 0;
   open_param.flags = params->flags;
-  open_param.notification_size = 10*1024;
+  open_param.notification_size = 500*1024;
   open_param.event_fn = wrapper_record_event_handler;
   open_param.event_userdata = (void*)ctx->sn;
 
@@ -1069,6 +1070,7 @@ int dvr_wrapper_open_playback (DVR_WrapperPlayback_t *playback, DVR_WrapperPlayb
 
   wrapper_requestThreadFor(ctx);
 
+  memset(&open_param, 0, sizeof(open_param));
   open_param.dmx_dev_id = params->dmx_dev_id;
   open_param.block_size = params->block_size;
   open_param.is_timeshift = params->is_timeshift;
