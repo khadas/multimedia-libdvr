@@ -272,13 +272,13 @@ typedef struct
   int                        seek_time;/**< fffb start pcr time*/
   event_callback             player_callback_func;/**< tsplayer cb*/
   void                       *player_callback_userdata;/**< tsplayer cb data*/
-  int                         send_time;/**< send event time*/
-  int                         first_frame;/**< show first frame*/
-  DVR_PlaybackDecryptFunction_t   dec_func;                             /**< Decrypt function*/
-  void                            *dec_userdata;                        /**< Decrypt userdata*/
-  int                             is_secure_mode;                       /**< Playback session run in secure pipeline */
-  uint8_t                         *secure_buffer;                       /* Playback session secure buffer */
-  uint32_t                        secure_buffer_size;                   /* Playback session secure buffer size */
+  int                        send_time;/**< send event time*/
+  int                        first_frame;/**< show first frame*/
+  DVR_CryptoFunction_t       dec_func;                             /**< Decrypt function*/
+  void                       *dec_userdata;                        /**< Decrypt userdata*/
+  int                        is_secure_mode;                       /**< Playback session run in secure pipeline */
+  uint8_t                    *secure_buffer;                       /* Playback session secure buffer */
+  uint32_t                   secure_buffer_size;                   /* Playback session secure buffer size */
 } DVR_Playback_t;
 /**\endcond*/
 
@@ -445,7 +445,7 @@ int dvr_dump_segmentinfo(DVR_PlaybackHandle_t handle, uint64_t segment_id);
  * \return DVR_SUCCESS on success
  * \return error code on failure
  */
-int dvr_playback_set_decrypt_callback(DVR_PlaybackHandle_t handle, DVR_PlaybackDecryptFunction_t func, void *userdata);
+int dvr_playback_set_decrypt_callback(DVR_PlaybackHandle_t handle, DVR_CryptoFunction_t func, void *userdata);
 
 /**\brief Set DVR playback secure buffer used for protect the secure content
  * \param[in] handle, DVR playback session handle

@@ -941,6 +941,7 @@ static void* _dvr_playback_thread(void *arg)
       real_read = 0;
       continue;
     }
+#if 0
     if (player->dec_func) {
       int dec_len = dec_buf_size;
       if (player->is_secure_mode) {
@@ -955,6 +956,39 @@ static void* _dvr_playback_thread(void *arg)
       }
       wbufs.buf_size = dec_len;
     }
+#else
+    if (player->dec_func) {
+      DVR_CryptoParams_t crypto_params;
+
+      memset(&crypto_params, 0, sizeof(crypto_params));
+      crypto_params.type = DVR_CRYPTO_TYPE_DECRYPT;
+      memcpy(crypto_params.location, player->cur_segment.location, strlen(player->cur_segment.location));
+      crypto_params.segment_id = player->cur_segment.segment_id;
+      crypto_params.offset = segment_tell_position(player->r_handle);
+
+      crypto_params.input_buffer.type = DVR_BUFFER_TYPE_NORMAL;
+      crypto_params.input_buffer.addr = (size_t)buf;
+      crypto_params.input_buffer.size = real_read;
+
+      if (player->is_secure_mode) {
+        crypto_params.output_buffer.type = DVR_BUFFER_TYPE_SECURE;
+        crypto_params.output_buffer.addr = (size_t)player->secure_buffer;
+        crypto_params.output_buffer.size = dec_buf_size;
+        ret = player->dec_func(&crypto_params, player->dec_userdata);
+        wbufs.buf_data = player->secure_buffer;
+      } else {
+        crypto_params.output_buffer.type = DVR_BUFFER_TYPE_NORMAL;
+        crypto_params.output_buffer.addr = (size_t)dec_bufs.buf_data;
+        crypto_params.output_buffer.size = dec_buf_size;
+        ret = player->dec_func(&crypto_params, player->dec_userdata);
+        wbufs.buf_data = dec_bufs.buf_data;
+      }
+      if (ret != DVR_SUCCESS) {
+        DVR_DEBUG(1, "%s, decrypt failed", __func__);
+      }
+      wbufs.buf_size = crypto_params.output_size;
+    }
+#endif
 rewrite:
     ret = AmTsPlayer_writeData(player->handle, &wbufs, write_timeout_ms);
     if (ret == AM_TSPLAYER_OK) {
@@ -2591,7 +2625,7 @@ int dvr_dump_segmentinfo(DVR_PlaybackHandle_t handle, uint64_t segment_id) {
   return 0;
 }
 
-int dvr_playback_set_decrypt_callback(DVR_PlaybackHandle_t handle, DVR_PlaybackDecryptFunction_t func, void *userdata)
+int dvr_playback_set_decrypt_callback(DVR_PlaybackHandle_t handle, DVR_CryptoFunction_t func, void *userdata)
 {
   DVR_Playback_t *player = (DVR_Playback_t *) handle;
   DVR_RETURN_IF_FALSE(player);

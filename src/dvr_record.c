@@ -47,7 +47,7 @@ typedef struct {
   void                            *event_userdata;                      /**< DVR record event userdata*/
   //DVR_VodContext_t                vod;                                  /**< DVR record vod context*/
   int                             is_vod;                               /**< Indicate current mode is VOD record mode*/
-  DVR_RecordEncryptFunction_t     enc_func;                             /**< Encrypt function*/
+  DVR_CryptoFunction_t            enc_func;                             /**< Encrypt function*/
   void                            *enc_userdata;                        /**< Encrypt userdata*/
   int                             is_secure_mode;                       /**< Record session run in secure pipeline */
 } DVR_RecordContext_t;
@@ -182,6 +182,7 @@ void *record_thread(void *arg)
     /* Got data from device, record it */
     if (p_ctx->enc_func) {
       /* Encrypt record data */
+#if 0
       uint8_t *input_buf;
       uint32_t input_len;
       /* Out buffer length may not equal in buffer length */
@@ -196,6 +197,34 @@ void *record_thread(void *arg)
       p_ctx->enc_func(input_buf, input_len, buf_out, &out_len, p_ctx->enc_userdata);
       ret = segment_write(p_ctx->segment_handle, buf_out, out_len);
       len = out_len;
+#else
+      DVR_CryptoParams_t crypto_params;
+
+      memset(&crypto_params, 0, sizeof(crypto_params));
+      crypto_params.type = DVR_CRYPTO_TYPE_ENCRYPT;
+      memcpy(crypto_params.location, p_ctx->location, strlen(p_ctx->location));
+      crypto_params.segment_id = p_ctx->segment_info.id;
+      crypto_params.offset = p_ctx->segment_info.size;
+
+      if (p_ctx->is_secure_mode) {
+        crypto_params.input_buffer.type = DVR_BUFFER_TYPE_SECURE;
+        crypto_params.input_buffer.addr = secure_buf.addr;
+        crypto_params.input_buffer.size = secure_buf.len;
+      } else {
+        crypto_params.input_buffer.type = DVR_BUFFER_TYPE_NORMAL;
+        crypto_params.input_buffer.addr = (size_t)buf;
+        crypto_params.input_buffer.size = len;
+      }
+
+      crypto_params.output_buffer.type = DVR_BUFFER_TYPE_NORMAL;
+      crypto_params.output_buffer.addr = (size_t)buf_out;
+      crypto_params.output_buffer.size = block_size + 188;
+
+      p_ctx->enc_func(&crypto_params, p_ctx->enc_userdata);
+      /* Out buffer length may not equal in buffer length */
+      ret = segment_write(p_ctx->segment_handle, buf_out, crypto_params.output_size);
+      len = crypto_params.output_size;
+#endif
     } else {
       ret = segment_write(p_ctx->segment_handle, buf, len);
     }
@@ -629,7 +658,7 @@ int dvr_record_write(DVR_RecordHandle_t handle, void *buffer, uint32_t len)
   return DVR_SUCCESS;
 }
 
-int dvr_record_set_encrypt_callback(DVR_RecordHandle_t handle, DVR_RecordEncryptFunction_t func, void *userdata)
+int dvr_record_set_encrypt_callback(DVR_RecordHandle_t handle, DVR_CryptoFunction_t func, void *userdata)
 {
   DVR_RecordContext_t *p_ctx;
   uint32_t i;
