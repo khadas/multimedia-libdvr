@@ -158,6 +158,26 @@ int dvr_wrapper_update_record_pids (DVR_WrapperRecord_t rec, DVR_WrapperUpdatePi
 int dvr_wrapper_get_record_status (DVR_WrapperRecord_t rec, DVR_WrapperRecordStatus_t *status);
 
 /**
+ * Set record secure buffer.
+ * \param rec The record handle.
+ * \param p_secure_buf record p_secure_buf addr.
+ * \param len record p_secure_buf len.
+ * \retval DVR_SUCCESS On success.
+ * \return Error code.
+ */
+int dvr_wrapper_set_record_secure_buffer (DVR_WrapperRecord_t rec,  uint8_t *p_secure_buf, uint32_t len);
+
+/**
+ * Set record decrypt callback.
+ * \param rec The record handle.
+ * \param func record dec cb.
+ * \param userdata cb user data.
+ * \retval DVR_SUCCESS On success.
+ * \return Error code.
+ */
+int dvr_wrapper_set_record_decrypt_callback (DVR_WrapperRecord_t rec,  DVR_CryptoFunction_t func, void *userdata);
+
+/**
  * Open a new playback wrapper handle.
  * \param[out] playback Return the new playback handle.
  * \param params Playback handle open parameters.
@@ -242,6 +262,27 @@ int dvr_wrapper_get_playback_status (DVR_WrapperPlayback_t playback, DVR_Wrapper
  * \return Error code.
  */
 int dvr_wrapper_update_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackPids_t *p_pids);
+
+/**
+ * Set playback secure buffer.
+ * \param playback The playback handle.
+ * \param p_secure_buf Playback p_secure_buf addr.
+ * \param len Playback p_secure_buf len.
+ * \retval DVR_SUCCESS On success.
+ * \return Error code.
+ */
+int dvr_wrapper_set_secure_buffer (DVR_WrapperPlayback_t playback,  uint8_t *p_secure_buf, uint32_t len);
+
+/**
+ * Set playback decrypt callback.
+ * \param playback The playback handle.
+ * \param func Playback dec cb.
+ * \param userdata cb user data.
+ * \retval DVR_SUCCESS On success.
+ * \return Error code.
+ */
+int dvr_wrapper_set_decrypt_callback (DVR_WrapperPlayback_t playback,  DVR_CryptoFunction_t func, void *userdata);
+
 
 
 #ifdef __cplusplus

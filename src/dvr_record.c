@@ -10,7 +10,8 @@
 #include "segment.h"
 
 #define MAX_DVR_RECORD_SESSION_COUNT 2
-#define RECORD_BLOCK_SIZE (64 * 1024)
+//#define RECORD_BLOCK_SIZE (64 * 1024)
+#define RECORD_BLOCK_SIZE (256 * 1024)
 
 /**\brief DVR index file type*/
 typedef enum {
@@ -166,12 +167,23 @@ void *record_thread(void *arg)
     return NULL;
   }
 
+  memset(&record_status, 0, sizeof(record_status));
+  record_status.state = DVR_RECORD_STATE_STARTED;
+  p_ctx->event_notify_fn(DVR_RECORD_EVENT_STATUS, &record_status, p_ctx->event_userdata);
+  DVR_DEBUG(1, "%s notify record status, state:%d",
+          __func__, record_status.state);
+  DVR_DEBUG(1, "%s, secure_mode:%d", __func__, p_ctx->is_secure_mode);
+
+
   clock_gettime(CLOCK_MONOTONIC, &start_ts);
   while (p_ctx->state == DVR_RECORD_STATE_STARTED) {
     /* data from dmx, normal dvr case */
     if (p_ctx->is_secure_mode) {
       memset(&secure_buf, 0, sizeof(secure_buf));
       len = record_device_read(p_ctx->dev_handle, &secure_buf, sizeof(secure_buf), 1000);
+    if (len != DVR_FAILURE) {
+      DVR_DEBUG(1, "%s, secure_buf:%#x, size:%#x", __func__, secure_buf.addr, secure_buf.len);
+    }
     } else {
       len = record_device_read(p_ctx->dev_handle, buf, block_size, 1000);
     }

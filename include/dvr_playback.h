@@ -279,6 +279,7 @@ typedef struct
   int                        is_secure_mode;                       /**< Playback session run in secure pipeline */
   uint8_t                    *secure_buffer;                       /* Playback session secure buffer */
   uint32_t                   secure_buffer_size;                   /* Playback session secure buffer size */
+  DVR_Bool_t                 drop_ts;
 } DVR_Playback_t;
 /**\endcond*/
 

@@ -74,10 +74,11 @@ int segment_update_pts(Segment_Handle_t handle, uint64_t pts, loff_t offset);
 /**\brief Seek the segment to the correct position which match the giving time
  * \param[in] handle, Segment handle
  * \param[in] time, The time offset
+ * \param[in] block_size, if block_size is > 0, we need aligned to block_size-byte boundary
  * \return The segment current read position on success
  * \return error code on failure
  */
-loff_t segment_seek(Segment_Handle_t handle, uint64_t time);
+loff_t segment_seek(Segment_Handle_t handle, uint64_t time, int block_size);
 
 /**\brief Tell the current position for the giving segment
  * \param[in] handle, Segment handle

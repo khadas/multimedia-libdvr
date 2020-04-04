@@ -551,7 +551,7 @@ static int _change_to_next_segment(DVR_PlaybackHandle_t handle)
   pthread_mutex_lock(&player->segment_lock);
   if (IS_FB(player->speed)) {
       //seek end pos -FB_DEFAULT_LEFT_TIME
-      segment_seek(player->r_handle, total - FB_DEFAULT_LEFT_TIME);
+      segment_seek(player->r_handle, total - FB_DEFAULT_LEFT_TIME, player->openParams.block_size);
   }
   player->dur = total;
   pthread_mutex_unlock(&player->segment_lock);
@@ -739,7 +739,7 @@ static DVR_Bool_t _dvr_pauselive_decode_sucess(DVR_PlaybackHandle_t handle) {
     DVR_DEBUG(1, "func [%s] player is NULL", __func__);
     return DVR_TRUE;
   }
-  if (player->play_flag&DVR_PLAYBACK_STARTED_PAUSEDLIVE == DVR_PLAYBACK_STARTED_PAUSEDLIVE) {
+  if ((player->play_flag&DVR_PLAYBACK_STARTED_PAUSEDLIVE) == DVR_PLAYBACK_STARTED_PAUSEDLIVE) {
       if (player->first_frame == 1) {
         return DVR_TRUE;
       } else {
@@ -761,6 +761,8 @@ static void* _dvr_playback_thread(void *arg)
   uint64_t write_timeout_ms = 50;
   uint8_t *buf = NULL;
   int buf_len = player->openParams.block_size > 0 ? player->openParams.block_size : (256 * 1024);
+  DVR_Bool_t b_writed_whole_block = player->openParams.block_size > 0 ? DVR_TRUE:DVR_FALSE;
+
   int dec_buf_size = buf_len + 188;
   int real_read = 0;
   DVR_Bool_t goto_rewrite = DVR_FALSE;
@@ -876,6 +878,12 @@ static void* _dvr_playback_thread(void *arg)
       pthread_mutex_unlock(&player->lock);
       continue;
     }
+    //when seek action is done. we need drop write timeout data.
+    if (player->drop_ts == DVR_TRUE) {
+      goto_rewrite = DVR_FALSE;
+      real_read = 0;
+      player->drop_ts = DVR_FALSE;
+    }
     if (goto_rewrite == DVR_TRUE) {
       goto_rewrite = DVR_FALSE;
       pthread_mutex_unlock(&player->lock);
@@ -944,6 +952,21 @@ static void* _dvr_playback_thread(void *arg)
       real_read = 0;
       continue;
     }
+    //if need write whole block size, we need check read buf len is eq block size.
+    if (b_writed_whole_block == DVR_TRUE) {
+      //buf_len is block size value.
+      if (real_read < buf_len) {
+        //coontinue to read data from file
+        DVR_DEBUG(1, "read buf len[%d] is < block size [%d]", real_read, buf_len);
+        pthread_mutex_lock(&player->lock);
+         _dvr_playback_timeoutwait((DVR_PlaybackHandle_t)player, timeout);
+         pthread_mutex_unlock(&player->lock);
+        continue;
+      } else if (real_read > buf_len) {
+        DVR_DEBUG(1, "read buf len[%d] is > block size [%d],this error occur", real_read, buf_len);
+      }
+    }
+
 #if 0
     if (player->dec_func) {
       int dec_len = dec_buf_size;
@@ -989,11 +1012,16 @@ static void* _dvr_playback_thread(void *arg)
       if (ret != DVR_SUCCESS) {
         DVR_DEBUG(1, "%s, decrypt failed", __func__);
       }
-      wbufs.buf_size = crypto_params.output_size;
+      wbufs.buf_size = crypto_params.input_buffer.size;
+      wbufs.buf_type = TS_INPUT_BUFFER_TYPE_SECURE;
+      DVR_DEBUG(1, "%s, size: %#x , type:%d", __func__,
+            wbufs.buf_size, wbufs.buf_type);
     }
 #endif
 rewrite:
+        DVR_DEBUG(1, "%s, decrypt, line %d", __func__, __LINE__);
     ret = AmTsPlayer_writeData(player->handle, &wbufs, write_timeout_ms);
+        DVR_DEBUG(1, "%s, decrypt, line %d", __func__, __LINE__);
     if (ret == AM_TSPLAYER_OK) {
       real_read = 0;
       write_success++;
@@ -1137,6 +1165,7 @@ int dvr_playback_open(DVR_PlaybackHandle_t *p_handle, DVR_PlaybackOpenParams_t *
   player->is_secure_mode = 0;
   player->secure_buffer = NULL;
   player->secure_buffer_size = 0;
+  player->drop_ts = DVR_FALSE;
 
   *p_handle = player;
   return DVR_SUCCESS;
@@ -1656,18 +1685,26 @@ int dvr_playback_stop(DVR_PlaybackHandle_t handle, DVR_Bool_t clear) {
     DVR_DEBUG(1, "func [%s] player is NULL", __func__);
     return DVR_FAILURE;
   }
-
-  DVR_DEBUG(1, "---into-stop-----");
   DVR_DEBUG(1, "lock func: %s", __func__);
   _stop_playback_thread(handle);
   pthread_mutex_lock(&player->lock);
-  DVR_DEBUG(1, "---into-stop---1--");
   AmTsPlayer_stopFast(player->handle);
-  AmTsPlayer_resumeVideoDecoding(player->handle);
-  AmTsPlayer_resumeAudioDecoding(player->handle);
-  AmTsPlayer_showVideo(player->handle);
-  AmTsPlayer_stopVideoDecoding(player->handle);
-  AmTsPlayer_stopAudioDecoding(player->handle);
+  if (player->has_video) {
+    AmTsPlayer_resumeVideoDecoding(player->handle);
+  }
+  if (player->has_audio) {
+    AmTsPlayer_resumeAudioDecoding(player->handle);
+  }
+  if (player->has_video) {
+    player->has_video = DVR_FALSE;
+    AmTsPlayer_showVideo(player->handle);
+    AmTsPlayer_stopVideoDecoding(player->handle);
+  }
+  if (player->has_audio) {
+    player->has_audio = DVR_FALSE;
+    AmTsPlayer_stopAudioDecoding(player->handle);
+  }
+
   player->cmd.last_cmd = player->cmd.cur_cmd;
   player->cmd.cur_cmd = DVR_PLAYBACK_CMD_STOP;
   player->cmd.state = DVR_PLAYBACK_STATE_STOP;
@@ -1835,8 +1872,10 @@ int dvr_playback_pause(DVR_PlaybackHandle_t handle, DVR_Bool_t flush) {
 
   pthread_mutex_lock(&player->lock);
   DVR_DEBUG(1, "get lock func: %s", __func__);
-  AmTsPlayer_pauseVideoDecoding(player->handle);
-  AmTsPlayer_pauseAudioDecoding(player->handle);
+  if (player->has_video)
+    AmTsPlayer_pauseVideoDecoding(player->handle);
+  if (player->has_video)
+    AmTsPlayer_pauseAudioDecoding(player->handle);
 
   //playback_device_pause(player->handle);
   if (player->cmd.cur_cmd == DVR_PLAYBACK_CMD_FF ||
@@ -1957,10 +1996,29 @@ int dvr_playback_resume(DVR_PlaybackHandle_t handle) {
   if (player->cmd.cur_cmd == DVR_PLAYBACK_CMD_PAUSE) {
     DVR_DEBUG(1, "lock func: %s", __func__);
     pthread_mutex_lock(&player->lock);
-    AmTsPlayer_setTrickMode(player->handle, AV_VIDEO_TRICK_MODE_NONE);
-    AmTsPlayer_resumeVideoDecoding(player->handle);
-    AmTsPlayer_resumeAudioDecoding(player->handle);
-    //playback_device_resume(player->handle);
+    if (player->has_video) {
+      AmTsPlayer_setTrickMode(player->handle, AV_VIDEO_TRICK_MODE_NONE);
+      AmTsPlayer_resumeVideoDecoding(player->handle);
+    }
+    if (player->has_audio) {
+      AmTsPlayer_resumeAudioDecoding(player->handle);
+    }
+    //check is has audio param,if has audio .we need start audio,
+    //we will stop audio when ff fb, if reach end, we will pause.so we need
+    //start audio when resume play
+
+    am_tsplayer_video_params vparams;
+    am_tsplayer_audio_params aparams;
+    uint64_t segmentid = player->cur_segment_id;
+    _dvr_playback_get_playinfo(handle, segmentid, &vparams, &aparams);
+    //valid audio pid, start audio
+    if (player->has_audio == DVR_FALSE && VALID_PID(aparams.pid)) {
+      player->has_audio = DVR_TRUE;
+      AmTsPlayer_setAudioParams(player->handle, &aparams);
+      AmTsPlayer_startAudioDecoding(player->handle);
+    } else {
+      DVR_DEBUG(1, "aparams.pid:%d player->has_audio:%d", aparams.pid, player->has_audio);
+    }
     if (player->cmd.cur_cmd == DVR_PLAYBACK_CMD_FF ||
       player->cmd.cur_cmd == DVR_PLAYBACK_CMD_FB) {
       player->cmd.state = DVR_PLAYBACK_STATE_START;
@@ -2070,7 +2128,8 @@ int dvr_playback_seek(DVR_PlaybackHandle_t handle, uint64_t segment_id, uint32_t
     }
   }
   pthread_mutex_lock(&player->segment_lock);
-  offset = segment_seek(player->r_handle, (uint64_t)time_offset);
+  player->drop_ts = DVR_TRUE;
+  offset = segment_seek(player->r_handle, (uint64_t)time_offset, player->openParams.block_size);
   DVR_DEBUG(0, "---seek get offset by time offset, offset=%d time_offset %u",offset, time_offset);
   pthread_mutex_unlock(&player->segment_lock);
   player->offset = offset;
@@ -2091,10 +2150,15 @@ int dvr_playback_seek(DVR_PlaybackHandle_t handle, uint64_t segment_id, uint32_t
   }
   //stop play
   DVR_DEBUG(0, "seek stop play, not inject data has video[%d]audio[%d]", player->has_video, player->has_audio);
-  if (player->has_video)
+  if (player->has_video) {
+    player->has_video = DVR_FALSE;
     AmTsPlayer_stopVideoDecoding(player->handle);
-  if (player->has_audio)
+  }
+
+  if (player->has_audio) {
+    player->has_audio =DVR_FALSE;
     AmTsPlayer_stopAudioDecoding(player->handle);
+  }
   //start play
   am_tsplayer_video_params    vparams;
   am_tsplayer_audio_params    aparams;
@@ -2125,13 +2189,13 @@ int dvr_playback_seek(DVR_PlaybackHandle_t handle, uint64_t segment_id, uint32_t
       }
       AmTsPlayer_setVideoParams(player->handle, &vparams);
       AmTsPlayer_startVideoDecoding(player->handle);
-      //playback_device_video_start(player->handle , &vparams);
+      player->has_video = DVR_TRUE;
     }
     if (VALID_PID(aparams.pid)) {
       DVR_DEBUG(1, " func: %s start audio seek", __func__);
       AmTsPlayer_setAudioParams(player->handle, &aparams);
       AmTsPlayer_startAudioDecoding(player->handle);
-      //playback_device_audio_start(player->handle , &aparams);
+      player->has_audio = DVR_TRUE;
     }
   }
   if (player->state == DVR_PLAYBACK_STATE_PAUSE &&
@@ -2235,7 +2299,7 @@ static int _dvr_playback_calculate_seekpos(DVR_PlaybackHandle_t handle) {
     //seek segment pos
     if (player->r_handle) {
       pthread_mutex_lock(&player->segment_lock);
-      segment_seek(player->r_handle, seek_time);
+      segment_seek(player->r_handle, seek_time, player->openParams.block_size);
       pthread_mutex_unlock(&player->segment_lock);
     } else {
       //
@@ -2264,6 +2328,7 @@ static int _dvr_playback_fffb_replay(DVR_PlaybackHandle_t handle) {
   }
   if (player->has_audio) {
     DVR_DEBUG(1, "fffb stop audio");
+    player->has_audio =DVR_FALSE;
     AmTsPlayer_stopAudioDecoding(player->handle);
   }
 
@@ -2368,13 +2433,13 @@ static int _dvr_playback_replay(DVR_PlaybackHandle_t handle, DVR_Bool_t trick) {
 
   //stop
   if (player->has_video) {
+    player->has_video = DVR_FALSE;
     AmTsPlayer_stopVideoDecoding(player->handle);
-    //playback_device_video_stop(player->handle);
   }
 
   if (player->has_audio) {
+    player->has_audio = DVR_FALSE;
     AmTsPlayer_stopAudioDecoding(player->handle);
-    //playback_device_audio_stop(player->handle);
   }
   //start video and audio
 
@@ -2399,13 +2464,11 @@ static int _dvr_playback_replay(DVR_PlaybackHandle_t handle, DVR_Bool_t trick) {
       DVR_DEBUG(1, "settrick mode at replay");
       AmTsPlayer_setTrickMode(player->handle, AV_VIDEO_TRICK_MODE_PAUSE_NEXT);
     }
-    else
+    else {
       AmTsPlayer_setTrickMode(player->handle, AV_VIDEO_TRICK_MODE_NONE);
+    }
     AmTsPlayer_setVideoParams(player->handle, &vparams);
     AmTsPlayer_startVideoDecoding(player->handle);
-    //playback_device_video_start(player->handle , &vparams);
-    //if set flag is pause live, we need set trick mode
-    //playback_device_trick_mode(player->handle, 1);
   }
 
   if (IS_FAST_SPEED(player->cmd.speed.speed.speed)) {
@@ -2417,7 +2480,6 @@ static int _dvr_playback_replay(DVR_PlaybackHandle_t handle, DVR_Bool_t trick) {
       DVR_DEBUG(1, " func: %s start audio", __func__);
       AmTsPlayer_startAudioDecoding(player->handle);
       AmTsPlayer_setAudioParams(player->handle, &aparams);
-      //playback_device_audio_start(player->handle , &aparams);
     }
     AmTsPlayer_stopFast(player->handle);
     player->cmd.speed.speed.speed = PLAYBACK_SPEED_X1;
@@ -2654,7 +2716,7 @@ int dvr_playback_set_decrypt_callback(DVR_PlaybackHandle_t handle, DVR_CryptoFun
   DVR_RETURN_IF_FALSE(player);
   DVR_RETURN_IF_FALSE(func);
 
-  DVR_DEBUG(1, "in %s", __func__);
+  DVR_DEBUG(1, "in %s func:%#x", __func__, func);
   pthread_mutex_lock(&player->lock);
 
   player->dec_func = func;

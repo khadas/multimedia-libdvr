@@ -241,7 +241,7 @@ int segment_update_pts(Segment_Handle_t handle, uint64_t pts, loff_t offset)
   return DVR_SUCCESS;
 }
 
-loff_t segment_seek(Segment_Handle_t handle, uint64_t time)
+loff_t segment_seek(Segment_Handle_t handle, uint64_t time, int block_size)
 {
   Segment_Context_t *p_ctx;
   char buf[256];
@@ -254,6 +254,13 @@ loff_t segment_seek(Segment_Handle_t handle, uint64_t time)
   DVR_RETURN_IF_FALSE(p_ctx);
   DVR_RETURN_IF_FALSE(p_ctx->index_fp);
   DVR_RETURN_IF_FALSE(p_ctx->ts_fd != -1);
+
+  if (time == 0) {
+    offset = 0;
+    DVR_DEBUG(1, "seek time=%llu, offset=%lld time--%llu\n", pts, offset, time);
+    DVR_RETURN_IF_FALSE(lseek64(p_ctx->ts_fd, offset, SEEK_SET) != -1);
+    return offset;
+  }
 
   memset(buf, 0, sizeof(buf));
   DVR_RETURN_IF_FALSE(fseek(p_ctx->index_fp, 0, SEEK_SET) != -1);
@@ -285,6 +292,9 @@ loff_t segment_seek(Segment_Handle_t handle, uint64_t time)
     memset(buf, 0, sizeof(buf));
     //DVR_DEBUG(1, "seek time=%llu, offset=%lld\n", pts, offset);
     if (time <= pts) {
+      if (block_size > 0) {
+        offset = offset - offset%block_size;
+      }
       DVR_DEBUG(1, "seek time=%llu, offset=%lld time--%llu line %d\n", pts, offset, time, line);
       DVR_RETURN_IF_FALSE(lseek64(p_ctx->ts_fd, offset, SEEK_SET) != -1);
       return offset;

@@ -616,18 +616,20 @@ static void _updateRecordSegment(DVR_WrapperRecordSegmentInfo_t *pseg,
 
 static int wrapper_updateRecordSegment(DVR_WrapperCtx_t *ctx, DVR_RecordSegmentInfo_t *seg_info, int update_flags)
 {
-  DVR_WrapperRecordSegmentInfo_t *pseg;
+  DVR_WrapperRecordSegmentInfo_t *pseg = NULL;
 
   /*normally, the last segment added will be updated*/
-  pseg =
-    list_first_entry(&ctx->segments, DVR_WrapperRecordSegmentInfo_t, head);
-  if (pseg->info.id == seg_info->id) {
-    _updateRecordSegment(pseg, seg_info, update_flags, ctx);
-  } else {
-    list_for_each_entry_reverse(pseg, &ctx->segments, head) {
-      if (pseg->info.id == seg_info->id) {
-        _updateRecordSegment(pseg, seg_info, update_flags, ctx);
-        break;
+  if (!list_empty(&ctx->segments)) {
+    pseg =
+      list_first_entry(&ctx->segments, DVR_WrapperRecordSegmentInfo_t, head);
+    if (pseg->info.id == seg_info->id) {
+      _updateRecordSegment(pseg, seg_info, update_flags, ctx);
+    } else {
+      list_for_each_entry_reverse(pseg, &ctx->segments, head) {
+        if (pseg->info.id == seg_info->id) {
+          _updateRecordSegment(pseg, seg_info, update_flags, ctx);
+          break;
+        }
       }
     }
   }
@@ -826,7 +828,7 @@ int dvr_wrapper_open_record (DVR_WrapperRecord_t *rec, DVR_WrapperRecordOpenPara
 
   wrapper_requestThreadFor(ctx);
 
-  memset(&open_param, 0, sizeof(open_param));
+  memset(&open_param, 0, sizeof(DVR_RecordOpenParams_t));
   open_param.dmx_dev_id = params->dmx_dev_id;
   open_param.data_from_memory = 0;
   open_param.flags = params->flags;
@@ -846,6 +848,11 @@ int dvr_wrapper_open_record (DVR_WrapperRecord_t *rec, DVR_WrapperRecordOpenPara
     sn_timeshift_record = ctx->sn;
 
   DVR_WRAPPER_DEBUG(1, "record(dmx:%d) openned ok(sn:%ld).\n", params->dmx_dev_id, ctx->sn);
+
+  error = dvr_record_set_encrypt_callback(ctx->record.recorder, params->crypto_fn, params->crypto_data);
+  if (error) {
+    DVR_WRAPPER_DEBUG(1, "record(dmx:%d) set encrypt callback fail(error:%d).\n", params->dmx_dev_id, error);
+  }
 
   pthread_mutex_unlock(&ctx->lock);
 
@@ -1039,6 +1046,39 @@ int dvr_wrapper_get_record_status(DVR_WrapperRecord_t rec, DVR_WrapperRecordStat
   return error;
 }
 
+int dvr_wrapper_set_record_secure_buffer (DVR_WrapperRecord_t rec,  uint8_t *p_secure_buf, uint32_t len)
+{
+  DVR_WrapperCtx_t *ctx;
+  int error;
+
+  DVR_RETURN_IF_FALSE(rec);
+  DVR_RETURN_IF_FALSE(p_secure_buf);
+
+  ctx = ctx_getRecord((unsigned long)rec);
+  DVR_RETURN_IF_FALSE(ctx);
+
+  pthread_mutex_lock(&ctx->lock);
+  error = dvr_record_set_secure_buffer(ctx->record.recorder, p_secure_buf, len);
+  pthread_mutex_unlock(&ctx->lock);
+  return error;
+}
+
+int dvr_wrapper_set_record_decrypt_callback (DVR_WrapperRecord_t rec,  DVR_CryptoFunction_t func, void *userdata)
+{
+  DVR_WrapperCtx_t *ctx;
+  int error;
+
+  DVR_RETURN_IF_FALSE(rec);
+  DVR_RETURN_IF_FALSE(func);
+
+  ctx = ctx_getRecord((unsigned long)rec);
+  DVR_RETURN_IF_FALSE(ctx);
+
+  pthread_mutex_lock(&ctx->lock);
+  error = dvr_record_set_encrypt_callback(ctx->record.recorder, func, userdata);
+  pthread_mutex_unlock(&ctx->lock);
+  return error;
+}
 
 
 int dvr_wrapper_open_playback (DVR_WrapperPlayback_t *playback, DVR_WrapperPlaybackOpenParams_t *params)
@@ -1070,7 +1110,7 @@ int dvr_wrapper_open_playback (DVR_WrapperPlayback_t *playback, DVR_WrapperPlayb
 
   wrapper_requestThreadFor(ctx);
 
-  memset(&open_param, 0, sizeof(open_param));
+  memset(&open_param, 0, sizeof(DVR_PlaybackOpenParams_t));
   open_param.dmx_dev_id = params->dmx_dev_id;
   open_param.block_size = params->block_size;
   open_param.is_timeshift = params->is_timeshift;
@@ -1092,7 +1132,11 @@ int dvr_wrapper_open_playback (DVR_WrapperPlayback_t *playback, DVR_WrapperPlayb
   if (params->is_timeshift)
     sn_timeshift_playback = ctx->sn;
 
-  DVR_WRAPPER_DEBUG(1, "playback(dmx:%d) openned ok(sn:%ld).\n", params->dmx_dev_id, ctx->sn);
+  DVR_WRAPPER_DEBUG(1, "hanyh: playback(dmx:%d) openned ok(sn:%ld).\n", params->dmx_dev_id, ctx->sn);
+  error = dvr_playback_set_decrypt_callback(ctx->playback.player, params->crypto_fn, params->crypto_data);
+  if (error) {
+    DVR_WRAPPER_DEBUG(1, "playback set deccrypt callback fail(error:%d).\n", error);
+  }
   pthread_mutex_unlock(&ctx->lock);
 
   *playback = (DVR_WrapperPlayback_t)ctx->sn;
@@ -1471,6 +1515,40 @@ int dvr_wrapper_get_playback_status(DVR_WrapperPlayback_t playback, DVR_WrapperP
 
   pthread_mutex_unlock(&ctx->lock);
 
+  return error;
+}
+
+int dvr_wrapper_set_playback_secure_buffer (DVR_WrapperPlayback_t playback,  uint8_t *p_secure_buf, uint32_t len)
+{
+  DVR_WrapperCtx_t *ctx;
+  int error;
+
+  DVR_RETURN_IF_FALSE(playback);
+  DVR_RETURN_IF_FALSE(p_secure_buf);
+
+  ctx = ctx_getPlayback((unsigned long)playback);
+  DVR_RETURN_IF_FALSE(ctx);
+
+  pthread_mutex_lock(&ctx->lock);
+  error = dvr_playback_set_secure_buffer(ctx->playback.player, p_secure_buf, len);
+  pthread_mutex_unlock(&ctx->lock);
+  return error;
+}
+
+int dvr_wrapper_set_playback_decrypt_callback (DVR_WrapperPlayback_t playback,  DVR_CryptoFunction_t func, void *userdata)
+{
+  DVR_WrapperCtx_t *ctx;
+  int error;
+
+  DVR_RETURN_IF_FALSE(playback);
+  DVR_RETURN_IF_FALSE(func);
+
+  ctx = ctx_getPlayback((unsigned long)playback);
+  DVR_RETURN_IF_FALSE(ctx);
+
+  pthread_mutex_lock(&ctx->lock);
+  error = dvr_playback_set_decrypt_callback(ctx->playback.player, func, userdata);
+  pthread_mutex_unlock(&ctx->lock);
   return error;
 }
 
