@@ -191,7 +191,7 @@ int dvr_record_get_status(DVR_RecordHandle_t handle, DVR_RecordStatus_t *p_statu
  * \return DVR_SUCCESS on success
  * \return error code on failure
  */
-int dvr_record_set_encrypt_callback(DVR_RecordHandle_t handle, DVR_RecordEncryptFunction_t func, void *userdata);
+int dvr_record_set_encrypt_callback(DVR_RecordHandle_t handle, DVR_CryptoFunction_t func, void *userdata);
 
 /**\brief Set DVR record secure buffer used for protect the secure content
  * \param[in] handle, DVR recording session handle
