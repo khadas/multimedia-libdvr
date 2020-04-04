@@ -50,6 +50,7 @@ typedef struct {
   DVR_RecordEncryptFunction_t     enc_func;                             /**< Encrypt function*/
   void                            *enc_userdata;                        /**< Encrypt userdata*/
   int                             is_secure_mode;                       /**< Record session run in secure pipeline */
+  size_t                          last_send_size;                       /**< Last send notify segment size */
 } DVR_RecordContext_t;
 
 static DVR_RecordContext_t record_ctx[MAX_DVR_RECORD_SESSION_COUNT] = {
@@ -243,11 +244,12 @@ void *record_thread(void *arg)
      /*Event notification*/
     if (p_ctx->notification_size &&
         p_ctx->event_notify_fn &&
-        !(p_ctx->segment_info.size % p_ctx->notification_size) &&
+        /*!(p_ctx->segment_info.size % p_ctx->notification_size)*/
+    (p_ctx->segment_info.size -p_ctx->last_send_size) >= p_ctx->notification_size&&
         p_ctx->segment_info.duration > 0) {
       memset(&record_status, 0, sizeof(record_status));
       //clock_gettime(CLOCK_MONOTONIC, &end_ts);
-
+      p_ctx->last_send_size = p_ctx->segment_info.size;
       record_status.state = p_ctx->state;
       record_status.info.id = p_ctx->segment_info.id;
       record_status.info.duration = p_ctx->segment_info.duration;
@@ -289,6 +291,7 @@ int dvr_record_open(DVR_RecordHandle_t *p_handle, DVR_RecordOpenParams_t *params
   p_ctx->notification_size = params->notification_size;
   p_ctx->event_notify_fn = params->event_fn;
   p_ctx->event_userdata = params->event_userdata;
+  p_ctx->last_send_size = 0;
   /*Process crypto params, todo*/
 #if 0
   DVR_CryptoPeriod_t   crypto_period;     /**< DVR crypto period information*/
