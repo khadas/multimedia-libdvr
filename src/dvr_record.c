@@ -63,6 +63,17 @@ static DVR_RecordContext_t record_ctx[MAX_DVR_RECORD_SESSION_COUNT] = {
   }
 };
 
+static int record_is_valid_pid(DVR_RecordContext_t *p_ctx, int pid)
+{
+  int i;
+
+  for (i = 0; i < p_ctx->segment_info.nb_pids; i++) {
+    if (pid == p_ctx->segment_info.pids[i].pid)
+      return 1;
+  }
+  return 0;
+}
+
 static int record_save_pcr(DVR_RecordContext_t *p_ctx, uint8_t *buf, loff_t pos)
 {
   uint8_t *p = buf;
@@ -74,7 +85,7 @@ static int record_save_pcr(DVR_RecordContext_t *p_ctx, uint8_t *buf, loff_t pos)
   int adp_field_len;
 
   pid = ((p[1] & 0x1f) << 8) | p[2];
-  if (pid == 0x1fff)
+  if (pid == 0x1fff || !record_is_valid_pid(p_ctx, pid))
     return has_pcr;
 
   //scramble = p[3] >> 6;
