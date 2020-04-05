@@ -384,7 +384,11 @@ uint64_t segment_tell_total_time(Segment_Handle_t handle)
   position = lseek64(p_ctx->ts_fd, 0, SEEK_CUR);
   DVR_RETURN_IF_FALSE(position != -1);
 
-  DVR_RETURN_IF_FALSE(fseek(p_ctx->index_fp, -1000L, SEEK_END) != -1);
+  //DVR_RETURN_IF_FALSE(fseek(p_ctx->index_fp, -1000L, SEEK_END) != -1);
+  //if seek error.we need seek 0 pos.
+  if (fseek(p_ctx->index_fp, -1000L, SEEK_END) == -1) {
+    fseek(p_ctx->index_fp, 0L, SEEK_SET);
+  }
   /* Save last line buffer */
   while (fgets(buf, sizeof(buf), p_ctx->index_fp) != NULL) {
     if (strlen(buf) <= 0) {
