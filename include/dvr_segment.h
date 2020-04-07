@@ -35,6 +35,14 @@ int dvr_segment_delete(const char *location, uint64_t segment_id);
  */
 int dvr_segment_get_list(const char *location, uint32_t *p_segment_nb, uint64_t **pp_segment_ids);
 
+/**\brief Del all info of segment whose location is "*location"
+ * \param[in] location The record of need del file's location
+ * \return DVR_SUCCESS On success
+ * \return Error code On failure
+ */
+int dvr_segment_del_by_location(const char *location);
+
+
 /**\brief Get the segment's information
  * \param[in] location The record file's location
  * \param[in] segment_id The segment index

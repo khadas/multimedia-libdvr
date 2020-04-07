@@ -180,12 +180,12 @@ void *record_thread(void *arg)
   memset(&record_status, 0, sizeof(record_status));
   record_status.state = DVR_RECORD_STATE_STARTED;
   if (p_ctx->event_notify_fn) {
+    record_status.info.id = p_ctx->segment_info.id;
     p_ctx->event_notify_fn(DVR_RECORD_EVENT_STATUS, &record_status, p_ctx->event_userdata);
-    DVR_DEBUG(1, "%s notify record status, state:%d",
-          __func__, record_status.state);
+    DVR_DEBUG(1, "%s line %d notify record status, state:%d id=%lld",
+          __func__,__LINE__, record_status.state, p_ctx->segment_info.id);
   }
   DVR_DEBUG(1, "%s, secure_mode:%d, block_size:%d", __func__, p_ctx->is_secure_mode, block_size);
-
 
   clock_gettime(CLOCK_MONOTONIC, &start_ts);
   while (p_ctx->state == DVR_RECORD_STATE_STARTED) {
@@ -239,8 +239,11 @@ void *record_thread(void *arg)
     //add DVR_RECORD_EVENT_WRITE_ERROR event if write error
     if (ret == -1 && len > 0 && p_ctx->event_notify_fn) {
       //send write event
-      p_ctx->event_notify_fn(DVR_RECORD_EVENT_WRITE_ERROR, NULL, p_ctx->event_userdata);
-      DVR_DEBUG(1, "%s notify DVR_RECORD_EVENT_WRITE_ERROR, exit record thread", __func__);
+       if (p_ctx->notification_size &&
+        p_ctx->event_notify_fn) {
+         memset(&record_status, 0, sizeof(record_status));
+         p_ctx->event_notify_fn(DVR_RECORD_EVENT_WRITE_ERROR, &record_status, p_ctx->event_userdata);
+        }
       goto end;
     }
     /* Do time index */
@@ -543,6 +546,8 @@ int dvr_record_next_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t *
 
   //ret = record_device_start(p_ctx->dev_handle);
   //DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
+  /*Update segment info*/
+  ret = segment_store_info(p_ctx->segment_handle, &p_ctx->segment_info);
 
   pthread_create(&p_ctx->thread, NULL, record_thread, p_ctx);
   p_ctx->state = DVR_RECORD_STATE_STARTED;

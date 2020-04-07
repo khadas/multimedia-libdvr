@@ -47,6 +47,28 @@ int dvr_segment_delete(const char *location, uint64_t segment_id)
   return DVR_SUCCESS;
 }
 
+int dvr_segment_del_by_location(const char *location)
+{
+  FILE *fp;
+  char fpath[DVR_MAX_LOCATION_SIZE];
+  char cmd[256];
+
+  DVR_RETURN_IF_FALSE(location);
+
+  DVR_DEBUG(1, "%s location:%s", __func__, location);
+  memset(fpath, 0, sizeof(fpath));
+  sprintf(fpath, "%s.del", location);
+  {
+    /* del file */
+    memset(cmd, 0, sizeof(cmd));
+    sprintf(cmd, "rm %s-*", location);
+    fp = popen(cmd, "r");
+    DVR_RETURN_IF_FALSE(fp);
+  }
+  return DVR_SUCCESS;
+}
+
+
 int dvr_segment_get_list(const char *location, uint32_t *p_segment_nb, uint64_t **pp_segment_ids)
 {
   FILE *fp;
