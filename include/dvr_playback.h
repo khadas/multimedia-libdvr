@@ -73,6 +73,12 @@ typedef enum
   PLAYBACK_SPEED_FBX2 = -200,          /**<FB X 2 speed*/
   PLAYBACK_SPEED_FBX4 = -400,          /**<FB X 4 speed*/
   PLAYBACK_SPEED_FBX8 = -800,          /**<FB X 8 speed*/
+  PLAYBACK_SPEED_FBX12 = -1200,        /**< FB 12 speed*/
+  PLAYBACK_SPEED_FBX16 = -1600,          /**<FB X 16 speed*/
+  PLAYBACK_SPEED_FBX32 = -3200,          /**<FB X 32 speed*/
+  PLAYBACK_SPEED_FBX48 = -4800,          /**<FB X 48 speed*/
+  PLAYBACK_SPEED_FBX64 = -6400,          /**<FB X 64 speed*/
+  PLAYBACK_SPEED_FBX128 = -12800,         /**<FB X 128 speed*/
   PLAYBACK_SPEED_S8 = 12,          /**<slow 1/8 speed*/
   PLAYBACK_SPEED_S4 = 25,          /**<slow 1/4 speed*/
   PLAYBACK_SPEED_S2 = 50,          /**<slow 1/2 speed*/
@@ -84,6 +90,12 @@ typedef enum
   PLAYBACK_SPEED_X6 = 600,          /**< X 6 speed*/
   PLAYBACK_SPEED_X7 = 700,          /**< X 7 speed*/
   PLAYBACK_SPEED_X8 = 800,          /**< X 8 speed*/
+  PLAYBACK_SPEED_X12 = 1200,        /**< X 12 speed*/
+  PLAYBACK_SPEED_X16 = 1600,        /**< X 16 speed*/
+  PLAYBACK_SPEED_X32 = 3200,        /**< X 32 speed*/
+  PLAYBACK_SPEED_X48 = 4800,          /**< X 48 speed*/
+  PLAYBACK_SPEED_X64 = 6400,          /**< X 64 speed*/
+  PLAYBACK_SPEED_X128 = 12800,          /**< X 128 speed*/
   PlayBack_Speed_MAX,
 } Playback_SpeedValue_t;
 
