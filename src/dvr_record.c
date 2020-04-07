@@ -252,7 +252,13 @@ void *record_thread(void *arg)
     } else {
       ret = segment_write(p_ctx->segment_handle, buf, len);
     }
-
+    //add DVR_RECORD_EVENT_WRITE_ERROR event if write error
+    if (ret == -1 && len > 0) {
+      //send write event
+      p_ctx->event_notify_fn(DVR_RECORD_EVENT_WRITE_ERROR, NULL, p_ctx->event_userdata);
+      DVR_DEBUG(1, "%s notify DVR_RECORD_EVENT_WRITE_ERROR, exit record thread");
+      goto end;
+    }
     /* Do time index */
     uint8_t *index_buf = p_ctx->enc_func ? buf_out : buf;
     pos = segment_tell_position(p_ctx->segment_handle);
@@ -312,7 +318,7 @@ void *record_thread(void *arg)
           __func__, record_status.state, record_status.info.id, record_status.info.duration, record_status.info.size);
     }
   }
-
+end:
   free((void *)buf);
   free((void *)buf_out);
   DVR_DEBUG(1, "exit %s", __func__);

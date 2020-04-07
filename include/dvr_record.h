@@ -57,6 +57,7 @@ typedef enum {
   DVR_RECORD_EVENT_STATUS             = 0x1001,         /**< Signal the current record status which reach a certain size*/
   DVR_RECORD_EVENT_SYNC_END           = 0x1002,         /**< Signal that data sync has ended*/
   DVR_RECORD_EVENT_CRYPTO_STATUS      = 0x2001,         /**< Signal the current crypto status*/
+  DVR_RECORD_EVENT_WRITE_ERROR       = 0x9001,         /**< Signal the current crypto status*/
 } DVR_RecordEvent_t;
 
 /**\brief DVR crypto period information*/
