@@ -78,6 +78,7 @@ typedef struct {
       DVR_WrapperPlaybackStatus_t     status;
       DVR_PlaybackPids_t              pids_req;
       DVR_PlaybackEvent_t             last_event;
+      float                           speed;
     } playback;
   };
 } DVR_WrapperCtx_t;
@@ -1253,6 +1254,7 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
 
   DVR_WRAPPER_DEBUG(1, "playback(sn:%ld) (%d) segments added\n", ctx->sn, i);
 
+  ctx->playback.speed = 100.0f;
   ctx->playback.pids_req = *p_pids;
 
   error = dvr_playback_seek(ctx->playback.player, seg_info_1st.id, 0);
@@ -1318,6 +1320,8 @@ int dvr_wrapper_pause_playback (DVR_WrapperPlayback_t playback)
 
   error = dvr_playback_pause(ctx->playback.player, DVR_FALSE);
 
+  ctx->playback.speed = 0.0f;
+
   DVR_WRAPPER_DEBUG(1, "playback(sn:%ld) paused (%d)\n", ctx->sn, error);
   pthread_mutex_unlock(&ctx->lock);
 
@@ -1339,6 +1343,8 @@ int dvr_wrapper_resume_playback (DVR_WrapperPlayback_t playback)
   DVR_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->lock);
 
   error = dvr_playback_resume(ctx->playback.player);
+
+  ctx->playback.speed = 100.0f;
 
   DVR_WRAPPER_DEBUG(1, "playback(sn:%ld) resumed (%d)\n", ctx->sn, error);
   pthread_mutex_unlock(&ctx->lock);
@@ -1365,6 +1371,21 @@ int dvr_wrapper_set_playback_speed (DVR_WrapperPlayback_t playback, float speed)
   DVR_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->lock);
 
   error = dvr_playback_set_speed(ctx->playback.player, dvr_speed);
+
+  if (ctx->playback.speed != 0.0f && ctx->playback.speed != 100.0f
+      && ctx->playback.last_event == DVR_PLAYBACK_EVENT_REACHED_BEGIN
+      && ctx->playback.seg_status.state == DVR_PLAYBACK_STATE_PAUSE) {
+    DVR_WRAPPER_DEBUG(1, "x%f -> x%f, paused, do resume first\n", ctx->playback.speed, speed);
+    error = dvr_playback_resume(ctx->playback.player);
+  } else if (ctx->playback.speed == 0.0f
+      && speed != 0.0f
+      && speed != 100.0f) {
+    /*libdvr do not support pause with speed=0, will not be here*/
+    DVR_WRAPPER_DEBUG(1, "x%f -> x%f, do resume first\n", ctx->playback.speed, speed);
+    error = dvr_playback_resume(ctx->playback.player);
+  }
+
+  ctx->playback.speed = speed;
 
   DVR_WRAPPER_DEBUG(1, "playback(sn:%ld) speeded(x%f) (%d)\n",
     ctx->sn, speed, error);
