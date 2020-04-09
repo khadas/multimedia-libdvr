@@ -10,7 +10,6 @@
 #include "segment.h"
 
 #define MAX_DVR_RECORD_SESSION_COUNT 2
-//#define RECORD_BLOCK_SIZE (64 * 1024)
 #define RECORD_BLOCK_SIZE (256 * 1024)
 
 /**\brief DVR index file type*/
@@ -52,6 +51,7 @@ typedef struct {
   void                            *enc_userdata;                        /**< Encrypt userdata*/
   int                             is_secure_mode;                       /**< Record session run in secure pipeline */
   size_t                          last_send_size;                       /**< Last send notify segment size */
+  uint32_t                        block_size;                           /**< DVR record block size */
 } DVR_RecordContext_t;
 
 static DVR_RecordContext_t record_ctx[MAX_DVR_RECORD_SESSION_COUNT] = {
@@ -154,7 +154,7 @@ void *record_thread(void *arg)
   DVR_RecordContext_t *p_ctx = (DVR_RecordContext_t *)arg;
   ssize_t len;
   uint8_t *buf, *buf_out;
-  int block_size = RECORD_BLOCK_SIZE;//256*1024;
+  uint32_t block_size = p_ctx->block_size;
   loff_t pos = 0;
   int ret;
   struct timespec start_ts, end_ts;
@@ -162,7 +162,6 @@ void *record_thread(void *arg)
   int has_pcr;
   int index_type = DVR_INDEX_TYPE_INVALID;
   time_t pre_time = 0;
-  uint32_t out_len;
   #define DVR_STORE_INFO_TIME (1000)
   DVR_SecureBuffer_t secure_buf;
 
@@ -180,10 +179,12 @@ void *record_thread(void *arg)
 
   memset(&record_status, 0, sizeof(record_status));
   record_status.state = DVR_RECORD_STATE_STARTED;
-  p_ctx->event_notify_fn(DVR_RECORD_EVENT_STATUS, &record_status, p_ctx->event_userdata);
-  DVR_DEBUG(1, "%s notify record status, state:%d",
+  if (p_ctx->event_notify_fn) {
+    p_ctx->event_notify_fn(DVR_RECORD_EVENT_STATUS, &record_status, p_ctx->event_userdata);
+    DVR_DEBUG(1, "%s notify record status, state:%d",
           __func__, record_status.state);
-  DVR_DEBUG(1, "%s, secure_mode:%d", __func__, p_ctx->is_secure_mode);
+  }
+  DVR_DEBUG(1, "%s, secure_mode:%d, block_size:%d", __func__, p_ctx->is_secure_mode, block_size);
 
 
   clock_gettime(CLOCK_MONOTONIC, &start_ts);
@@ -206,22 +207,6 @@ void *record_thread(void *arg)
     /* Got data from device, record it */
     if (p_ctx->enc_func) {
       /* Encrypt record data */
-#if 0
-      uint8_t *input_buf;
-      uint32_t input_len;
-      /* Out buffer length may not equal in buffer length */
-      if (p_ctx->is_secure_mode) {
-        input_buf = (uint8_t *)secure_buf.addr;
-        input_len = secure_buf.len;
-      } else {
-        input_buf = buf;
-        input_len = len;
-      }
-      out_len = block_size + 188;
-      p_ctx->enc_func(input_buf, input_len, buf_out, &out_len, p_ctx->enc_userdata);
-      ret = segment_write(p_ctx->segment_handle, buf_out, out_len);
-      len = out_len;
-#else
       DVR_CryptoParams_t crypto_params;
 
       memset(&crypto_params, 0, sizeof(crypto_params));
@@ -248,15 +233,14 @@ void *record_thread(void *arg)
       /* Out buffer length may not equal in buffer length */
       ret = segment_write(p_ctx->segment_handle, buf_out, crypto_params.output_size);
       len = crypto_params.output_size;
-#endif
     } else {
       ret = segment_write(p_ctx->segment_handle, buf, len);
     }
     //add DVR_RECORD_EVENT_WRITE_ERROR event if write error
-    if (ret == -1 && len > 0) {
+    if (ret == -1 && len > 0 && p_ctx->event_notify_fn) {
       //send write event
       p_ctx->event_notify_fn(DVR_RECORD_EVENT_WRITE_ERROR, NULL, p_ctx->event_userdata);
-      DVR_DEBUG(1, "%s notify DVR_RECORD_EVENT_WRITE_ERROR, exit record thread");
+      DVR_DEBUG(1, "%s notify DVR_RECORD_EVENT_WRITE_ERROR, exit record thread", __func__);
       goto end;
     }
     /* Do time index */
@@ -351,11 +335,6 @@ int dvr_record_open(DVR_RecordHandle_t *p_handle, DVR_RecordOpenParams_t *params
   p_ctx->event_userdata = params->event_userdata;
   p_ctx->last_send_size = 0;
   /*Process crypto params, todo*/
-#if 0
-  DVR_CryptoPeriod_t   crypto_period;     /**< DVR crypto period information*/
-  DVR_CryptoFunction_t crypto_fn;         /**< DVR crypto callback function*/
-  void                *crypto_data;       /**< DVR crypto userdata*/
-#endif
 
   memset((void *)&dev_open_params, 0, sizeof(dev_open_params));
   if (params->data_from_memory) {
@@ -374,6 +353,7 @@ int dvr_record_open(DVR_RecordHandle_t *p_handle, DVR_RecordOpenParams_t *params
     }
   }
 
+  p_ctx->block_size = (params->flush_size > 0 ? params->flush_size : RECORD_BLOCK_SIZE);
   p_ctx->enc_func = NULL;
   p_ctx->enc_userdata = NULL;
   p_ctx->is_secure_mode = 0;

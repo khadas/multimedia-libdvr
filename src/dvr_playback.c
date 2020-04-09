@@ -989,22 +989,6 @@ static void* _dvr_playback_thread(void *arg)
       }
     }
 
-#if 0
-    if (player->dec_func) {
-      int dec_len = dec_buf_size;
-      if (player->is_secure_mode) {
-        ret = player->dec_func(buf, real_read, player->secure_buffer, &dec_len, player->dec_userdata);
-        wbufs.buf_data = player->secure_buffer;
-      } else {
-        ret = player->dec_func(buf, real_read, dec_bufs.buf_data, &dec_len, player->dec_userdata);
-        wbufs.buf_data = dec_bufs.buf_data;
-      }
-      if (ret != DVR_SUCCESS) {
-        DVR_DEBUG(1, "%s, decrypt failed", __func__);
-      }
-      wbufs.buf_size = dec_len;
-    }
-#else
     if (player->dec_func) {
       DVR_CryptoParams_t crypto_params;
 
@@ -1024,20 +1008,20 @@ static void* _dvr_playback_thread(void *arg)
         crypto_params.output_buffer.size = dec_buf_size;
         ret = player->dec_func(&crypto_params, player->dec_userdata);
         wbufs.buf_data = player->secure_buffer;
+        wbufs.buf_type = TS_INPUT_BUFFER_TYPE_SECURE;
       } else {
         crypto_params.output_buffer.type = DVR_BUFFER_TYPE_NORMAL;
         crypto_params.output_buffer.addr = (size_t)dec_bufs.buf_data;
         crypto_params.output_buffer.size = dec_buf_size;
         ret = player->dec_func(&crypto_params, player->dec_userdata);
         wbufs.buf_data = dec_bufs.buf_data;
+        wbufs.buf_type = TS_INPUT_BUFFER_TYPE_NORMAL;
       }
       if (ret != DVR_SUCCESS) {
         DVR_DEBUG(1, "%s, decrypt failed", __func__);
       }
-      wbufs.buf_size = crypto_params.input_buffer.size;
-      wbufs.buf_type = TS_INPUT_BUFFER_TYPE_SECURE;
+      wbufs.buf_size = crypto_params.output_size;
     }
-#endif
 rewrite:
 
     ret = AmTsPlayer_writeData(player->handle, &wbufs, write_timeout_ms);
