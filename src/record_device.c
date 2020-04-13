@@ -2,11 +2,13 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
+#include <sys/eventfd.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
 #include <poll.h>
+
 #include <linux/dvb/dmx.h>
 /*add for config define for linux dvb *.h*/
 #include "record_device.h"
@@ -39,6 +41,7 @@ typedef struct {
   Record_DeviceState_t          state;                                 /**< Record device state*/
   uint32_t                      dmx_dev_id;                            /**< Record source*/
   pthread_mutex_t               lock;                                  /**< Record device lock*/
+  int                           evtfd;                                 /**< eventfd for poll's exit*/
 } Record_DeviceContext_t;
 
 static Record_DeviceContext_t record_ctx[MAX_RECORD_DEVICE_COUNT] = {
@@ -91,6 +94,8 @@ int record_device_open(Record_DeviceHandle_t *p_handle, Record_DeviceOpenParams_
   }
   fcntl(p_ctx->fd, F_SETFL, fcntl(p_ctx->fd, F_GETFL, 0) | O_NONBLOCK, 0);
 
+  p_ctx->evtfd = eventfd(0, 0);
+
   /*Configure flush size*/
   memset(buf, 0, sizeof(buf));
   snprintf(buf, sizeof(buf), "/sys/class/stb/asyncfifo%d_flush_size", dev_no);
@@ -137,6 +142,7 @@ int record_device_close(Record_DeviceHandle_t handle)
   pthread_mutex_lock(&p_ctx->lock);
   DVR_RETURN_IF_FALSE_WITH_UNLOCK(p_ctx->state != RECORD_DEVICE_STATE_CLOSED, &p_ctx->lock);
   close(p_ctx->fd);
+  close(p_ctx->evtfd);
   p_ctx->state = RECORD_DEVICE_STATE_CLOSED;
   pthread_mutex_unlock(&p_ctx->lock);
   return DVR_SUCCESS;
@@ -344,6 +350,11 @@ int record_device_stop(Record_DeviceHandle_t handle)
     }
   }
   p_ctx->state = RECORD_DEVICE_STATE_STOPPED;
+  {
+    /*wakeup the poll*/
+    int64_t pad = 1;
+    write(p_ctx->evtfd, &pad, sizeof(pad));
+  }
   pthread_mutex_unlock(&p_ctx->lock);
   return DVR_SUCCESS;
 }
@@ -351,7 +362,7 @@ int record_device_stop(Record_DeviceHandle_t handle)
 ssize_t record_device_read(Record_DeviceHandle_t handle, void *buf, size_t len, int timeout)
 {
   Record_DeviceContext_t *p_ctx;
-  struct pollfd fds;
+  struct pollfd fds[2];
   int ret;
 
   p_ctx = (Record_DeviceContext_t *)handle;
@@ -360,21 +371,33 @@ ssize_t record_device_read(Record_DeviceHandle_t handle, void *buf, size_t len, 
   DVR_RETURN_IF_FALSE(buf);
   DVR_RETURN_IF_FALSE(len);
 
+  memset(fds, 0, sizeof(fds));
+
   pthread_mutex_lock(&p_ctx->lock);
-  fds.events = POLLIN | POLLERR;
-  fds.fd = p_ctx->fd;
-  ret = poll(&fds, 1, timeout);
+  fds[0].fd = p_ctx->fd;
+  fds[1].fd = p_ctx->evtfd;
+  pthread_mutex_unlock(&p_ctx->lock);
+
+  fds[0].events = fds[1].events = POLLIN | POLLERR;
+  ret = poll(fds, 2, timeout);
   if (ret <= 0) {
     DVR_DEBUG(1, "%s, %d failed: %s", __func__, __LINE__, strerror(errno));
-    pthread_mutex_unlock(&p_ctx->lock);
     return DVR_FAILURE;
   }
 
-  ret = read(p_ctx->fd, buf, len);
-  if (ret <= 0) {
-    DVR_DEBUG(1, "%s, %d failed: %s", __func__, __LINE__, strerror(errno));
-    pthread_mutex_unlock(&p_ctx->lock);
+  if (!(fds[0].revents & POLLIN))
     return DVR_FAILURE;
+
+  pthread_mutex_lock(&p_ctx->lock);
+  if (p_ctx->state == RECORD_DEVICE_STATE_STARTED) {
+    ret = read(fds[0].fd, buf, len);
+    if (ret <= 0) {
+      DVR_DEBUG(1, "%s, %d failed: %s", __func__, __LINE__, strerror(errno));
+      pthread_mutex_unlock(&p_ctx->lock);
+      return DVR_FAILURE;
+    }
+  } else {
+      ret = DVR_FAILURE;
   }
   pthread_mutex_unlock(&p_ctx->lock);
   return ret;
