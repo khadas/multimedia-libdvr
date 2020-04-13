@@ -200,7 +200,7 @@ void *record_thread(void *arg)
       len = record_device_read(p_ctx->dev_handle, buf, block_size, 1000);
     }
     if (len == DVR_FAILURE) {
-      usleep(10*1000);
+      //usleep(10*1000);
       continue;
     }
 
