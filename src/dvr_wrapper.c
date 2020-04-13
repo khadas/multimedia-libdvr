@@ -478,7 +478,8 @@ static void *wrapper_task(void *arg)
           make all events consumed, or mem leak
         */
         if (!wrapper_mutex_lock_if(&ctx->lock, &tctx->running))
-            continue;
+            goto processed;
+
         if (ctx_valid(ctx)) {
           /*double check after lock*/
           if (evt->sn == ctx->sn)
@@ -487,6 +488,7 @@ static void *wrapper_task(void *arg)
         pthread_mutex_unlock(&ctx->lock);
       }
 
+processed:
       ctx_freeEvent(evt);
     }
   }
