@@ -292,6 +292,9 @@ typedef struct
   uint8_t                    *secure_buffer;                       /* Playback session secure buffer */
   uint32_t                   secure_buffer_size;                   /* Playback session secure buffer size */
   DVR_Bool_t                 drop_ts;
+  DVR_Bool_t                 fffb_play;
+  int32_t                    last_cur_time;
+  uint64_t                   last_send_time_id;
 } DVR_Playback_t;
 /**\endcond*/
 

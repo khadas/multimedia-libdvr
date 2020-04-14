@@ -1775,6 +1775,11 @@ static int process_handleRecordEvent(DVR_WrapperEventCtx_t *evt, DVR_WrapperCtx_
         break;
       }
     } break;
+    case DVR_RECORD_EVENT_WRITE_ERROR: {
+      ctx->record.seg_status = evt->record.status;
+      status.state = evt->record.status.state;
+      process_notifyRecord(ctx, evt->record.event, &status);
+    }break;
     default:
     break;
   }

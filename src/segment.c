@@ -141,7 +141,7 @@ int segment_open(Segment_OpenParams_t *params, Segment_Handle_t *p_handle)
   p_ctx->segment_id = params->segment_id;
   strncpy(p_ctx->location, params->location, strlen(params->location));
 
-  //DVR_DEBUG(1, "%s, open file success p_ctx->location [%s]", __func__, p_ctx->location);
+  DVR_DEBUG(1, "%s, open file success p_ctx->location [%s]", __func__, p_ctx->location, params->mode);
   *p_handle = (Segment_Handle_t)p_ctx;
   return DVR_SUCCESS;
 }
@@ -222,18 +222,19 @@ int segment_update_pts(Segment_Handle_t handle, uint64_t pts, loff_t offset)
     p_ctx->cur_time = pts - p_ctx->first_pts;
   } else {
     /*Last pts has valid value*/
-    if (pts - p_ctx->last_pts > MAX_PTS_THRESHOLD) {
+  int diff = pts - p_ctx->last_pts;
+    if ((diff > MAX_PTS_THRESHOLD) || (diff < 0)) {
       /*Current pts has a transition*/
       DVR_DEBUG(1, "Current pts has a transition, [%llu, %llu, %llu]",
           p_ctx->first_pts, p_ctx->last_pts, pts);
     } else {
       /*This is a normal pts, record it*/
-      p_ctx->cur_time += (pts - p_ctx->last_pts);
+      p_ctx->cur_time += diff;
       sprintf(buf, "\n{time=%llu, offset=%lld}", p_ctx->cur_time, offset);
     }
   }
-
-  fputs(buf, p_ctx->index_fp);
+  if (strlen(buf) > 0)
+    fputs(buf, p_ctx->index_fp);
   p_ctx->last_pts = pts;
   fflush(p_ctx->index_fp);
   fsync(fileno(p_ctx->index_fp));
