@@ -1708,6 +1708,7 @@ int dvr_playback_update_segment_pids(DVR_PlaybackHandle_t handle, uint64_t segme
               }
             }
         }
+        memcpy(&player->cur_segment.pids, p_pids, sizeof(DVR_PlaybackPids_t));
       }
       //save pids info
       memcpy(&segment->pids, p_pids, sizeof(DVR_PlaybackPids_t));
