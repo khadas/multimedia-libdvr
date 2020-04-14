@@ -918,7 +918,7 @@ int dvr_wrapper_start_record (DVR_WrapperRecord_t rec, DVR_WrapperRecordStartPar
     start_param->segment.pids[i] = params->pids_info.pids[i];
     start_param->segment.pid_action[i] = DVR_RECORD_PID_CREATE;
   }
-
+  dvr_segment_del_by_location(start_param->location);
   {
     /*sync to update for further use*/
     DVR_RecordStartParams_t *update_param;

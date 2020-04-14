@@ -211,7 +211,7 @@ void *record_thread(void *arg)
 
       memset(&crypto_params, 0, sizeof(crypto_params));
       crypto_params.type = DVR_CRYPTO_TYPE_ENCRYPT;
-      memcpy(crypto_params.location, p_ctx->location, strlen(p_ctx->location));
+      memcpy(crypto_params.location, p_ctx->location, sizeof(p_ctx->location));
       crypto_params.segment_id = p_ctx->segment_info.id;
       crypto_params.offset = p_ctx->segment_info.size;
 
@@ -426,7 +426,7 @@ int dvr_record_start_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t 
 
   DVR_RETURN_IF_FALSE(strlen((const char *)params->location) < DVR_MAX_LOCATION_SIZE);
   memset(&open_params, 0, sizeof(open_params));
-  memcpy(open_params.location, params->location, strlen(params->location));
+  memcpy(open_params.location, params->location, sizeof(params->location));
   open_params.segment_id = params->segment.segment_id;
   open_params.mode = SEGMENT_MODE_WRITE;
 
@@ -435,7 +435,7 @@ int dvr_record_start_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t 
 
   /*process params*/
   {
-    memcpy(p_ctx->location, params->location, strlen(params->location));
+    memcpy(p_ctx->location, params->location, sizeof(params->location));
     //need all params??
     memcpy(&p_ctx->segment_params, &params->segment, sizeof(params->segment));
     /*save current segment info*/
@@ -504,9 +504,10 @@ int dvr_record_next_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t *
   DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
   /*Open the new record segment*/
   memset(&open_params, 0, sizeof(open_params));
-  memcpy(open_params.location, p_ctx->location, strlen(p_ctx->location));
+  memcpy(open_params.location, p_ctx->location, sizeof(p_ctx->location));
   open_params.segment_id = params->segment.segment_id;
   open_params.mode = SEGMENT_MODE_WRITE;
+  DVR_DEBUG(1, "%s: p_ctx->location:%s  params->location:%s", __func__, p_ctx->location,params->location);
 
   ret = segment_open(&open_params, &p_ctx->segment_handle);
   DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
