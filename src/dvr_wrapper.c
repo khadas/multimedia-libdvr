@@ -79,6 +79,7 @@ typedef struct {
       DVR_PlaybackPids_t              pids_req;
       DVR_PlaybackEvent_t             last_event;
       float                           speed;
+      DVR_Bool_t                      reach_end;
     } playback;
   };
 } DVR_WrapperCtx_t;
@@ -1255,7 +1256,7 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
   DVR_RETURN_IF_FALSE_WITH_UNLOCK(!error && got_1st_seg, &ctx->lock);
 
   DVR_WRAPPER_DEBUG(1, "playback(sn:%ld) (%d) segments added\n", ctx->sn, i);
-
+  ctx->playback.reach_end = DVR_FALSE;
   ctx->playback.speed = 100.0f;
   ctx->playback.pids_req = *p_pids;
 
@@ -1526,7 +1527,11 @@ int dvr_wrapper_get_playback_status(DVR_WrapperPlayback_t playback, DVR_WrapperP
   s = ctx->playback.status;
   s.info_cur.time += ctx->playback.seg_status.time_cur;
   /*size and packets are not available*/
-
+  if (ctx->playback.reach_end == DVR_TRUE && ctx->playback.param_open.is_timeshift == DVR_FALSE) {
+    //reach end need set full time to cur.so app can exist playback.
+    DVR_WRAPPER_DEBUG(1, "set cur time to full time, reach end occur");
+    s.info_cur.time = s.info_full.time;
+  }
   DVR_WRAPPER_DEBUG(1, "playback(sn:%ld) state/cur/full(%d/%ld/%ld) (%d)\n",
     ctx->sn,
     s.state,
@@ -1873,6 +1878,7 @@ static int process_handlePlaybackEvent(DVR_WrapperEventCtx_t *evt, DVR_WrapperCt
     case DVR_PLAYBACK_EVENT_REACHED_END:
     case DVR_PLAYBACK_EVENT_TRANSITION_OK:
     case DVR_PLAYBACK_EVENT_NOTIFY_PLAYTIME:
+    case DVR_PLAYBACK_EVENT_ERROR:
     {
       DVR_WrapperPlaybackStatus_t status;
 
@@ -1891,12 +1897,13 @@ static int process_handlePlaybackEvent(DVR_WrapperEventCtx_t *evt, DVR_WrapperCt
           /*wait for more data in recording*/
         } else if ((status.info_cur.time + DVR_PLAYBACK_END_GAP) >= ctx->playback.status.info_full.time) {
           process_notifyPlayback(ctx, evt->playback.event, &status);
+        } else {
+          ctx->playback.reach_end = DVR_TRUE;
         }
       } else {
         process_notifyPlayback(ctx, evt->playback.event, &status);
       }
     } break;
-    case DVR_PLAYBACK_EVENT_ERROR:
     case DVR_PLAYBACK_EVENT_TRANSITION_FAILED:
     case DVR_PLAYBACK_EVENT_KEY_FAILURE:
     case DVR_PLAYBACK_EVENT_NO_KEY:
