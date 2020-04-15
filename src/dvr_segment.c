@@ -61,10 +61,12 @@ int dvr_segment_del_by_location(const char *location)
   {
     /* del file */
     memset(cmd, 0, sizeof(cmd));
-    sprintf(cmd, "rm %s-*", location);
+    sprintf(cmd, "rm %s*", location);
     fp = popen(cmd, "r");
     DVR_RETURN_IF_FALSE(fp);
   }
+  DVR_DEBUG(1, "%s location:%s end", __func__, location);
+  fclose(fp);
   return DVR_SUCCESS;
 }
 

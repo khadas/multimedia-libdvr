@@ -141,7 +141,7 @@ int segment_open(Segment_OpenParams_t *params, Segment_Handle_t *p_handle)
   p_ctx->segment_id = params->segment_id;
   strncpy(p_ctx->location, params->location, strlen(params->location));
 
-  DVR_DEBUG(1, "%s, open file success p_ctx->location [%s]", __func__, p_ctx->location, params->mode);
+  //DVR_DEBUG(1, "%s, open file success p_ctx->location [%s]", __func__, p_ctx->location, params->mode);
   *p_handle = (Segment_Handle_t)p_ctx;
   return DVR_SUCCESS;
 }
