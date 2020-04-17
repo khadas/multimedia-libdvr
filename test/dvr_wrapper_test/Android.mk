@@ -22,7 +22,7 @@ LOCAL_C_INCLUDES := $(LOCAL_PATH)/include \
                     $(AMADEC_C_INCLUDES) \
                     $(ANDROID_LOG_INCLUDE) \
 
-LOCAL_SHARED_LIBRARIES := libamdvr libmediahal_tsplayer.system
+LOCAL_SHARED_LIBRARIES := libamdvr.product libmediahal_tsplayer.system
 LOCAL_SHARED_LIBRARIES += libcutils liblog libdl libc
 
 include $(BUILD_EXECUTABLE)

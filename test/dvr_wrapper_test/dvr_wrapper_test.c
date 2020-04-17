@@ -1,6 +1,74 @@
-/***************************************************************************
- *  Copyright C 2009 by Amlogic, Inc. All Rights Reserved.
- ***************************************************************************/
+/**
+ * \page Test
+ * \section Introduction
+ * test code with dvb_wrapper_xxxx APIs.
+ * It supports:
+ * \li Record
+ * \li Playback
+ * \li Timeshift
+ *
+ * \section Usage
+ *
+ * Help msg will be shown if the test runs without parameters.\n
+ * There are some general concepts for the parameters:
+ * \li pid:fmt  pid format pair of a stream
+ * \li assign value "1" to the parameter to enable a feature specified
+ * \li millisecond is used as time unit
+ * \li no limit to the parameter order
+ *
+ * For timeshift:
+ * \code
+ *   dvr_wrapper_test [v=pid:fmt] [a=pid:fmt] [tsin=n] [dur=s] [pause=n]
+ * \endcode
+ * For recording:
+ * \code
+ *   dvr_wrapper_test [v=pid:fmt] [a=pid:fmt] [tsin=n] [dur=s] [recfile=x]
+ * \endcode
+ * For playback:
+ * \code
+ *   dvr_wrapper_test [file=x] [pause=n]
+ * \endcode
+ * the timeshift backgroud recording file will be located in /data as:
+ * \code
+ *   /data/9999-xxxx.*
+ * \endcode
+ *
+ * \section FormatCode Format Code
+ *
+ * video
+ * \li 0:DVR_VIDEO_FORMAT_MPEG1  MPEG1 video
+ * \li 1:DVR_VIDEO_FORMAT_MPEG2  MPEG2 video
+ * \li 2:DVR_VIDEO_FORMAT_H264   H264 video
+ * \li 3:DVR_VIDEO_FORMAT_HEVC   HEVC video
+ *
+ * audio
+ * \li 0:DVR_AUDIO_FORMAT_MPEG  MPEG audio
+ * \li 1:DVR_AUDIO_FORMAT_AC3   AC3 audio
+ * \li 2:DVR_AUDIO_FORMAT_EAC3  EAC3 audio
+ * \li 3:DVR_AUDIO_FORMAT_DTS   DTS audio
+ * \li 4:DVR_AUDIO_FORMAT_AAC   AAC audio
+ * \li 5:DVR_AUDIO_FORMAT_HEAAC HE AAC audio
+ *
+ * \section ops Operations in the test:
+ * \li pause\n
+ *             pause the playback
+ * \li resume\n
+ *             resume the playback
+ * \li f <speed>\n
+ *             set the playback speed
+ * \li seek \<time in ms\>\n
+ *             seek the playback
+ * \li aud <pid:fmt>\n
+ *             change the audio pid:fmt
+ * \li info\n
+ *             show the record info
+ * \li stat\n
+ *             show the playback status
+ * \li quit\n
+ *             quit the test
+ * \endsection
+ */
+
 
 #include <stdio.h>
 #include <string.h>
@@ -119,8 +187,7 @@ static void display_usage(void)
     INF( "*seek time_in_msecond\n");
     INF( "*aud <pid>:<fmt>\n");
     INF( "*info (print record info)\n");
-    INF( "*recpause\n");
-    INF( "*recresume\n");
+    INF( "*stat (print playback status)\n");
     INF( "*quit\n");
     INF( "==================\n");
 }
@@ -162,24 +229,39 @@ int start_test(void)
             }
             else if (!strncmp(buf, "aud", 3)) {
                 int apid = 0x1fff, afmt = 0;
-                sscanf(buf + 3, "%d:%d", &apid, &afmt);
+                sscanf(buf + 3, "%i:%i", &apid, &afmt);
                 play_pids.audio.pid = apid;
                 play_pids.audio.format = afmt;
                 error = dvr_wrapper_update_playback(player, &play_pids);
                 INF( "update(aud=%d:%d)=(%d)\n", apid, afmt, error);
             }
             else if (!strncmp(buf, "info", 4)) {
-                printf("rec info of [%s].\n", pfilename);
+                INF("rec info of [%s].\n", pfilename);
                 get_dvr_info(pfilename, NULL, NULL, NULL, NULL);
             }
+            else if (!strncmp(buf, "stat", 4)) {
+                DVR_WrapperPlaybackStatus_t status;
+                INF("playback status:\n");
+                error = dvr_wrapper_get_playback_status(player, &status);
+                RESULT("state:%d\n", status.state);
+                RESULT("curr(time/size/pkts):%lu:%llu:%u\n",
+                    status.info_cur.time,
+                    status.info_cur.size,
+                    status.info_cur.pkts);
+                RESULT("full(time/size/pkts):%lu:%llu:%u\n",
+                    status.info_full.time,
+                    status.info_full.size,
+                    status.info_full.pkts);
+                RESULT("speed:%f\n", status.speed);
+            }
             else if (!strncmp(buf, "recpause", 8)) {
-                printf("rec paused.\n");
+                INF("rec paused.\n");
             }
             else if (!strncmp(buf, "recresume", 9)) {
-                printf("rec resumed.\n");
+                INF("rec resumed.\n");
             }
             else {
-                fprintf(stderr, "Unkown command: %s\n", buf);
+                ERR("Unkown command: %s\n", buf);
                 display_usage();
             }
         }
@@ -513,7 +595,7 @@ static int start_playback(int apid, int afmt, int vpid, int vfmt)
         strncpy(play_params.location, pfilename, sizeof(play_params.location));
         play_params.is_timeshift = DVR_FALSE;
         {
-            int vpid = 0x1024, apid = 0x1025, vfmt = 0, afmt = 0;
+            int vpid = 1024, apid = 1025, vfmt = 0, afmt = 0;
             get_dvr_info(pfilename, &apid, &afmt, &vpid, &vfmt);
 
             play_pids.video.pid = vpid;
@@ -572,7 +654,8 @@ static int start_playback(int apid, int afmt, int vpid, int vfmt)
     error = dvr_wrapper_open_playback(&player, &play_params);
     if (!error)
     {
-       DVR_PlaybackFlag_t play_flag = (is_timeshifting(mode))? DVR_PLAYBACK_STARTED_PAUSEDLIVE : 0;
+       //DVR_PlaybackFlag_t play_flag = (is_timeshifting(mode))? DVR_PLAYBACK_STARTED_PAUSEDLIVE : 0;
+       DVR_PlaybackFlag_t play_flag = (pause)? DVR_PLAYBACK_STARTED_PAUSEDLIVE : 0;
 
        INF( "Starting playback\n");
 
@@ -607,6 +690,7 @@ static void usage(int argc, char *argv[])
   INF( "Usage: record      : %s [v=pid:fmt] [a=pid:fmt] [tsin=n] [dur=s] [recfile=x]\n", argv[0]);
   INF( "vfmt:%s\n", help_vfmt);
   INF( "afmt:%s\n", help_afmt);
+  INF( "a particular parameter named \"helper\", which can be used to get the video layer shown by excuting some trivial operations.\n");
 }
 
 
@@ -718,7 +802,10 @@ int main(int argc, char **argv)
     if (has_recording(mode))
         error = start_recording();
 
-    if (has_playback(mode))
+    if (is_playback(mode))
+        error = start_playback(0, 0, 0, 0);
+
+    if (is_timeshifting(mode))
         playback_pending = 1;
 
     //command loop
@@ -737,7 +824,8 @@ int main(int argc, char **argv)
         error = dvr_wrapper_close_playback(player);
         INF("stop playback = (0x%x)\n", error);
 
-        AmTsPlayer_release(tsplayer_handle);
+        if (!tsplayer_handle)
+            AmTsPlayer_release(tsplayer_handle);
     }
 
     return 0;
