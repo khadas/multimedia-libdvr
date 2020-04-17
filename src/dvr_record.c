@@ -8,7 +8,9 @@
 #include "dvr_crypto.h"
 #include "record_device.h"
 #include "segment.h"
+#include <sys/time.h>
 
+//#define DEBUG_PERFORMANCE
 #define MAX_DVR_RECORD_SESSION_COUNT 2
 #define RECORD_BLOCK_SIZE (256 * 1024)
 
@@ -149,6 +151,11 @@ static int record_do_pcr_index(DVR_RecordContext_t *p_ctx, uint8_t *buf, int len
   return has_pcr;
 }
 
+static int get_diff_time(struct timeval start_tv, struct timeval end_tv)
+{
+  return end_tv.tv_sec * 1000 + end_tv.tv_usec / 1000 - start_tv.tv_sec * 1000 - start_tv.tv_usec / 1000;
+}
+
 void *record_thread(void *arg)
 {
   DVR_RecordContext_t *p_ctx = (DVR_RecordContext_t *)arg;
@@ -188,7 +195,10 @@ void *record_thread(void *arg)
   DVR_DEBUG(1, "%s, secure_mode:%d, block_size:%d", __func__, p_ctx->is_secure_mode, block_size);
 
   clock_gettime(CLOCK_MONOTONIC, &start_ts);
+
+  struct timeval t1, t2, t3, t4, t5, t6, t7;
   while (p_ctx->state == DVR_RECORD_STATE_STARTED) {
+    gettimeofday(&t1, NULL);
     /* data from dmx, normal dvr case */
     if (p_ctx->is_secure_mode) {
       memset(&secure_buf, 0, sizeof(secure_buf));
@@ -204,6 +214,7 @@ void *record_thread(void *arg)
       continue;
     }
 
+    gettimeofday(&t2, NULL);
     /* Got data from device, record it */
     if (p_ctx->enc_func) {
       /* Encrypt record data */
@@ -230,12 +241,15 @@ void *record_thread(void *arg)
       crypto_params.output_buffer.size = block_size + 188;
 
       p_ctx->enc_func(&crypto_params, p_ctx->enc_userdata);
+      gettimeofday(&t3, NULL);
       /* Out buffer length may not equal in buffer length */
       ret = segment_write(p_ctx->segment_handle, buf_out, crypto_params.output_size);
       len = crypto_params.output_size;
     } else {
+      gettimeofday(&t3, NULL);
       ret = segment_write(p_ctx->segment_handle, buf, len);
     }
+    gettimeofday(&t4, NULL);
     //add DVR_RECORD_EVENT_WRITE_ERROR event if write error
     if (ret == -1 && len > 0 && p_ctx->event_notify_fn) {
       //send write event
@@ -262,6 +276,7 @@ void *record_thread(void *arg)
       DVR_DEBUG(1, "%s use pcr time index", __func__);
       index_type = DVR_INDEX_TYPE_PCR;
     }
+    gettimeofday(&t5, NULL);
 
     /* Update segment info */
     p_ctx->segment_info.size += len;
@@ -286,6 +301,7 @@ void *record_thread(void *arg)
       pre_time = p_ctx->segment_info.duration + DVR_STORE_INFO_TIME;
       segment_store_info(p_ctx->segment_handle, &(p_ctx->segment_info));
     }
+    gettimeofday(&t6, NULL);
      /*Event notification*/
     if (p_ctx->notification_size &&
         p_ctx->event_notify_fn &&
@@ -304,6 +320,12 @@ void *record_thread(void *arg)
       DVR_DEBUG(1, "%s notify record status, state:%d, id:%lld, duration:%ld ms, size:%zu",
           __func__, record_status.state, record_status.info.id, record_status.info.duration, record_status.info.size);
     }
+    gettimeofday(&t7, NULL);
+#ifdef DEBUG_PERFORMANCE
+    DVR_DEBUG(1, "record count, read:%dms, encrypt:%dms, write:%dms, index:%dms, store:%dms, notify:%dms total:%dms",
+        get_diff_time(t1, t2), get_diff_time(t2, t3), get_diff_time(t3, t4), get_diff_time(t4, t5),
+        get_diff_time(t5, t6), get_diff_time(t6, t7), get_diff_time(t1, t5));
+#endif
   }
 end:
   free((void *)buf);

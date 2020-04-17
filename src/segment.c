@@ -12,17 +12,19 @@
 #define MAX_SEGMENT_FD_COUNT (128)
 #define MAX_SEGMENT_PATH_SIZE (DVR_MAX_LOCATION_SIZE + 32)
 #define MAX_PTS_THRESHOLD (10*1000)
+#define PCR_RECORD_INTERVAL_MS (400)
 /**\brief Segment context*/
 typedef struct {
   int             ts_fd;                              /**< Segment ts file fd*/
   FILE            *index_fp;                          /**< Time index file fd*/
   FILE            *dat_fp;                            /**< Information file fd*/
-  FILE        *ongoing_fp;                            /**< Ongoing file fd, used to verify timedhift mode*/
+  FILE            *ongoing_fp;                        /**< Ongoing file fd, used to verify timedhift mode*/
   uint64_t        first_pts;                          /**< First pts value, use for write mode*/
-  uint64_t        last_pts;                           /**< Last pts value, use for write mode*/
+  uint64_t        last_pts;                           /**< Last input pts value, use for write mode*/
+  uint64_t        last_record_pts;                    /**< Last record pts value, use for write mode*/
   uint64_t        cur_time;                           /**< Current time save in index file */
-  uint64_t      segment_id;
-  char            location[MAX_SEGMENT_PATH_SIZE];/**< Current time save in index file */
+  uint64_t        segment_id;                         /**< Current segment ID */
+  char            location[MAX_SEGMENT_PATH_SIZE];    /**< Current time save in index file */
 } Segment_Context_t;
 
 /**\brief Segment file type*/
@@ -30,7 +32,7 @@ typedef enum {
   SEGMENT_FILE_TYPE_TS,                       /**< Used for store TS data*/
   SEGMENT_FILE_TYPE_INDEX,                    /**< Used for store index data*/
   SEGMENT_FILE_TYPE_DAT,                      /**< Used for store information data, such as duration etc*/
-  SEGMENT_FILE_TYPE_ONGOING,                      /**< Used for store information data, such as duration etc*/
+  SEGMENT_FILE_TYPE_ONGOING,                  /**< Used for store information data, such as duration etc*/
 } Segment_FileType_t;
 
 static void segment_get_fname(char fname[MAX_SEGMENT_PATH_SIZE],
@@ -123,6 +125,7 @@ int segment_open(Segment_OpenParams_t *params, Segment_Handle_t *p_handle)
     p_ctx->ongoing_fp = fopen(going_name, "w+");
     p_ctx->first_pts = ULLONG_MAX;
     p_ctx->last_pts = ULLONG_MAX;
+    p_ctx->last_record_pts = ULLONG_MAX;
   } else {
     DVR_DEBUG(1, "%s, unknow mode use default", __func__);
     p_ctx->ts_fd = open(ts_fname, O_RDONLY);
@@ -206,6 +209,7 @@ int segment_update_pts(Segment_Handle_t handle, uint64_t pts, loff_t offset)
 {
   Segment_Context_t *p_ctx;
   char buf[256];
+  int record_diff = 0;
 
   p_ctx = (Segment_Context_t *)handle;
   DVR_RETURN_IF_FALSE(p_ctx);
@@ -222,22 +226,28 @@ int segment_update_pts(Segment_Handle_t handle, uint64_t pts, loff_t offset)
     p_ctx->cur_time = pts - p_ctx->first_pts;
   } else {
     /*Last pts has valid value*/
-  int diff = pts - p_ctx->last_pts;
+    int diff = pts - p_ctx->last_pts;
     if ((diff > MAX_PTS_THRESHOLD) || (diff < 0)) {
       /*Current pts has a transition*/
       DVR_DEBUG(1, "Current pts has a transition, [%llu, %llu, %llu]",
           p_ctx->first_pts, p_ctx->last_pts, pts);
+      p_ctx->last_record_pts = pts;
     } else {
       /*This is a normal pts, record it*/
       p_ctx->cur_time += diff;
       sprintf(buf, "\n{time=%llu, offset=%lld}", p_ctx->cur_time, offset);
     }
   }
-  if (strlen(buf) > 0)
+
+  record_diff = pts - p_ctx->last_record_pts;
+  if (strlen(buf) > 0 &&
+      (record_diff > PCR_RECORD_INTERVAL_MS || p_ctx->last_record_pts == ULLONG_MAX)){
     fputs(buf, p_ctx->index_fp);
+    fflush(p_ctx->index_fp);
+    fsync(fileno(p_ctx->index_fp));
+    p_ctx->last_record_pts = pts;
+  }
   p_ctx->last_pts = pts;
-  fflush(p_ctx->index_fp);
-  fsync(fileno(p_ctx->index_fp));
 
   return DVR_SUCCESS;
 }
