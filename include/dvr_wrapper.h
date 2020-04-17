@@ -73,7 +73,7 @@ typedef struct {
   DVR_Bool_t            is_timeshift;                    /**< The record file is used by timeshift.*/
   loff_t                segment_size;                    /**< Segment file's size.*/
   loff_t                max_size;                        /**< Maximum record file size in bytes.*/
-  time_t                max_time;                        /**< Maximum record time in seconds.*/
+  time_t                max_time;                        /**< Maximum record time in milliseconds.*/
   DVR_RecordFlag_t      flags;                           /**< Flags.*/
   DVR_CryptoPeriod_t    crypto_period;                   /**< Crypto period.*/
   DVR_CryptoFunction_t  crypto_fn;                       /**< Crypto callback function.*/
