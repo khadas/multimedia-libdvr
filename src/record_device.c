@@ -120,6 +120,10 @@ int record_device_open(Record_DeviceHandle_t *p_handle, Record_DeviceOpenParams_
   snprintf(buf, sizeof(buf), "/sys/class/stb/asyncfifo%d_secure_addr", dev_no);
   dvr_file_echo(buf, "0");
 
+  memset(buf, 0, sizeof(buf));
+  snprintf(buf, sizeof(buf), "/sys/class/stb/asyncfifo%d_secure_addr_size", dev_no);
+  dvr_file_echo(buf, "0");
+
   p_ctx->state = RECORD_DEVICE_STATE_OPENED;
   *p_handle = p_ctx;
   pthread_mutex_unlock(&p_ctx->lock);
@@ -436,6 +440,11 @@ int record_device_set_secure_buffer(Record_DeviceHandle_t handle, uint8_t *sec_b
   memset(buf, 0, sizeof(buf));
   snprintf(buf, sizeof(buf), "/sys/class/stb/asyncfifo%d_secure_addr", i);
   snprintf(cmd, sizeof(cmd), "%llu", (uint64_t)sec_buf);
+  dvr_file_echo(buf, cmd);
+
+  memset(buf, 0, sizeof(buf));
+  snprintf(buf, sizeof(buf), "/sys/class/stb/asyncfifo%d_secure_addr_size", i);
+  snprintf(cmd, sizeof(cmd), "%d", len);
   dvr_file_echo(buf, cmd);
 
   pthread_mutex_unlock(&p_ctx->lock);
