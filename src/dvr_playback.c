@@ -11,6 +11,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <pthread.h>
+#include <errno.h>
 
 #include "dvr_playback.h"
 
@@ -30,7 +31,7 @@
 #define IS_FAST_SPEED(_SPEED_) (((_SPEED_) == PLAYBACK_SPEED_X2) || ((_SPEED_) == PLAYBACK_SPEED_S2) || ((_SPEED_) == PLAYBACK_SPEED_S4) || ((_SPEED_) == PLAYBACK_SPEED_S8))
 
 
-#define FFFB_SLEEP_TIME    (500)//500ms
+#define FFFB_SLEEP_TIME    (1000)//500ms
 #define FB_DEFAULT_LEFT_TIME    (10000)
 //if tsplayer delay time < 200 and no data can read, we will pause
 #define MIN_TSPLAYER_DELAY_TIME (200)
@@ -307,6 +308,7 @@ static int _dvr_playback_sent_event(DVR_PlaybackHandle_t handle, DVR_PlaybackEve
 
   switch (evt) {
     case DVR_PLAYBACK_EVENT_ERROR:
+      dvr_playback_get_status(handle, &(notify->play_status));
       break;
     case DVR_PLAYBACK_EVENT_TRANSITION_OK:
       //GET STATE
@@ -902,15 +904,24 @@ static void* _dvr_playback_thread(void *arg)
                 || player->cmd.cur_cmd == DVR_PLAYBACK_CMD_FB
                 ||player->speed > FF_SPEED ||player->speed < FB_SPEED) {
             //restart play stream if speed > 2
-            if (player->state == DVR_PLAYBACK_STATE_PAUSE ||
-              _dvr_time_getClock() < player->next_fffb_time) {
-              DVR_PB_DG(1, "fffb timeout----speed[%f] fffb cur[%d] cur sys[%d] [%s] [%d]", player->speed, player->fffb_current,_dvr_time_getClock(),_dvr_playback_state_toString(player->state), player->next_fffb_time);
+            if (player->state == DVR_PLAYBACK_STATE_PAUSE) {
+              DVR_PB_DG(1, "fffb pause state----speed[%f] fffb cur[%d] cur sys[%d] [%s] [%d]", player->speed, player->fffb_current,_dvr_time_getClock(),_dvr_playback_state_toString(player->state), player->next_fffb_time);
               //used timeout wait need lock first,so we unlock and lock
               //pthread_mutex_unlock(&player->lock);
               //pthread_mutex_lock(&player->lock);
               _dvr_playback_timeoutwait((DVR_PlaybackHandle_t)player, timeout);
               pthread_mutex_unlock(&player->lock);
               continue;
+            } else if (_dvr_time_getClock() < player->next_fffb_time) {
+              DVR_PB_DG(1, "fffb timeout-to pause video---speed[%f] fffb cur[%d] cur sys[%d] [%s] [%d]", player->speed, player->fffb_current,_dvr_time_getClock(),_dvr_playback_state_toString(player->state), player->next_fffb_time);
+              //used timeout wait need lock first,so we unlock and lock
+              //pthread_mutex_unlock(&player->lock);
+              //pthread_mutex_lock(&player->lock);
+              AmTsPlayer_pauseVideoDecoding(player->handle);
+              _dvr_playback_timeoutwait((DVR_PlaybackHandle_t)player, timeout);
+              pthread_mutex_unlock(&player->lock);
+              continue;
+
             }
             DVR_PB_DG(1, "fffb play-------speed[%f][%d][%d]", player->speed, goto_rewrite, real_read);
             pthread_mutex_unlock(&player->lock);
@@ -970,6 +981,17 @@ static void* _dvr_playback_thread(void *arg)
     int read = segment_read(player->r_handle, buf + real_read, buf_len - real_read);
     pthread_mutex_unlock(&player->segment_lock);
     pthread_mutex_unlock(&player->lock);
+    if (read < 0 && errno == EIO) {
+      //EIO ERROR, EXIT THRAD
+      DVR_PB_DG(1, "read error.EIO error, exit thread");
+      DVR_Play_Notify_t notify;
+      memset(&notify, 0 , sizeof(DVR_Play_Notify_t));
+      notify.event = DVR_PLAYBACK_EVENT_ERROR;
+      _dvr_playback_sent_event((DVR_PlaybackHandle_t)player,DVR_PLAYBACK_EVENT_ERROR, &notify);
+      goto end;
+    } else if (read < 0) {
+      DVR_PB_DG(1, "read error.:%d EIO:%d", errno, EIO);
+    }
     //if on fb mode and read file end , we need calculate pos to retry read.
     if (read == 0 && IS_FB(player->speed) && real_read == 0) {
       DVR_PB_DG(1, "recalculate read [%d] readed [%d]buf_len[%d]speed[%f]id=[%llu]", read,real_read, buf_len, player->speed,player->cur_segment_id);
@@ -1100,6 +1122,7 @@ rewrite:
       //goto rewrite;
     }
   }
+end:
   DVR_PB_DG(1, "playback thread is end");
   free(buf);
   free(dec_bufs.buf_data);
@@ -1716,9 +1739,9 @@ int dvr_playback_update_segment_pids(DVR_PlaybackHandle_t handle, uint64_t segme
         memcpy(&player->cur_segment.pids, p_pids, sizeof(DVR_PlaybackPids_t));
       }
       //save pids info
-      DVR_PB_DG(1, ":apid :%d", segment->pids.audio.pid, p_pids->audio.pid);
+      DVR_PB_DG(1, ":apid :%d %d", segment->pids.audio.pid, p_pids->audio.pid);
       memcpy(&segment->pids, p_pids, sizeof(DVR_PlaybackPids_t));
-      DVR_PB_DG(1, ":cp apid :%d", segment->pids.audio.pid, p_pids->audio.pid);
+      DVR_PB_DG(1, ":cp apid :%d %d", segment->pids.audio.pid, p_pids->audio.pid);
       break;
     }
   }
@@ -1738,6 +1761,10 @@ int dvr_playback_stop(DVR_PlaybackHandle_t handle, DVR_Bool_t clear) {
   if (player == NULL) {
     DVR_PB_DG(1, "player is NULL");
     return DVR_FAILURE;
+  }
+  if (player->state == DVR_PLAYBACK_STATE_STOP) {
+    DVR_PB_DG(1, ":playback is stoped");
+    return DVR_SUCCESS;
   }
   if (player->state == DVR_PLAYBACK_STATE_STOP) {
     DVR_PB_DG(1, ":playback is stoped");
