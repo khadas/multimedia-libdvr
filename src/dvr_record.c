@@ -477,6 +477,8 @@ int dvr_record_start_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t 
     DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
   }
 
+  ret = segment_store_info(p_ctx->segment_handle, &p_ctx->segment_info);
+
   p_ctx->state = DVR_RECORD_STATE_STARTED;
   if (!p_ctx->is_vod)
     pthread_create(&p_ctx->thread, NULL, record_thread, p_ctx);
