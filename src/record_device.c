@@ -95,6 +95,7 @@ int record_device_open(Record_DeviceHandle_t *p_handle, Record_DeviceOpenParams_
   fcntl(p_ctx->fd, F_SETFL, fcntl(p_ctx->fd, F_GETFL, 0) | O_NONBLOCK, 0);
 
   p_ctx->evtfd = eventfd(0, 0);
+  DVR_DEBUG(1, "%s, %d fd: %d %p %d %p", __func__, __LINE__, p_ctx->fd, &(p_ctx->fd), p_ctx->evtfd, &(p_ctx->evtfd));
 
   /*Configure flush size*/
   memset(buf, 0, sizeof(buf));
@@ -385,7 +386,8 @@ ssize_t record_device_read(Record_DeviceHandle_t handle, void *buf, size_t len, 
   fds[0].events = fds[1].events = POLLIN | POLLERR;
   ret = poll(fds, 2, timeout);
   if (ret <= 0) {
-    DVR_DEBUG(1, "%s, %d failed: %s", __func__, __LINE__, strerror(errno));
+    if (ret < 0)
+      DVR_DEBUG(1, "%s, %d failed: %s fd %d evfd %d", __func__, __LINE__, strerror(errno), p_ctx->fd, p_ctx->evtfd);
     return DVR_FAILURE;
   }
 

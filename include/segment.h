@@ -62,6 +62,16 @@ ssize_t segment_read(Segment_Handle_t handle, void *buf, size_t count);
  */
 ssize_t segment_write(Segment_Handle_t handle, void *buf, size_t count);
 
+/**\brief force Update the pts and offset when record
+ * \param[in] handle, Segment handle
+ * \param[in] pts, Current pts
+ * \param[in] offset, Current segment offset
+ * \return DVR_SUCCESS on success
+ * \return error code on failure
+ */
+int segment_update_pts_force(Segment_Handle_t handle, uint64_t pts, loff_t offset);
+
+
 /**\brief Update the pts and offset when record
  * \param[in] handle, Segment handle
  * \param[in] pts, Current pts

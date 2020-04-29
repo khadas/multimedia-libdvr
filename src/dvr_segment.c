@@ -10,7 +10,6 @@
 typedef struct {
   char              location[DVR_MAX_LOCATION_SIZE];      /**< DVR record file location*/
   uint64_t          id;                                   /**< DVR Segment id*/
-  pthread_mutex_t            lock;               /**< DVR segment lock*/
 } DVR_SegmentFile_t;
 
 void *dvr_segment_thread(void *arg)

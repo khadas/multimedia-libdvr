@@ -13,6 +13,10 @@
 #define MAX_SEGMENT_PATH_SIZE (DVR_MAX_LOCATION_SIZE + 32)
 #define MAX_PTS_THRESHOLD (10*1000)
 #define PCR_RECORD_INTERVAL_MS (400)
+#define PTS_DISCONTINE_DEVIATION     (40)
+#define PTS_HEAD_DEVIATION     (40)
+
+
 /**\brief Segment context*/
 typedef struct {
   int             ts_fd;                              /**< Segment ts file fd*/
@@ -205,7 +209,7 @@ ssize_t segment_write(Segment_Handle_t handle, void *buf, size_t count)
   return write(p_ctx->ts_fd, buf, count);
 }
 
-int segment_update_pts(Segment_Handle_t handle, uint64_t pts, loff_t offset)
+int segment_update_pts_force(Segment_Handle_t handle, uint64_t pts, loff_t offset)
 {
   Segment_Context_t *p_ctx;
   char buf[256];
@@ -224,6 +228,56 @@ int segment_update_pts(Segment_Handle_t handle, uint64_t pts, loff_t offset)
     /*Last pts is init value*/
     sprintf(buf, "{time=%llu, offset=%lld}", pts - p_ctx->first_pts, offset);
     p_ctx->cur_time = pts - p_ctx->first_pts;
+  DVR_DEBUG(1, "%s force pcr:%llu -1", __func__, pts);
+  } else {
+    /*Last pts has valid value*/
+    int diff = pts - p_ctx->last_pts;
+    if ((diff > MAX_PTS_THRESHOLD) || (diff < 0)) {
+      /*Current pts has a transition*/
+      DVR_DEBUG(1, "[%s]force update Current pts has a transition, [%llu, %llu, %llu]",__func__,
+          p_ctx->first_pts, p_ctx->last_pts, pts);
+      sprintf(buf, "\n{time=%llu, offset=%lld}", p_ctx->cur_time, offset);
+    } else {
+      /*This is a normal pts, record it*/
+      p_ctx->cur_time += diff;
+      DVR_DEBUG(1, "%s force pcr:%llu -1 diff [%d]", __func__, pts, diff);
+      sprintf(buf, "\n{time=%llu, offset=%lld}", p_ctx->cur_time, offset);
+    }
+  }
+
+  record_diff = pts - p_ctx->last_record_pts;
+  if (strlen(buf) > 0) {
+    DVR_DEBUG(1, "%s force pcr:%llu buf:%s", __func__, pts, buf);
+    fputs(buf, p_ctx->index_fp);
+    fflush(p_ctx->index_fp);
+    fsync(fileno(p_ctx->index_fp));
+    p_ctx->last_record_pts = pts;
+  }
+  p_ctx->last_pts = pts;
+
+  return DVR_SUCCESS;
+}
+
+int segment_update_pts(Segment_Handle_t handle, uint64_t pts, loff_t offset)
+{
+  Segment_Context_t *p_ctx;
+  char buf[256];
+  int record_diff = 0;
+
+  p_ctx = (Segment_Context_t *)handle;
+  DVR_RETURN_IF_FALSE(p_ctx);
+  DVR_RETURN_IF_FALSE(p_ctx->index_fp);
+
+  if (p_ctx->first_pts == ULLONG_MAX) {
+    DVR_DEBUG(1, "%s first pcr:%llu", __func__, pts);
+    p_ctx->first_pts = pts;
+    //p_ctx->cur_time = p_ctx->cur_time + PTS_HEAD_DEVIATION;
+  }
+  memset(buf, 0, sizeof(buf));
+  if (p_ctx->last_pts == ULLONG_MAX) {
+    /*Last pts is init value*/
+    sprintf(buf, "{time=%llu, offset=%lld}", pts - p_ctx->first_pts, offset);
+    p_ctx->cur_time = pts - p_ctx->first_pts;
   } else {
     /*Last pts has valid value*/
     int diff = pts - p_ctx->last_pts;
@@ -232,6 +286,7 @@ int segment_update_pts(Segment_Handle_t handle, uint64_t pts, loff_t offset)
       DVR_DEBUG(1, "Current pts has a transition, [%llu, %llu, %llu]",
           p_ctx->first_pts, p_ctx->last_pts, pts);
       p_ctx->last_record_pts = pts;
+      //p_ctx->cur_time = p_ctx->cur_time + PTS_DISCONTINE_DEVIATION;
     } else {
       /*This is a normal pts, record it*/
       p_ctx->cur_time += diff;
@@ -244,7 +299,7 @@ int segment_update_pts(Segment_Handle_t handle, uint64_t pts, loff_t offset)
       (record_diff > PCR_RECORD_INTERVAL_MS || p_ctx->last_record_pts == ULLONG_MAX)){
     fputs(buf, p_ctx->index_fp);
     fflush(p_ctx->index_fp);
-    fsync(fileno(p_ctx->index_fp));
+    //fsync(fileno(p_ctx->index_fp));
     p_ctx->last_record_pts = pts;
   }
   p_ctx->last_pts = pts;
@@ -310,6 +365,14 @@ loff_t segment_seek(Segment_Handle_t handle, uint64_t time, int block_size)
       DVR_RETURN_IF_FALSE(lseek64(p_ctx->ts_fd, offset, SEEK_SET) != -1);
       return offset;
     }
+  }
+  if (time > pts) {
+    if (block_size > 0) {
+      offset = offset - offset%block_size;
+    }
+    DVR_DEBUG(1, "seek time=%llu, offset=%lld time--%llu line %d end\n", pts, offset, time, line);
+    DVR_RETURN_IF_FALSE(lseek64(p_ctx->ts_fd, offset, SEEK_SET) != -1);
+    return offset;
   }
   DVR_DEBUG(1, "seek error line [%d]", line);
   return DVR_FAILURE;
@@ -483,7 +546,7 @@ int segment_store_info(Segment_Handle_t handle, Segment_StoreInfo_t *p_info)
   fputs(buf, p_ctx->dat_fp);
 
   fflush(p_ctx->dat_fp);
-  fsync(fileno(p_ctx->dat_fp));
+  //fsync(fileno(p_ctx->dat_fp));
   return DVR_SUCCESS;
 }
 

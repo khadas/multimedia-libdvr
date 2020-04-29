@@ -23,7 +23,7 @@
   DVR_DEBUG(_level, "wrapper %-30.30s:%d " _fmt, __FUNCTION__, __LINE__, ##__VA_ARGS__)
 
 /*duration of data to resume if paused with EVT_REACHED_END in timeshifting*/
-#define TIMESHIFT_DATA_DURATION_TO_RESUME (2000)
+#define TIMESHIFT_DATA_DURATION_TO_RESUME (600)
 /*a tolerant gap*/
 #define DVR_PLAYBACK_END_GAP              (1000)
 

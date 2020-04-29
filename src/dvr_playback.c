@@ -46,6 +46,8 @@ static int _dvr_get_cur_time(DVR_PlaybackHandle_t handle);
 static int _dvr_get_end_time(DVR_PlaybackHandle_t handle);
 static int _dvr_playback_calculate_seekpos(DVR_PlaybackHandle_t handle);
 static int _dvr_playback_replay(DVR_PlaybackHandle_t handle, DVR_Bool_t trick) ;
+static int _dvr_playback_get_status(DVR_PlaybackHandle_t handle,
+  DVR_PlaybackStatus_t *p_status, DVR_Bool_t is_lock);
 
 
 static char* _cmd_toString(int cmd)
@@ -332,8 +334,8 @@ static int _dvr_playback_sendSignal(DVR_PlaybackHandle_t handle)
   return 0;
 }
 
-//send playback event
-static int _dvr_playback_sent_event(DVR_PlaybackHandle_t handle, DVR_PlaybackEvent_t evt, DVR_Play_Notify_t *notify) {
+//send playback event, need check is need lock first
+static int _dvr_playback_sent_event(DVR_PlaybackHandle_t handle, DVR_PlaybackEvent_t evt, DVR_Play_Notify_t *notify, DVR_Bool_t is_lock) {
 
   DVR_Playback_t *player = (DVR_Playback_t *) handle;
 
@@ -344,12 +346,12 @@ static int _dvr_playback_sent_event(DVR_PlaybackHandle_t handle, DVR_PlaybackEve
 
   switch (evt) {
     case DVR_PLAYBACK_EVENT_ERROR:
-      dvr_playback_get_status(handle, &(notify->play_status));
+      _dvr_playback_get_status(handle, &(notify->play_status), is_lock);
       break;
     case DVR_PLAYBACK_EVENT_TRANSITION_OK:
       //GET STATE
       DVR_PB_DG(1, "trans ok EVENT");
-      dvr_playback_get_status(handle, &(notify->play_status));
+      _dvr_playback_get_status(handle, &(notify->play_status), is_lock);
       break;
     case DVR_PLAYBACK_EVENT_TRANSITION_FAILED:
       break;
@@ -360,15 +362,15 @@ static int _dvr_playback_sent_event(DVR_PlaybackHandle_t handle, DVR_PlaybackEve
     case DVR_PLAYBACK_EVENT_REACHED_BEGIN:
       //GET STATE
       DVR_PB_DG(1, "reached begin EVENT");
-      dvr_playback_get_status(handle, &(notify->play_status));
+      _dvr_playback_get_status(handle, &(notify->play_status), is_lock);
       break;
     case DVR_PLAYBACK_EVENT_REACHED_END:
       //GET STATE
       DVR_PB_DG(1, "reached end EVENT");
-      dvr_playback_get_status(handle, &(notify->play_status));
+      _dvr_playback_get_status(handle, &(notify->play_status), is_lock);
       break;
     case DVR_PLAYBACK_EVENT_NOTIFY_PLAYTIME:
-      dvr_playback_get_status(handle, &(notify->play_status));
+      _dvr_playback_get_status(handle, &(notify->play_status), is_lock);
       break;
     default:
       break;
@@ -377,17 +379,17 @@ static int _dvr_playback_sent_event(DVR_PlaybackHandle_t handle, DVR_PlaybackEve
       player->openParams.event_fn(evt, (void*)notify, player->openParams.event_userdata);
   return DVR_SUCCESS;
 }
-static int _dvr_playback_sent_transition_ok(DVR_PlaybackHandle_t handle)
+static int _dvr_playback_sent_transition_ok(DVR_PlaybackHandle_t handle, DVR_Bool_t is_lock)
 {
   DVR_Play_Notify_t notify;
   memset(&notify, 0 , sizeof(DVR_Play_Notify_t));
   notify.event = DVR_PLAYBACK_EVENT_TRANSITION_OK;
   //get play statue not here
-  _dvr_playback_sent_event(handle, DVR_PLAYBACK_EVENT_TRANSITION_OK, &notify);
+  _dvr_playback_sent_event(handle, DVR_PLAYBACK_EVENT_TRANSITION_OK, &notify, is_lock);
   return DVR_SUCCESS;
 }
 
-static int _dvr_playback_sent_playtime(DVR_PlaybackHandle_t handle)
+static int _dvr_playback_sent_playtime(DVR_PlaybackHandle_t handle, DVR_Bool_t is_lock)
 {
   DVR_Playback_t *player = (DVR_Playback_t *) handle;
 
@@ -409,7 +411,7 @@ static int _dvr_playback_sent_playtime(DVR_PlaybackHandle_t handle)
   memset(&notify, 0 , sizeof(DVR_Play_Notify_t));
   notify.event = DVR_PLAYBACK_EVENT_NOTIFY_PLAYTIME;
   //get play statue not here
-  _dvr_playback_sent_event(handle, DVR_PLAYBACK_EVENT_NOTIFY_PLAYTIME, &notify);
+  _dvr_playback_sent_event(handle, DVR_PLAYBACK_EVENT_NOTIFY_PLAYTIME, &notify, is_lock);
   return DVR_SUCCESS;
 }
 
@@ -894,7 +896,7 @@ static void* _dvr_playback_thread(void *arg)
     return NULL;
   }
   //get play statue not here
-  _dvr_playback_sent_transition_ok((DVR_PlaybackHandle_t)player);
+  _dvr_playback_sent_transition_ok((DVR_PlaybackHandle_t)player, DVR_TRUE);
   _dvr_check_cur_segment_flag((DVR_PlaybackHandle_t)player);
   //set video show
   AmTsPlayer_showVideo(player->handle);
@@ -959,7 +961,7 @@ static void* _dvr_playback_thread(void *arg)
               continue;
 
             }
-            DVR_PB_DG(1, "fffb play-------speed[%f][%d][%d]", player->speed, goto_rewrite, real_read);
+            DVR_PB_DG(1, "fffb play-------speed[%f][%d][%d][%s][%d]", player->speed, goto_rewrite, real_read, _dvr_playback_state_toString(player->state), player->cmd);
             pthread_mutex_unlock(&player->lock);
             goto_rewrite = DVR_FALSE;
             real_read = 0;
@@ -981,7 +983,7 @@ static void* _dvr_playback_thread(void *arg)
           pthread_mutex_unlock(&player->lock);
           continue;
         }
-        DVR_PB_DG(1, "fffb replay-------speed[%f][%d][%d][%s][%d]", player->speed, goto_rewrite, real_read, _dvr_playback_state_toString(player->state), player->cmd);
+        DVR_PB_DG(1, "fffb replay-------speed[%f][%d][%d][%s][%d]player->fffb_play[%d]", player->speed, goto_rewrite, real_read, _dvr_playback_state_toString(player->state), player->cmd, player->fffb_play);
         pthread_mutex_unlock(&player->lock);
         goto_rewrite = DVR_FALSE;
         real_read = 0;
@@ -995,7 +997,7 @@ static void* _dvr_playback_thread(void *arg)
 
     if (player->state == DVR_PLAYBACK_STATE_PAUSE) {
       //check is need send time send end
-      _dvr_playback_sent_playtime((DVR_PlaybackHandle_t)player);
+      _dvr_playback_sent_playtime((DVR_PlaybackHandle_t)player, DVR_FALSE);
       _dvr_playback_timeoutwait((DVR_PlaybackHandle_t)player, timeout);
       pthread_mutex_unlock(&player->lock);
       continue;
@@ -1013,7 +1015,7 @@ static void* _dvr_playback_thread(void *arg)
       goto rewrite;
     }
     //.check is need send time send end
-    _dvr_playback_sent_playtime((DVR_PlaybackHandle_t)player);
+    _dvr_playback_sent_playtime((DVR_PlaybackHandle_t)player, DVR_FALSE);
     pthread_mutex_lock(&player->segment_lock);
     int read = segment_read(player->r_handle, buf + real_read, buf_len - real_read);
     pthread_mutex_unlock(&player->segment_lock);
@@ -1024,7 +1026,7 @@ static void* _dvr_playback_thread(void *arg)
       DVR_Play_Notify_t notify;
       memset(&notify, 0 , sizeof(DVR_Play_Notify_t));
       notify.event = DVR_PLAYBACK_EVENT_ERROR;
-      _dvr_playback_sent_event((DVR_PlaybackHandle_t)player,DVR_PLAYBACK_EVENT_ERROR, &notify);
+      _dvr_playback_sent_event((DVR_PlaybackHandle_t)player,DVR_PLAYBACK_EVENT_ERROR, &notify, DVR_TRUE);
       goto end;
     } else if (read < 0) {
       DVR_PB_DG(1, "read error.:%d EIO:%d", errno, EIO);
@@ -1058,7 +1060,7 @@ static void* _dvr_playback_thread(void *arg)
          notify.event = DVR_PLAYBACK_EVENT_REACHED_END;
          //get play statue not here
          dvr_playback_pause((DVR_PlaybackHandle_t)player, DVR_FALSE);
-         _dvr_playback_sent_event((DVR_PlaybackHandle_t)player, DVR_PLAYBACK_EVENT_REACHED_END, &notify);
+         _dvr_playback_sent_event((DVR_PlaybackHandle_t)player, DVR_PLAYBACK_EVENT_REACHED_END, &notify, DVR_TRUE);
          //continue,timeshift mode, when read end,need wait cur recording segment
          DVR_PB_DG(1, "playback is  send end delay:[%d]", delay);
          pthread_mutex_lock(&player->lock);
@@ -1073,9 +1075,9 @@ static void* _dvr_playback_thread(void *arg)
          pthread_mutex_unlock(&player->lock);
          continue;
        }
-       //change next segment success case
-      _dvr_playback_sent_transition_ok((DVR_PlaybackHandle_t)player);
       pthread_mutex_lock(&player->lock);
+      //change next segment success case
+      _dvr_playback_sent_transition_ok((DVR_PlaybackHandle_t)player, DVR_FALSE);
       DVR_PB_DG(1, "_dvr_replay_changed_pid:start");
       _dvr_replay_changed_pid((DVR_PlaybackHandle_t)player);
       _dvr_check_cur_segment_flag((DVR_PlaybackHandle_t)player);
@@ -1153,7 +1155,7 @@ rewrite:
       write_success++;
       continue;
     } else {
-      DVR_PB_DG(1, "write time out write_success:%d", write_success);
+      DVR_PB_DG(1, "write time out write_success:%d wbufs.buf_size:%d", write_success, wbufs.buf_size);
       write_success = 0;
       pthread_mutex_lock(&player->lock);
       _dvr_playback_timeoutwait((DVR_PlaybackHandle_t)player, timeout);
@@ -1378,7 +1380,7 @@ int dvr_playback_start(DVR_PlaybackHandle_t handle, DVR_PlaybackFlag_t flag) {
     notify.info.error_reason = DVR_PLAYBACK_PID_ERROR;
     notify.info.transition_failed_data.segment_id = segment_id;
     //get play statue not here
-    _dvr_playback_sent_event(handle, DVR_PLAYBACK_EVENT_TRANSITION_FAILED, &notify);
+    _dvr_playback_sent_event(handle, DVR_PLAYBACK_EVENT_TRANSITION_FAILED, &notify, DVR_TRUE);
     return -1;
   }
 
@@ -2523,7 +2525,6 @@ static int _dvr_playback_fffb_replay(DVR_PlaybackHandle_t handle) {
 
 static int _dvr_playback_fffb(DVR_PlaybackHandle_t handle) {
   DVR_Playback_t *player = (DVR_Playback_t *) handle;
-
   if (player == NULL) {
     DVR_PB_DG(1, "player is NULL");
     return DVR_FAILURE;
@@ -2551,12 +2552,12 @@ static int _dvr_playback_fffb(DVR_PlaybackHandle_t handle) {
       memset(&notify, 0 , sizeof(DVR_Play_Notify_t));
       notify.event = DVR_PLAYBACK_EVENT_REACHED_BEGIN;
       //get play statue not here
-      _dvr_playback_sent_event(handle, DVR_PLAYBACK_EVENT_REACHED_BEGIN, &notify);
+      _dvr_playback_sent_event(handle, DVR_PLAYBACK_EVENT_REACHED_BEGIN, &notify, DVR_TRUE);
       DVR_PB_DG(1, "*******************send begin event  speed [%f] cur [%d]", player->speed, _dvr_get_cur_time(handle));
       //change to pause
       return DVR_SUCCESS;
     }
-    _dvr_playback_sent_transition_ok(handle);
+    _dvr_playback_sent_transition_ok(handle, DVR_FALSE);
     _dvr_init_fffb_time(handle);
     DVR_PB_DG(1, "*******************send trans ok event  speed [%f]", player->speed);
   }
@@ -2818,14 +2819,15 @@ int dvr_playback_set_speed(DVR_PlaybackHandle_t handle, DVR_PlaybackSpeed_t spee
   pthread_mutex_unlock(&player->lock);
   return DVR_SUCCESS;
 }
+
 /**\brief Get playback status
  * \param[in] handle playback handle
  * \param[out] p_status playback status
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int dvr_playback_get_status(DVR_PlaybackHandle_t handle,
-  DVR_PlaybackStatus_t *p_status) {
+static int _dvr_playback_get_status(DVR_PlaybackHandle_t handle,
+  DVR_PlaybackStatus_t *p_status, DVR_Bool_t is_lock) {
 //
   DVR_Playback_t *player = (DVR_Playback_t *) handle;
 
@@ -2833,7 +2835,8 @@ int dvr_playback_get_status(DVR_PlaybackHandle_t handle,
     DVR_PB_DG(1, "player is NULL");
     return DVR_FAILURE;
   }
-
+  if (is_lock ==DVR_TRUE)
+    pthread_mutex_lock(&player->lock);
   p_status->state = player->state;
   //when got first frame we will change to pause state.this only from start play to got first frame
   if ((player->play_flag&DVR_PLAYBACK_STARTED_PAUSEDLIVE) == DVR_PLAYBACK_STARTED_PAUSEDLIVE &&
@@ -2874,12 +2877,36 @@ int dvr_playback_get_status(DVR_PlaybackHandle_t handle,
   memcpy(&p_status->pids, &player->cur_segment.pids, sizeof(DVR_PlaybackPids_t));
   p_status->speed = player->cmd.speed.speed.speed;
   p_status->flags = player->cur_segment.flags;
-  DVR_PB_DG(1, "player real state[%s]state[%s]cur[%d]end[%d] id[%lld]playflag[%d]speed[%f]",
+  DVR_PB_DG(1, "player real state[%s]state[%s]cur[%d]end[%d] id[%lld]playflag[%d]speed[%f]is_lock[%d]",
   _dvr_playback_state_toString(player->state),
   _dvr_playback_state_toString(p_status->state),
   p_status->time_cur, p_status->time_end,
   p_status->segment_id,player->play_flag,
-  player->speed);
+  player->speed,
+  is_lock);
+  if (is_lock ==DVR_TRUE)
+    pthread_mutex_unlock(&player->lock);
+  return DVR_SUCCESS;
+}
+
+
+/**\brief Get playback status
+ * \param[in] handle playback handle
+ * \param[out] p_status playback status
+ * \retval DVR_SUCCESS On success
+ * \return Error code
+ */
+int dvr_playback_get_status(DVR_PlaybackHandle_t handle,
+  DVR_PlaybackStatus_t *p_status) {
+//
+  DVR_Playback_t *player = (DVR_Playback_t *) handle;
+
+  if (player == NULL) {
+    DVR_PB_DG(1, "player is NULL");
+    return DVR_FAILURE;
+  }
+  _dvr_playback_get_status(handle, p_status, DVR_TRUE);
+
   return DVR_SUCCESS;
 }
 
