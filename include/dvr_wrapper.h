@@ -9,7 +9,6 @@
  * \li Index file generated
  * \li Segment split
  * \li Encrypt and decrypt
- * \endsection
  *
  * \file
  * \brief libdvr wrapper layer

@@ -87,7 +87,7 @@
   * Description:
   */
  /**\file
-  * \brief DVB前端测试
+  * \brief fontend test code
   *
   * \author chuanzhi wang <chuanzhi.wang@amlogic.com>
   * \date 2020-04-21: create the document
@@ -99,6 +99,7 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <linux/dvb/frontend.h>
 
 #define TUNE_MODE_UNKNOW  0
@@ -544,7 +545,6 @@ static int dmd_lock_s(int fe_fd, const dmd_delivery_t * pDelivery, dmd_lnb_tone_
    fe_sec_tone_mode_t tone;
    fe_sec_voltage_t voltage;
    struct dtv_properties props;
-   struct dvb_diseqc_master_cmd cmd;
    struct dtv_property p[DTV_IOCTL_MAX_MSGS];
 
    /*printf("lock S, freq:%d, symbol rate:%d, band start:%d Khz, end:%d Khz, LO:%d Khz, dowlink:%d\n",
@@ -883,7 +883,7 @@ int main(int argc, char **argv)
 
     if (ret)
     {
-       printf("lock faild, ret:%d\n");
+       printf("lock faild, ret:%d\n", ret);
 	   return -1;
 	}
 

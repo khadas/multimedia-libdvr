@@ -1,5 +1,5 @@
 /**
- * \page Test
+ * \page dvb_wrapper_test
  * \section Introduction
  * test code with dvb_wrapper_xxxx APIs.
  * It supports:
