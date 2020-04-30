@@ -10,21 +10,24 @@
 typedef struct {
   char              location[DVR_MAX_LOCATION_SIZE];      /**< DVR record file location*/
   uint64_t          id;                                   /**< DVR Segment id*/
+  pthread_mutex_t            lock;               /**< DVR segment lock*/
 } DVR_SegmentFile_t;
 
 void *dvr_segment_thread(void *arg)
 {
-  DVR_SegmentFile_t file;
   int ret;
+  DVR_SegmentFile_t *segment_file = (DVR_SegmentFile_t*)arg;
 
   pthread_detach(pthread_self());
-
-  memcpy(&file, arg, sizeof(DVR_SegmentFile_t));
-  DVR_DEBUG(1, "%s try to delete [%s-%lld]", __func__, file.location, file.id);
-  ret = segment_delete(file.location, file.id);
-  DVR_DEBUG(1, "%s delete segment [%s-%lld] %s", __func__, file.location, file.id,
+  DVR_DEBUG(1, "%s try to delete [%s-%lld]", __func__, segment_file->location, segment_file->id);
+  ret = segment_delete(segment_file->location, segment_file->id);
+  DVR_DEBUG(1, "%s delete segment [%s-%lld] %s", __func__, segment_file->location, segment_file->id,
       ret == DVR_SUCCESS ? "success" : "failed");
-
+  if (segment_file != NULL) {
+    //malloc at delete api.free at this
+    free(segment_file);
+    segment_file = NULL;
+  }
   return NULL;
 }
 
@@ -32,18 +35,27 @@ int dvr_segment_delete(const char *location, uint64_t segment_id)
 {
 
   pthread_t thread;
-  DVR_SegmentFile_t segment;
+  DVR_SegmentFile_t *segment;
+  //this segment will be free at del thread when used end.if thread
+  //creat error.will be free now.
+  segment = (DVR_SegmentFile_t *)malloc(sizeof(DVR_SegmentFile_t));
 
   DVR_DEBUG(1, "%s in, %s,id:%lld", __func__, location, segment_id);
+  DVR_RETURN_IF_FALSE(segment);
   DVR_RETURN_IF_FALSE(location);
   DVR_RETURN_IF_FALSE(strlen(location) < DVR_MAX_LOCATION_SIZE);
-  memset(segment.location, 0, sizeof(segment.location));
-  memcpy(segment.location, location, strlen(location));
-  segment.id = segment_id;
-  pthread_create(&thread, NULL, dvr_segment_thread, &segment);
-  /*make sure the thread running and args taken*/
-  usleep(10*1000);
+  memset(segment->location, 0, sizeof(segment->location));
+  memcpy(segment->location, location, strlen(location));
+  segment->id = segment_id;
 
+  int ret = pthread_create(&thread, NULL, dvr_segment_thread, segment);
+  if (ret != 0) {
+    //creat thread error,need free segment
+    if (segment != NULL) {
+      free(segment);
+      segment = NULL;
+    }
+  }
   return DVR_SUCCESS;
 }
 
