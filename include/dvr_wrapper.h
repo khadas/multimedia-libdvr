@@ -51,18 +51,20 @@ typedef struct {
 } DVR_WrapperPidsInfo_t;
 
 typedef struct {
-  DVR_PlaybackPlayState_t state;
-  DVR_WrapperInfo_t info_cur;
-  DVR_WrapperInfo_t info_full;
-  DVR_PlaybackPids_t pids;
-  float speed;
-  DVR_PlaybackSegmentFlag_t flags;
+  DVR_PlaybackPlayState_t state;      /**< DVR playback state*/
+  DVR_WrapperInfo_t info_cur;         /**< DVR playback current information*/
+  DVR_WrapperInfo_t info_full;        /**< DVR playback total(non-obsolete) infomation*/
+  DVR_PlaybackPids_t pids;            /**< DVR playback pids information*/
+  float speed;                        /**< DVR playback current speed*/
+  DVR_PlaybackSegmentFlag_t flags;    /**< DVR playback flags*/
+  DVR_WrapperInfo_t info_obsolete;    /**< DVR playback obsolete information, take into account for timeshift*/
 } DVR_WrapperPlaybackStatus_t;
 
 typedef struct {
   DVR_RecordState_t state;            /**< DVR record state*/
   DVR_WrapperInfo_t info;             /**< DVR record information*/
   DVR_WrapperPidsInfo_t pids;         /**< DVR record pids info*/
+  DVR_WrapperInfo_t info_obsolete;    /**< DVR record obsolete information, take into account for timeshift*/
 } DVR_WrapperRecordStatus_t;
 
 /**Record wrapper open parameters.*/
@@ -71,8 +73,8 @@ typedef struct {
   char                  location[DVR_MAX_LOCATION_SIZE]; /**< Location of the record file.*/
   DVR_Bool_t            is_timeshift;                    /**< The record file is used by timeshift.*/
   loff_t                segment_size;                    /**< Segment file's size.*/
-  loff_t                max_size;                        /**< Maximum record file size in bytes.*/
-  time_t                max_time;                        /**< Maximum record time in milliseconds.*/
+  loff_t                max_size;                        /**< Maximum record file size in bytes(for timeshift).*/
+  time_t                max_time;                        /**< Maximum record time in milliseconds(for timeshift).*/
   DVR_RecordFlag_t      flags;                           /**< Flags.*/
   DVR_CryptoPeriod_t    crypto_period;                   /**< Crypto period.*/
   DVR_CryptoFunction_t  crypto_fn;                       /**< Crypto callback function.*/
