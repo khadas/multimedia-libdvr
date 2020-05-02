@@ -10,7 +10,7 @@
 #include "segment.h"
 #include <sys/time.h>
 
-//#define DEBUG_PERFORMANCE
+#define DEBUG_PERFORMANCE
 #define MAX_DVR_RECORD_SESSION_COUNT 2
 #define RECORD_BLOCK_SIZE (256 * 1024)
 
@@ -169,7 +169,7 @@ void *record_thread(void *arg)
   int has_pcr;
   int index_type = DVR_INDEX_TYPE_INVALID;
   time_t pre_time = 0;
-  #define DVR_STORE_INFO_TIME (1000)
+  #define DVR_STORE_INFO_TIME (400)
   DVR_SecureBuffer_t secure_buf;
 
   buf = (uint8_t *)malloc(block_size);
@@ -199,6 +199,7 @@ void *record_thread(void *arg)
   struct timeval t1, t2, t3, t4, t5, t6, t7;
   while (p_ctx->state == DVR_RECORD_STATE_STARTED) {
     gettimeofday(&t1, NULL);
+    DVR_DEBUG(1, "%s, start_read", __func__);
     /* data from dmx, normal dvr case */
     if (p_ctx->is_secure_mode) {
       memset(&secure_buf, 0, sizeof(secure_buf));
@@ -211,6 +212,7 @@ void *record_thread(void *arg)
     }
     if (len == DVR_FAILURE) {
       //usleep(10*1000);
+      DVR_DEBUG(1, "%s, start_read error", __func__);
       continue;
     }
 
@@ -322,9 +324,9 @@ void *record_thread(void *arg)
     }
     gettimeofday(&t7, NULL);
 #ifdef DEBUG_PERFORMANCE
-    DVR_DEBUG(1, "record count, read:%dms, encrypt:%dms, write:%dms, index:%dms, store:%dms, notify:%dms total:%dms",
+    DVR_DEBUG(1, "record count, read:%dms, encrypt:%dms, write:%dms, index:%dms, store:%dms, notify:%dms total:%dms read len:%zd ",
         get_diff_time(t1, t2), get_diff_time(t2, t3), get_diff_time(t3, t4), get_diff_time(t4, t5),
-        get_diff_time(t5, t6), get_diff_time(t6, t7), get_diff_time(t1, t5));
+        get_diff_time(t5, t6), get_diff_time(t6, t7), get_diff_time(t1, t5), len);
 #endif
   }
 end:
@@ -492,6 +494,7 @@ int dvr_record_next_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t *
   Segment_OpenParams_t open_params;
   int ret;
   uint32_t i;
+  loff_t pos;
 
   p_ctx = (DVR_RecordContext_t *)handle;
   for (i = 0; i < MAX_DVR_RECORD_SESSION_COUNT; i++) {
@@ -510,10 +513,14 @@ int dvr_record_next_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t *
   /*Stop the on going record segment*/
   //ret = record_device_stop(p_ctx->dev_handle);
   //DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
-
   p_ctx->state = DVR_RECORD_STATE_STOPPED;
   pthread_join(p_ctx->thread, NULL);
 
+  //add index file store
+  pos = segment_tell_position(p_ctx->segment_handle);
+  segment_update_pts_force(p_ctx->segment_handle, p_ctx->segment_info.duration, pos);
+
+  p_ctx->segment_info.duration = segment_tell_total_time(p_ctx->segment_handle);
   /*Update segment info*/
   memcpy(p_info, &p_ctx->segment_info, sizeof(p_ctx->segment_info));
 
@@ -584,6 +591,7 @@ int dvr_record_stop_segment(DVR_RecordHandle_t handle, DVR_RecordSegmentInfo_t *
   DVR_RecordContext_t *p_ctx;
   int ret;
   uint32_t i;
+  loff_t pos;
 
   p_ctx = (DVR_RecordContext_t *)handle;
   for (i = 0; i < MAX_DVR_RECORD_SESSION_COUNT; i++) {
@@ -608,6 +616,9 @@ int dvr_record_stop_segment(DVR_RecordHandle_t handle, DVR_RecordSegmentInfo_t *
     pthread_join(p_ctx->thread, NULL);
   }
 
+  //add index file store
+  pos = segment_tell_position(p_ctx->segment_handle);
+  segment_update_pts_force(p_ctx->segment_handle, p_ctx->segment_info.duration, pos);
 
   /*Update segment info*/
   memcpy(p_info, &p_ctx->segment_info, sizeof(p_ctx->segment_info));
@@ -694,6 +705,9 @@ int dvr_record_write(DVR_RecordHandle_t handle, void *buffer, uint32_t len)
     DVR_DEBUG(1, "%s has no pcr, can NOT do time index", __func__);
   }
   ret = segment_write(p_ctx->segment_handle, buffer, len);
+  if (ret != len) {
+    DVR_DEBUG(1, "%s write error ret:%d len:%d", __func__, ret, len);
+  }
   p_ctx->segment_info.size += len;
   p_ctx->segment_info.nb_packets = p_ctx->segment_info.size/188;
 
