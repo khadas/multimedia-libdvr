@@ -156,7 +156,7 @@ typedef struct
 #define ERR(fmt, ...)       fprintf(stderr, "error:" fmt, ##__VA_ARGS__)
 #define RESULT(fmt, ...)    fprintf(stdout, fmt, ##__VA_ARGS__)
 
-static int vpid=1024, apid=1025, vfmt=0, afmt=0;
+static int vpid=0x1fff, apid=0x1fff, vfmt=0, afmt=0;
 static int duration=60;
 static int size=1024*1024*1024;
 static int tssrc=0;
@@ -478,6 +478,9 @@ static int start_recording()
 
     rec_open_params.is_timeshift = (is_timeshifting(mode)) ? DVR_TRUE : DVR_FALSE;
 
+    if (!(vpid > 0 && vpid < 0x1fff))
+      rec_open_params.flush_size = 1024;
+
     error = dvr_wrapper_open_record(&recorder, &rec_open_params);
     if (error) {
       ERR( "recorder open fail = (0x%x)\n", error);
@@ -595,7 +598,7 @@ static int start_playback(int apid, int afmt, int vpid, int vfmt)
         strncpy(play_params.location, pfilename, sizeof(play_params.location));
         play_params.is_timeshift = DVR_FALSE;
         {
-            int vpid = 1024, apid = 1025, vfmt = 0, afmt = 0;
+            int vpid = 0x1fff, apid = 0x1fff, vfmt = 0, afmt = 0;
             get_dvr_info(pfilename, &apid, &afmt, &vpid, &vfmt);
 
             play_pids.video.pid = vpid;

@@ -81,6 +81,7 @@ typedef struct {
   void                 *crypto_data;                     /**< User data of crypto function.*/
   DVR_RecordEventFunction_t   event_fn;                  /**< DVR record event callback function*/
   void                        *event_userdata;           /**< DVR event userdata*/
+  int                   flush_size;                      /**< DVR flush size*/
 } DVR_WrapperRecordOpenParams_t;
 
 typedef struct {
