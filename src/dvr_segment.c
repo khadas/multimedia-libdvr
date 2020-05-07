@@ -86,7 +86,7 @@ int dvr_segment_get_list(const char *location, uint32_t *p_segment_nb, uint64_t 
 {
   FILE *fp;
   char fpath[DVR_MAX_LOCATION_SIZE];
-  uint32_t i = 0, j = 0;
+  uint32_t i = 0, j = 0, n = 0;
   char buf[64];
   uint64_t *p = NULL;
   char cmd[256];
@@ -135,18 +135,16 @@ int dvr_segment_get_list(const char *location, uint32_t *p_segment_nb, uint64_t 
       return DVR_FAILURE;
     }
 
-    *p_segment_nb = i;
-    p = malloc(i * sizeof(uint64_t));
-    for (i = 0;;i++) {
+    n = i;
+    p = malloc(n * sizeof(uint64_t));
+    for (i = 0; i < n; i++) {
       memset(fpath, 0, sizeof(fpath));
       sprintf(fpath, "%s-%04d.ts", location, i);
       if (access(fpath, 0) != -1) {
         p[j++] = i;
       }
-      if (j >= *p_segment_nb) {
-        break;
-      }
     }
+    *p_segment_nb = j;
     *pp_segment_ids = p;
   }
   return DVR_SUCCESS;
