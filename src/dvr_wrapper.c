@@ -591,7 +591,7 @@ static int wrapper_updatePlaybackSegment(DVR_WrapperCtx_t *ctx, DVR_RecordSegmen
     {
       int error;
       //clear end event
-      if (ctx->playback.last_event = DVR_PLAYBACK_EVENT_REACHED_END)
+      if (ctx->playback.last_event == DVR_PLAYBACK_EVENT_REACHED_END)
           ctx->playback.last_event = DVR_PLAYBACK_EVENT_TRANSITION_OK;
 
       error = dvr_playback_resume(ctx->playback.player);
@@ -1324,7 +1324,7 @@ int dvr_wrapper_pause_playback (DVR_WrapperPlayback_t playback)
   DVR_WRAPPER_DEBUG(1, "pause playback(sn:%ld) ...\n", ctx->sn);
   DVR_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->lock);
   //clear end event
-  if (ctx->playback.last_event = DVR_PLAYBACK_EVENT_REACHED_END)
+  if (ctx->playback.last_event == DVR_PLAYBACK_EVENT_REACHED_END)
       ctx->playback.last_event = DVR_PLAYBACK_EVENT_TRANSITION_OK;
 
   error = dvr_playback_pause(ctx->playback.player, DVR_FALSE);
