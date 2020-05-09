@@ -77,7 +77,7 @@ int dvr_segment_del_by_location(const char *location)
     DVR_RETURN_IF_FALSE(fp);
   }
   DVR_DEBUG(1, "%s location:%s end", __func__, location);
-  fclose(fp);
+  pclose(fp);
   return DVR_SUCCESS;
 }
 
@@ -167,10 +167,9 @@ int dvr_segment_get_info(const char *location, uint64_t segment_id, DVR_RecordSe
   open_params.segment_id = segment_id;
   open_params.mode = SEGMENT_MODE_READ;
   ret = segment_open(&open_params, &segment_handle);
-  DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
-
-  ret = segment_load_info(segment_handle, p_info);
-  DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
+  if (ret == DVR_SUCCESS) {
+    ret = segment_load_info(segment_handle, p_info);
+  }
   //DVR_DEBUG(1, "%s, id:%lld, nb_pids:%d, duration:%ld ms, size:%zu, nb_packets:%d",
     //  __func__, p_info->id, p_info->nb_pids, p_info->duration, p_info->size, p_info->nb_packets);
 

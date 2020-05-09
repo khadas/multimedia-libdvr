@@ -141,6 +141,14 @@ int segment_open(Segment_OpenParams_t *params, Segment_Handle_t *p_handle)
   if (p_ctx->ts_fd == -1 || !p_ctx->index_fp || !p_ctx->dat_fp) {
     DVR_DEBUG(1, "%s open file failed [%s, %s, %s], reason:%s", __func__,
         ts_fname, index_fname, dat_fname, strerror(errno));
+    if (p_ctx->ts_fd != -1)
+      close(p_ctx->ts_fd);
+    if (p_ctx->index_fp)
+      fclose(p_ctx->index_fp);
+    if (p_ctx->dat_fp)
+      fclose(p_ctx->dat_fp);
+    if (p_ctx->ongoing_fp)
+      fclose(p_ctx->ongoing_fp);
     free(p_ctx);
     *p_handle = NULL;
     return DVR_FAILURE;

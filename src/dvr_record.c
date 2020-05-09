@@ -611,7 +611,9 @@ int dvr_record_stop_segment(DVR_RecordHandle_t handle, DVR_RecordSegmentInfo_t *
     p_ctx->segment_info.duration = 10*1000; //debug, should delete it
   } else {
     ret = record_device_stop(p_ctx->dev_handle);
-    DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
+    //DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
+    if (ret != DVR_SUCCESS)
+      goto end;
     //p_ctx->state = DVR_RECORD_STATE_STOPPED;
     pthread_join(p_ctx->thread, NULL);
   }
@@ -624,11 +626,14 @@ int dvr_record_stop_segment(DVR_RecordHandle_t handle, DVR_RecordSegmentInfo_t *
   memcpy(p_info, &p_ctx->segment_info, sizeof(p_ctx->segment_info));
 
   ret = segment_store_info(p_ctx->segment_handle, p_info);
-  DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
+  //DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
+  if (ret != DVR_SUCCESS)
+      goto end;
 
   DVR_DEBUG(1, "%s dump segment info, id:%lld, nb_pids:%d, duration:%ld ms, size:%zu, nb_packets:%d",
       __func__, p_info->id, p_info->nb_pids, p_info->duration, p_info->size, p_info->nb_packets);
 
+end:
   ret = segment_close(p_ctx->segment_handle);
   DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
   return DVR_SUCCESS;
