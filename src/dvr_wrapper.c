@@ -1654,7 +1654,7 @@ static inline int record_startNextSegment(DVR_WrapperCtx_t *ctx)
     wrapper_addRecordSegment(ctx, &new_seg_info);
   }
 
-  DVR_WRAPPER_DEBUG(1, "record next segment (%d)\n", error);
+  DVR_WRAPPER_DEBUG(1, "record next segment(%llu)=(%d)\n", ctx->record.param_update.segment.segment_id, error);
   return error;
 }
 
@@ -1790,7 +1790,14 @@ static int process_handleRecordEvent(DVR_WrapperEventCtx_t *evt, DVR_WrapperCtx_
               ctx->sn,
               evt->record.status.info.size,
               ctx->record.param_open.segment_size);
-            record_startNextSegment(ctx);
+            if (record_startNextSegment(ctx) != DVR_SUCCESS) {
+              /*should notify the recording's stop*/
+              int error = dvr_record_close(ctx->record.recorder);
+              DVR_WRAPPER_DEBUG(1, "stop record(%lu)=%d, failed to start new segment for recording.",
+                ctx->sn, error);
+              status.state = DVR_RECORD_STATE_CLOSED;
+              process_notifyRecord(ctx, DVR_RECORD_EVENT_WRITE_ERROR, &status);
+            }
           }
         } break;
         case DVR_RECORD_STATE_STOPPED:
