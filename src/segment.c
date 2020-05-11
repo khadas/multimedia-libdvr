@@ -307,7 +307,7 @@ int segment_update_pts(Segment_Handle_t handle, uint64_t pts, loff_t offset)
       (record_diff > PCR_RECORD_INTERVAL_MS || p_ctx->last_record_pts == ULLONG_MAX)){
     fputs(buf, p_ctx->index_fp);
     fflush(p_ctx->index_fp);
-    //fsync(fileno(p_ctx->index_fp));
+    fsync(fileno(p_ctx->index_fp));
     p_ctx->last_record_pts = pts;
   }
   p_ctx->last_pts = pts;
@@ -554,7 +554,7 @@ int segment_store_info(Segment_Handle_t handle, Segment_StoreInfo_t *p_info)
   fputs(buf, p_ctx->dat_fp);
 
   fflush(p_ctx->dat_fp);
-  //fsync(fileno(p_ctx->dat_fp));
+  fsync(fileno(p_ctx->dat_fp));
   return DVR_SUCCESS;
 }
 
