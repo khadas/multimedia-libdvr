@@ -1260,7 +1260,10 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
 
   DVR_WRAPPER_DEBUG(1, "playback(sn:%ld) (%d) segments added\n", ctx->sn, i);
   ctx->playback.reach_end = DVR_FALSE;
-  ctx->playback.speed = 100.0f;
+  if ((flags&DVR_PLAYBACK_STARTED_PAUSEDLIVE) == DVR_PLAYBACK_STARTED_PAUSEDLIVE)
+    ctx->playback.speed = 0.0f;
+  else
+    ctx->playback.speed = 100.0f;
   ctx->playback.pids_req = *p_pids;
 
   error = dvr_playback_seek(ctx->playback.player, seg_info_1st.id, 0);
@@ -1376,7 +1379,7 @@ int dvr_wrapper_set_playback_speed (DVR_WrapperPlayback_t playback, float speed)
   DVR_RETURN_IF_FALSE(ctx);
 
   pthread_mutex_lock(&ctx->lock);
-  DVR_WRAPPER_DEBUG(1, "speed playback(sn:%ld) (x%f) ...\n", ctx->sn, speed);
+  DVR_WRAPPER_DEBUG(1, "speed playback(sn:%ld) (x%f) .(x%f)..\n", ctx->sn, speed, ctx->playback.speed);
   DVR_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->lock);
 
   error = dvr_playback_set_speed(ctx->playback.player, dvr_speed);

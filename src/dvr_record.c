@@ -199,7 +199,7 @@ void *record_thread(void *arg)
   struct timeval t1, t2, t3, t4, t5, t6, t7;
   while (p_ctx->state == DVR_RECORD_STATE_STARTED) {
     gettimeofday(&t1, NULL);
-    DVR_DEBUG(1, "%s, start_read", __func__);
+
     /* data from dmx, normal dvr case */
     if (p_ctx->is_secure_mode) {
       memset(&secure_buf, 0, sizeof(secure_buf));
@@ -215,8 +215,8 @@ void *record_thread(void *arg)
       DVR_DEBUG(1, "%s, start_read error", __func__);
       continue;
     }
-
     gettimeofday(&t2, NULL);
+
     /* Got data from device, record it */
     if (p_ctx->enc_func) {
       /* Encrypt record data */
@@ -260,6 +260,7 @@ void *record_thread(void *arg)
          memset(&record_status, 0, sizeof(record_status));
          p_ctx->event_notify_fn(DVR_RECORD_EVENT_WRITE_ERROR, &record_status, p_ctx->event_userdata);
         }
+        DVR_DEBUG(1, "%s,write error %d", __func__,__LINE__);
       goto end;
     }
     /* Do time index */
@@ -301,7 +302,7 @@ void *record_thread(void *arg)
 
     if (p_ctx->segment_info.duration - pre_time > DVR_STORE_INFO_TIME) {
       pre_time = p_ctx->segment_info.duration + DVR_STORE_INFO_TIME;
-      segment_store_info(p_ctx->segment_handle, &(p_ctx->segment_info));
+    segment_store_info(p_ctx->segment_handle, &(p_ctx->segment_info));
     }
     gettimeofday(&t6, NULL);
      /*Event notification*/
