@@ -121,6 +121,7 @@ int dvr_segment_get_list(const char *location, uint32_t *p_segment_nb, uint64_t 
     *pp_segment_ids = p;
     fclose(fp);
   } else {
+    uint32_t start = 0;
     /*the list file does not exist*/
     memset(cmd, 0, sizeof(cmd));
     sprintf(cmd, "ls -l %s-*.ts | wc -l", location);
@@ -137,7 +138,21 @@ int dvr_segment_get_list(const char *location, uint32_t *p_segment_nb, uint64_t 
 
     n = i;
     p = malloc(n * sizeof(uint64_t));
-    for (i = 0; i < n; i++) {
+
+    /*try to get the 1st segment id*/
+    memset(cmd, 0, sizeof(cmd));
+    sprintf(cmd, "ls %s-*.ts | head -n 1", location);
+    fp = popen(cmd, "r");
+    DVR_RETURN_IF_FALSE(fp);
+    memset(buf, 0, sizeof(buf));
+    if (fgets(buf, sizeof(buf), fp) != NULL) {
+      snprintf(fpath, sizeof(fpath), "%s-%%d.ts", location);
+      if (sscanf(buf, fpath, &start) != 1)
+        start = 0;
+    }
+    pclose(fp);
+
+    for (i = start; i < (start + n); i++) {
       memset(fpath, 0, sizeof(fpath));
       sprintf(fpath, "%s-%04d.ts", location, i);
       if (access(fpath, 0) != -1) {
