@@ -2306,6 +2306,9 @@ int dvr_playback_seek(DVR_PlaybackHandle_t handle, uint64_t segment_id, uint32_t
   player->offset = offset;
 
   _dvr_get_end_time(handle);
+
+  player->last_send_time_id = UINT64_MAX;
+
   //init fffb time
   player->fffb_current = _dvr_time_getClock();
   player->fffb_start = player->fffb_current;
