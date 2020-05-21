@@ -276,6 +276,7 @@ typedef struct
   DVR_PlaybackOpenParams_t   openParams;           /**< playback openParams*/
   DVR_Bool_t                 has_video;    /**< has video playing*/
   DVR_Bool_t                 has_audio;    /**< has audio playing*/
+  DVR_Bool_t                 has_ad_audio;    /**< has ad audio playing*/
   DVR_Bool_t                 has_pids;     /**< has video audo pid fmt info*/
   int                        fffb_start;    /**< fffb start time ms*/
   int                        fffb_current;  /**< fffb current time*/
@@ -372,10 +373,12 @@ int dvr_playback_stop(DVR_PlaybackHandle_t handle, DVR_Bool_t clear);
 /**\brief Start audio playing
  * \param[in] handle playback handle
  * \param[in] params audio playback params,contains fmt and pid...
+ * \param[in] adparams ad audio playback params,contains fmt and pid...
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int dvr_playback_audio_start(DVR_PlaybackHandle_t handle, am_tsplayer_audio_params *params);
+int dvr_playback_audio_start(DVR_PlaybackHandle_t handle, am_tsplayer_audio_params *param, am_tsplayer_audio_params *adparam);
+
 
 /**\brief Stop audio playing
  * \param[in] handle playback handle
