@@ -181,6 +181,7 @@ void *record_thread(void *arg)
   buf_out = (uint8_t *)malloc(block_size + 188);
   if (!buf_out) {
     DVR_DEBUG(1, "%s, malloc failed", __func__);
+    free(buf);
     return NULL;
   }
 
@@ -352,6 +353,7 @@ int dvr_record_open(DVR_RecordHandle_t *p_handle, DVR_RecordOpenParams_t *params
       break;
     }
   }
+  DVR_RETURN_IF_FALSE(i < MAX_DVR_RECORD_SESSION_COUNT);
   DVR_RETURN_IF_FALSE(record_ctx[i].state == DVR_RECORD_STATE_CLOSED);
   p_ctx = &record_ctx[i];
   DVR_DEBUG(1, "%s , current state:%d, dmx_id:%d, notification_size:%zu", __func__,

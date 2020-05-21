@@ -162,6 +162,7 @@ int dvr_segment_get_list(const char *location, uint32_t *p_segment_nb, uint64_t 
     *p_segment_nb = j;
     *pp_segment_ids = p;
   }
+
   return DVR_SUCCESS;
 }
 

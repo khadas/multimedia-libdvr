@@ -73,6 +73,7 @@ int record_device_open(Record_DeviceHandle_t *p_handle, Record_DeviceOpenParams_
     if (record_ctx[dev_no].state == RECORD_DEVICE_STATE_CLOSED)
       break;
   }
+  DVR_RETURN_IF_FALSE(dev_no < MAX_RECORD_DEVICE_COUNT);
   DVR_RETURN_IF_FALSE(record_ctx[dev_no].state == RECORD_DEVICE_STATE_CLOSED);
   p_ctx = &record_ctx[dev_no];
 
@@ -142,6 +143,7 @@ int record_device_close(Record_DeviceHandle_t handle)
     if (p_ctx == &record_ctx[i])
       break;
   }
+  DVR_RETURN_IF_FALSE(i < MAX_RECORD_DEVICE_COUNT);
   DVR_RETURN_IF_FALSE(p_ctx == &record_ctx[i]);
 
   pthread_mutex_lock(&p_ctx->lock);
@@ -169,6 +171,7 @@ int record_device_add_pid(Record_DeviceHandle_t handle, int pid)
     if (p_ctx == &record_ctx[i])
       break;
   }
+  DVR_RETURN_IF_FALSE(i < MAX_RECORD_DEVICE_COUNT);
   DVR_RETURN_IF_FALSE(p_ctx == &record_ctx[i]);
 
   pthread_mutex_lock(&p_ctx->lock);
@@ -177,6 +180,7 @@ int record_device_add_pid(Record_DeviceHandle_t handle, int pid)
     if (p_ctx->streams[i].pid == DVR_INVALID_PID)
       break;
   }
+  DVR_RETURN_IF_FALSE(i < DVR_MAX_RECORD_PIDS_COUNT);
   DVR_RETURN_IF_FALSE_WITH_UNLOCK(p_ctx->streams[i].pid == DVR_INVALID_PID, &p_ctx->lock);
 
   p_ctx->streams[i].pid = pid;
@@ -228,6 +232,7 @@ int record_device_remove_pid(Record_DeviceHandle_t handle, int pid)
     if (p_ctx == &record_ctx[i])
       break;
   }
+  DVR_RETURN_IF_FALSE(i < MAX_RECORD_DEVICE_COUNT);
   DVR_RETURN_IF_FALSE(p_ctx == &record_ctx[i]);
 
   pthread_mutex_lock(&p_ctx->lock);
@@ -236,6 +241,7 @@ int record_device_remove_pid(Record_DeviceHandle_t handle, int pid)
     if (p_ctx->streams[i].pid == pid)
       break;
   }
+  DVR_RETURN_IF_FALSE(i < DVR_MAX_RECORD_PIDS_COUNT);
   DVR_RETURN_IF_FALSE_WITH_UNLOCK(p_ctx->streams[i].pid == pid, &p_ctx->lock);
 
   fd = p_ctx->streams[i].fid;
@@ -272,6 +278,7 @@ int record_device_start(Record_DeviceHandle_t handle)
     if (p_ctx == &record_ctx[i])
       break;
   }
+  DVR_RETURN_IF_FALSE(i < MAX_RECORD_DEVICE_COUNT);
   DVR_RETURN_IF_FALSE(p_ctx == &record_ctx[i]);
 
   pthread_mutex_lock(&p_ctx->lock);
@@ -326,6 +333,7 @@ int record_device_stop(Record_DeviceHandle_t handle)
     if (p_ctx == &record_ctx[i])
       break;
   }
+  DVR_RETURN_IF_FALSE(i < MAX_RECORD_DEVICE_COUNT);
   DVR_RETURN_IF_FALSE(p_ctx == &record_ctx[i]);
 
   pthread_mutex_lock(&p_ctx->lock);
@@ -425,6 +433,7 @@ int record_device_set_secure_buffer(Record_DeviceHandle_t handle, uint8_t *sec_b
     if (p_ctx == &record_ctx[i])
       break;
   }
+  DVR_RETURN_IF_FALSE(i < MAX_RECORD_DEVICE_COUNT);
   DVR_RETURN_IF_FALSE(p_ctx == &record_ctx[i]);
 
   pthread_mutex_lock(&p_ctx->lock);

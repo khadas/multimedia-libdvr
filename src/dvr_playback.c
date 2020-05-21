@@ -880,6 +880,7 @@ static void* _dvr_playback_thread(void *arg)
   dec_bufs.buf_data = malloc(dec_buf_size);
   if (!dec_bufs.buf_data) {
     DVR_PB_DG(1, "Malloc dec buffer failed");
+    free(buf);
     return NULL;
   }
   dec_bufs.buf_type = TS_INPUT_BUFFER_TYPE_NORMAL;
