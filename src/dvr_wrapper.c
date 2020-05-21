@@ -14,8 +14,6 @@
 #include "AmTsPlayer.h"
 
 #include "list.h"
-#define list_last_entry(ptr, type, member) \
-  list_entry((ptr)->prev, type, member)
 
 #include "dvr_wrapper.h"
 
@@ -61,10 +59,12 @@ typedef struct {
       DVR_RecordEventFunction_t       event_fn;
       void                            *event_userdata;
 
-      /*total status = seg_status + status*/
+      /*total status = seg_status + status + obsolete*/
       DVR_RecordStatus_t              seg_status;            /**<status of current segment*/
       DVR_WrapperRecordStatus_t       status;                /**<status of remaining segments*/
       uint64_t                        next_segment_id;
+
+      DVR_WrapperInfo_t               obsolete;             /**<data obsolete due to the max limit*/
     } record;
 
     struct {
@@ -80,6 +80,8 @@ typedef struct {
       DVR_PlaybackEvent_t             last_event;
       float                           speed;
       DVR_Bool_t                      reach_end;
+
+      DVR_WrapperInfo_t               obsolete;
     } playback;
   };
 } DVR_WrapperCtx_t;
@@ -198,8 +200,8 @@ static inline int process_handleEvents(DVR_WrapperEventCtx_t *evt, DVR_WrapperCt
 static DVR_Result_t wrapper_record_event_handler(DVR_RecordEvent_t event, void *params, void *userdata);
 static DVR_Result_t wrapper_playback_event_handler(DVR_PlaybackEvent_t event, void *params, void *userdata);
 
-static int process_generateRecordStatus(DVR_WrapperCtx_t *ctx);
-static int process_generatePlaybackStatus(DVR_WrapperCtx_t *ctx);
+static int process_generateRecordStatus(DVR_WrapperCtx_t *ctx, DVR_WrapperRecordStatus_t *status);
+static int process_generatePlaybackStatus(DVR_WrapperCtx_t *ctx, DVR_WrapperPlaybackStatus_t *status);
 
 
 static DVR_WrapperEventCtx_t *ctx_getEvent(struct list_head *list, pthread_mutex_t *list_lock)
@@ -743,23 +745,56 @@ static int wrapper_addRecordSegment(DVR_WrapperCtx_t *ctx, DVR_RecordSegmentInfo
 
 static int wrapper_removePlaybackSegment(DVR_WrapperCtx_t *ctx, DVR_RecordSegmentInfo_t *seg_info)
 {
-  int error;
+  int error = -1;
+  DVR_WrapperPlaybackSegmentInfo_t *pseg = NULL, *pseg_tmp;
 
   DVR_WRAPPER_DEBUG(1, "timeshift, remove playback(sn:%ld) segment(%lld) ...\n", ctx->sn, seg_info->id);
 
-  error = dvr_playback_remove_segment(ctx->playback.player, seg_info->id);
-  if (error) {
-    /*remove playack segment fail*/
-  } else {
-    DVR_WrapperPlaybackSegmentInfo_t *pseg;
-
-    /*normally, should be the earliest segment in the list*/
-    pseg = list_last_entry(&ctx->segments, DVR_WrapperPlaybackSegmentInfo_t, head);
+  list_for_each_entry_safe_reverse(pseg, pseg_tmp, &ctx->segments, head) {
     if (pseg->seg_info.id == seg_info->id) {
+
+      if (ctx->current_segment_id == seg_info->id) {
+        DVR_WrapperPlaybackSegmentInfo_t *next_seg;
+
+        /*drive the player out of this will-be-deleted segment*/
+        next_seg = list_prev_entry(pseg, head);
+
+        if (ctx->playback.speed != 100.0f) {
+          error = dvr_playback_resume(ctx->playback.player);
+          DVR_WRAPPER_DEBUG(1, "timeshift, playback(sn:%ld), resume for new start (%d)\n", ctx->sn, error);
+        }
+
+        error = dvr_playback_seek(ctx->playback.player, next_seg->seg_info.id, 0);
+        DVR_WRAPPER_DEBUG(1, "timeshift, playback(sn:%ld), seek(seg:%llu 0) from new start (%d)\n", ctx->sn, next_seg->seg_info.id, error);
+
+        if (ctx->playback.speed == 0.0f) {
+          error = dvr_playback_pause(ctx->playback.player, DVR_FALSE);
+          DVR_WRAPPER_DEBUG(1, "timeshift, playback(sn:%ld), keep last paused from new start (%d)\n", ctx->sn, error);
+        } else if (ctx->playback.speed != 100.0f) {
+          DVR_PlaybackSpeed_t dvr_speed = {
+             .speed = { ctx->playback.speed },
+             .mode = ( ctx->playback.speed > 0) ? DVR_PLAYBACK_FAST_FORWARD : DVR_PLAYBACK_FAST_BACKWARD
+          };
+          error = dvr_playback_set_speed(ctx->playback.player, dvr_speed);
+          DVR_WRAPPER_DEBUG(1, "timeshift, playback(sn:%ld), keep last speed(x%f) from new start (%d)\n", ctx->sn,ctx->playback.speed, error);
+        }
+      }
+
+      error = dvr_playback_remove_segment(ctx->playback.player, seg_info->id);
+      if (error) {
+        /*remove playack segment fail*/
+        DVR_WRAPPER_DEBUG(1, "timeshift, playback(sn:%ld), failed to remove segment(%llu) (%d)\n", ctx->sn, seg_info->id, error);
+      }
+
       list_del(&pseg->head);
+
+      /*record the obsolete*/
+      ctx->playback.obsolete.time += pseg->seg_info.duration;
+      ctx->playback.obsolete.size += pseg->seg_info.size;
+      ctx->playback.obsolete.pkts += pseg->seg_info.nb_packets;
+
       free(pseg);
-    } else {
-      /*what's going on*/
+      break;
     }
   }
 
@@ -771,7 +806,7 @@ static int wrapper_removePlaybackSegment(DVR_WrapperCtx_t *ctx, DVR_RecordSegmen
 static int wrapper_removeRecordSegment(DVR_WrapperCtx_t *ctx, DVR_WrapperRecordSegmentInfo_t *seg_info)
 {
   int error;
-  DVR_WrapperRecordSegmentInfo_t *pseg;
+  DVR_WrapperRecordSegmentInfo_t *pseg, *pseg_tmp;
 
   DVR_WRAPPER_DEBUG(1, "timeshift, remove record(sn:%ld) segment(%lld) ...\n", ctx->sn, seg_info->info.id);
 
@@ -790,13 +825,18 @@ static int wrapper_removeRecordSegment(DVR_WrapperCtx_t *ctx, DVR_WrapperRecordS
     }
   }
 
-  /*normally, the earliest segment will be removed*/
-  pseg = list_last_entry(&ctx->segments, DVR_WrapperRecordSegmentInfo_t, head);
-  if (pseg->info.id == seg_info->info.id) {
-    list_del(&pseg->head);
-    free(pseg);
-  } else {
-    /*should not get here*/
+  list_for_each_entry_safe_reverse(pseg, pseg_tmp, &ctx->segments, head) {
+    if (pseg->info.id == seg_info->info.id) {
+      list_del(&pseg->head);
+
+      /*record the obsolete*/
+      ctx->record.obsolete.time += pseg->info.duration;
+      ctx->record.obsolete.size += pseg->info.size;
+      ctx->record.obsolete.pkts += pseg->info.nb_packets;
+
+      free(pseg);
+      break;
+    }
   }
 
   error = dvr_segment_delete(ctx->record.param_open.location, seg_info->info.id);
@@ -887,7 +927,9 @@ int dvr_wrapper_close_record (DVR_WrapperRecord_t rec)
 
   error = dvr_record_close(ctx->record.recorder);
 
-  sn_timeshift_record = 0;
+  if (ctx->record.param_open.is_timeshift)
+    sn_timeshift_record = 0;
+
   ctx_freeSegments(ctx);
 
   DVR_WRAPPER_DEBUG(1, "record(sn:%ld) closed = (%d).\n", ctx->sn, error);
@@ -1032,11 +1074,7 @@ int dvr_wrapper_get_record_status(DVR_WrapperRecord_t rec, DVR_WrapperRecordStat
   DVR_WRAPPER_DEBUG(1, "get record(sn:%ld) status ...\n", ctx->sn);
   DVR_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->lock);
 
-  error = process_generateRecordStatus(ctx);
-  s = ctx->record.status;
-  s.info.time += ctx->record.seg_status.info.duration;
-  s.info.size += ctx->record.seg_status.info.size;
-  s.info.pkts += ctx->record.seg_status.info.nb_packets;
+  error = process_generateRecordStatus(ctx, &s);
 
   DVR_WRAPPER_DEBUG(1, "record(sn:%ld) state/time/size/pkts(%d/%ld/%lld/%u) (%d)\n",
     ctx->sn,
@@ -1202,6 +1240,8 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
   uint32_t i;
   DVR_RecordSegmentInfo_t seg_info_1st;
   int got_1st_seg;
+  DVR_WrapperCtx_t *ctx_record;/*for timeshift*/
+
 
   DVR_RETURN_IF_FALSE(playback);
   DVR_RETURN_IF_FALSE(p_pids);
@@ -1223,56 +1263,93 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
 
   DVR_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->lock);
 
+  ctx_record = NULL;
+  if (ctx->playback.param_open.is_timeshift) {
+    /*lock the recorder to avoid changing the recording segments*/
+    ctx_record = ctx_getRecord(sn_timeshift_record);
+
+    if (ctx_record) {
+      pthread_mutex_lock(&ctx_record->lock);
+      if (!ctx_valid(ctx_record)
+        || ctx_record->sn != sn_timeshift_record) {
+        DVR_WRAPPER_DEBUG(1, "timeshift, record is not for timeshifting, FATAL error\n");
+        pthread_mutex_unlock(&ctx_record->lock);
+      } else {
+        DVR_WRAPPER_DEBUG(1, "playback(sn:%ld) record(sn:%ld) locked ok due to timeshift\n",
+          ctx->sn, ctx_record->sn);
+      }
+    }
+    DVR_RETURN_IF_FALSE_WITH_UNLOCK(ctx_record, &ctx->lock);
+  }
+
   /*obtain all segments in a list*/
   segment_nb = 0;
   p_segment_ids = NULL;
   error = dvr_segment_get_list(ctx->playback.param_open.location, &segment_nb, &p_segment_ids);
-  DVR_RETURN_IF_FALSE_WITH_UNLOCK(!error, &ctx->lock);
+  if (!error) {
+    got_1st_seg = 0;
+    for (i = 0; i < segment_nb; i++) {
+      DVR_RecordSegmentInfo_t seg_info;
+      DVR_PlaybackSegmentFlag_t flags;
 
-  got_1st_seg = 0;
-  for (i = 0; i < segment_nb; i++) {
-    DVR_RecordSegmentInfo_t seg_info;
-    DVR_PlaybackSegmentFlag_t flags;
+      error = dvr_segment_get_info(ctx->playback.param_open.location, p_segment_ids[i], &seg_info);
+      if (error) {
+        error = DVR_FAILURE;
+        DVR_WRAPPER_DEBUG(1, "fail to get seg info (location:%s, seg:%llu), (error:%d)\n",
+          ctx->playback.param_open.location, p_segment_ids[i], error);
+        break;
+      }
 
-    error = dvr_segment_get_info(ctx->playback.param_open.location, p_segment_ids[i], &seg_info);
-    if (error) {
-      error = DVR_FAILURE;
-      DVR_WRAPPER_DEBUG(1, "fail to get seg info (location:%s, seg:%llu), (error:%d)\n",
-        ctx->playback.param_open.location, p_segment_ids[i], error);
-      break;
+      flags = DVR_PLAYBACK_SEGMENT_DISPLAYABLE | DVR_PLAYBACK_SEGMENT_CONTINUOUS;
+      error = wrapper_addPlaybackSegment(ctx, &seg_info, p_pids, flags);
+      if (error)
+        break;
+
+      /*copy the 1st segment*/
+      if (got_1st_seg == 0) {
+          seg_info_1st = seg_info;
+          got_1st_seg = 1;
+      }
     }
+    free(p_segment_ids);
 
-    flags = DVR_PLAYBACK_SEGMENT_DISPLAYABLE | DVR_PLAYBACK_SEGMENT_CONTINUOUS;
-    error = wrapper_addPlaybackSegment(ctx, &seg_info, p_pids, flags);
-    if (error)
-      break;
+    /* return if no segment or fail to add */
+    if (!error && got_1st_seg) {
 
-    /*copy the 1st segment*/
-    if (got_1st_seg == 0) {
-        seg_info_1st = seg_info;
-        got_1st_seg = 1;
+      /*copy the obsolete infomation, must for timeshifting*/
+      if (ctx->playback.param_open.is_timeshift && ctx_record) {
+        ctx->playback.obsolete = ctx_record->record.obsolete;
+      }
+
+      DVR_WRAPPER_DEBUG(1, "playback(sn:%ld) (%d) segments added\n", ctx->sn, i);
+
+      ctx->playback.reach_end = DVR_FALSE;
+      if ((flags&DVR_PLAYBACK_STARTED_PAUSEDLIVE) == DVR_PLAYBACK_STARTED_PAUSEDLIVE)
+        ctx->playback.speed = 0.0f;
+      else
+        ctx->playback.speed = 100.0f;
+
+      ctx->playback.pids_req = *p_pids;
+
+      error = dvr_playback_seek(ctx->playback.player, seg_info_1st.id, 0);
+      DVR_WRAPPER_DEBUG(1, "playback(sn:%ld) seek(seg:%llu 0) for start (%d)\n",
+        ctx->sn, seg_info_1st.id, error);
+
+      error = dvr_playback_start(ctx->playback.player, flags);
+
+      DVR_WRAPPER_DEBUG(1, "playback(sn:%ld) started (%d)\n", ctx->sn, error);
     }
   }
-  free(p_segment_ids);
 
-  /* return if no segment or fail to add */
-  DVR_RETURN_IF_FALSE_WITH_UNLOCK(!error && got_1st_seg, &ctx->lock);
+  if (ctx->playback.param_open.is_timeshift) {
+    /*unlock the recorder locked above*/
+    if (ctx_record && ctx_valid(ctx_record)) {
+        pthread_mutex_unlock(&ctx_record->lock);
+        DVR_WRAPPER_DEBUG(1, "playback(sn:%ld), record(sn:%ld) unlocked ok due to timeshift\n",
+          ctx->sn, ctx_record->sn);
+    }
+  }
 
-  DVR_WRAPPER_DEBUG(1, "playback(sn:%ld) (%d) segments added\n", ctx->sn, i);
-  ctx->playback.reach_end = DVR_FALSE;
-  if ((flags&DVR_PLAYBACK_STARTED_PAUSEDLIVE) == DVR_PLAYBACK_STARTED_PAUSEDLIVE)
-    ctx->playback.speed = 0.0f;
-  else
-    ctx->playback.speed = 100.0f;
-  ctx->playback.pids_req = *p_pids;
-
-  error = dvr_playback_seek(ctx->playback.player, seg_info_1st.id, 0);
-  DVR_WRAPPER_DEBUG(1, "playback(sn:%ld) seek(seg:%llu 0) for start (%d)\n",
-    ctx->sn, seg_info_1st.id, error);
-
-  error = dvr_playback_start(ctx->playback.player, flags);
-
-  DVR_WRAPPER_DEBUG(1, "playback(sn:%ld) started (%d)\n", ctx->sn, error);
 
   pthread_mutex_unlock(&ctx->lock);
 
@@ -1434,21 +1511,24 @@ int dvr_wrapper_seek_playback (DVR_WrapperPlayback_t playback, uint32_t time_off
   list_for_each_entry_reverse(pseg, &ctx->segments, head) {
     segment_id = pseg->seg_info.id;
 
-    if ((pre_off + pseg->seg_info.duration) > time_offset)
-      break;
+    if ((ctx->playback.obsolete.time + pre_off + pseg->seg_info.duration) > time_offset)
+        break;
 
     last_segment_id = pseg->seg_info.id;
     pre_off += pseg->seg_info.duration;
   }
 
   if (last_segment_id == segment_id) {
-      off = time_offset;
+    /*1.only one seg with id:0, 2.offset exceeds the total duration*/
+    off = time_offset;
+  } else if (ctx->playback.obsolete.time >= time_offset) {
+    off = 0;
   } else {
-      off = time_offset - pre_off;
+    off = time_offset - pre_off;
   }
 
-
-  DVR_WRAPPER_DEBUG(1, "seek playback(sn:%ld) (seg:%lld, off:%d)\n", ctx->sn, segment_id, off);
+  DVR_WRAPPER_DEBUG(1, "seek playback(sn:%ld) (seg:%lld, off:%d)\n",
+    ctx->sn, segment_id, off);
   error = dvr_playback_seek(ctx->playback.player, segment_id, off);
   DVR_WRAPPER_DEBUG(1, "playback(sn:%ld) seeked(off:%d) (%d)\n", ctx->sn, time_offset, error);
 
@@ -1532,20 +1612,19 @@ int dvr_wrapper_get_playback_status(DVR_WrapperPlayback_t playback, DVR_WrapperP
   DVR_WRAPPER_DEBUG(1, "playback(sn:%ld) get status (%d)\n", ctx->sn, error);
 
   ctx->playback.seg_status = play_status;
-  error = process_generatePlaybackStatus(ctx);
-  s = ctx->playback.status;
-  s.info_cur.time += ctx->playback.seg_status.time_cur;
-  /*size and packets are not available*/
+  error = process_generatePlaybackStatus(ctx, &s);
+
   if (ctx->playback.reach_end == DVR_TRUE && ctx->playback.param_open.is_timeshift == DVR_FALSE) {
     //reach end need set full time to cur.so app can exist playback.
     DVR_WRAPPER_DEBUG(1, "set cur time to full time, reach end occur");
     s.info_cur.time = s.info_full.time;
   }
-  DVR_WRAPPER_DEBUG(1, "playback(sn:%ld) state/cur/full(%d/%ld/%ld) (%d)\n",
+  DVR_WRAPPER_DEBUG(1, "playback(sn:%ld) state/cur/full/obsl(%d/%ld/%ld/%ld) (%d)\n",
     ctx->sn,
     s.state,
     s.info_cur.time,
     s.info_full.time,
+    s.info_obsolete.time,
     error);
 
   *status = s;
@@ -1619,13 +1698,15 @@ static DVR_Result_t wrapper_playback_event_handler(DVR_PlaybackEvent_t event, vo
 
 static inline int process_notifyRecord(DVR_WrapperCtx_t *ctx, DVR_RecordEvent_t evt, DVR_WrapperRecordStatus_t *status)
 {
-  DVR_WRAPPER_DEBUG(1, "notify(sn:%ld) evt(0x%x) statistic:time/size/pkts(%lu/%lld/%u) fn:%p\n",
+  DVR_WRAPPER_DEBUG(1, "notify(sn:%ld) evt(0x%x) statistic:time/size/pkts(%ld/%lld/%u) obsl:(%ld/%llu/%u)\n",
     ctx->sn,
     evt,
     status->info.time,
     status->info.size,
     status->info.pkts,
-    ctx->record.event_fn);
+    status->info_obsolete.time,
+    status->info_obsolete.size,
+    status->info_obsolete.pkts);
 
   if (ctx->record.event_fn)
     return ctx->record.event_fn(evt, status, ctx->record.event_userdata);
@@ -1667,12 +1748,12 @@ static inline int record_removeSegment(DVR_WrapperCtx_t *ctx, DVR_WrapperRecordS
 }
 
 /*should run periodically to update the current status*/
-static int process_generateRecordStatus(DVR_WrapperCtx_t *ctx)
+static int process_generateRecordStatus(DVR_WrapperCtx_t *ctx, DVR_WrapperRecordStatus_t *status)
 {
   /*the current seg is not covered in the statistics*/
   DVR_WrapperRecordSegmentInfo_t *pseg;
 
-  /*re-calculate the all segments, except the current*/
+  /*re-calculate the all segments*/
   memset(&ctx->record.status, 0, sizeof(ctx->record.status));
 
   ctx->record.status.state = ctx->record.seg_status.state;
@@ -1690,7 +1771,17 @@ static int process_generateRecordStatus(DVR_WrapperCtx_t *ctx)
     }
   }
 
+  ctx->record.status.info_obsolete = ctx->record.obsolete;
+
   wrapper_updateRecordSegment(ctx, &ctx->record.seg_status.info, U_ALL);
+
+  if (status) {
+    *status = ctx->record.status;
+    status->info.time += ctx->record.seg_status.info.duration;
+    status->info.size += ctx->record.seg_status.info.size;
+    status->info.pkts += ctx->record.seg_status.info.nb_packets;
+  }
+
   return DVR_SUCCESS;
 }
 
@@ -1720,74 +1811,13 @@ static int process_handleRecordEvent(DVR_WrapperEventCtx_t *evt, DVR_WrapperCtx_
         } break;
         case DVR_RECORD_STATE_STARTED:
         {
-          int check_ok;
-
           ctx->record.seg_status = evt->record.status;
 
-          process_generateRecordStatus(ctx);
-
-          status = ctx->record.status;
-          status.info.time += evt->record.status.info.duration;
-          status.info.size += evt->record.status.info.size;
-          status.info.pkts += evt->record.status.info.nb_packets;
-
+          process_generateRecordStatus(ctx, &status);
           process_notifyRecord(ctx, evt->record.event, &status);
 
-          check_ok = 1;
-          if (ctx->record.param_open.max_time
-              && status.info.time >= ctx->record.param_open.max_time) {
-            if (!ctx->record.param_open.is_timeshift) {
-              /*not timeshifting, just stop*/
-              int error = dvr_record_close(ctx->record.recorder);
-              DVR_WRAPPER_DEBUG(1, "stop record(%lu)=%d, reaches time limit, curr(%ld) max(%ld)\n",
-                ctx->sn, error,
-                status.info.time, ctx->record.param_open.max_time);
-                status.state = DVR_RECORD_STATE_CLOSED;
-                process_notifyRecord(ctx, evt->record.event, &status);
-                check_ok = 0;
-            } else {
-              /*timeshifting, remove the 1st segment and notify the player*/
-              DVR_WrapperRecordSegmentInfo_t *pseg;
-              pseg = list_last_entry(&ctx->segments, DVR_WrapperRecordSegmentInfo_t, head);
-              if (pseg == list_first_entry(&ctx->segments, DVR_WrapperRecordSegmentInfo_t, head)) {
-                /*only one segment, waiting for more*/
-                DVR_WRAPPER_DEBUG(1, "warning: the size(%lld) of max_time(%ld) of record < max size of segment(%lld)\n",
-                  status.info.size,
-                  ctx->record.param_open.max_time,
-                  ctx->record.param_open.segment_size);
-              } else {
-                record_removeSegment(ctx, pseg);
-              }
-            }
-          }
-
-          if (ctx->record.param_open.max_size
-              && status.info.size >= ctx->record.param_open.max_size) {
-            if (!ctx->record.param_open.is_timeshift) {
-              int error = dvr_record_close(ctx->record.recorder);
-              DVR_WRAPPER_DEBUG(1, "stop record(%lu)=%d, reaches size limit, curr(%lld) max(%lld)\n",
-                ctx->sn, error,
-                status.info.size, ctx->record.param_open.max_size);
-                status.state = DVR_RECORD_STATE_CLOSED;
-                process_notifyRecord(ctx, evt->record.event, &status);
-                check_ok = 0;
-            } else {
-              DVR_WrapperRecordSegmentInfo_t *pseg;
-              pseg = list_last_entry(&ctx->segments, DVR_WrapperRecordSegmentInfo_t, head);
-              if (pseg == list_first_entry(&ctx->segments, DVR_WrapperRecordSegmentInfo_t, head)) {
-                /*only one segment, waiting for more*/
-                DVR_WRAPPER_DEBUG(1, "warning: the size(%lld) of record < max size of segment(%lld)\n",
-                  status.info.size,
-                  ctx->record.param_open.segment_size);
-              } else {
-                record_removeSegment(ctx, pseg);
-              }
-            }
-          }
-
           /*restart to next segment*/
-          if (check_ok
-              && ctx->record.param_open.segment_size
+          if (ctx->record.param_open.segment_size
               && evt->record.status.info.size >= ctx->record.param_open.segment_size) {
             DVR_WRAPPER_DEBUG(1, "start new segment for record(%lu), reaches segment size limit, cur(%zu) max(%lld)\n",
               ctx->sn,
@@ -1802,17 +1832,58 @@ static int process_handleRecordEvent(DVR_WrapperEventCtx_t *evt, DVR_WrapperCtx_
               process_notifyRecord(ctx, DVR_RECORD_EVENT_WRITE_ERROR, &status);
             }
           }
+
+          if (ctx->record.param_open.is_timeshift
+              && ctx->record.param_open.max_time
+              && status.info.time >= ctx->record.param_open.max_time) {
+            DVR_WrapperRecordSegmentInfo_t *pseg;
+
+            /*as the player do not support null playlist,
+              there must be one segment existed at any time,
+              we have to keep two segments before remove one*/
+            pseg = list_last_entry(&ctx->segments, DVR_WrapperRecordSegmentInfo_t, head);
+            if (pseg == list_first_entry(&ctx->segments, DVR_WrapperRecordSegmentInfo_t, head)) {
+              /*only one segment, waiting for more*/
+              DVR_WRAPPER_DEBUG(1, "warning: the size(%lld) of max_time(%ld) of record < max size of segment(%lld)\n",
+                status.info.size,
+                ctx->record.param_open.max_time,
+                ctx->record.param_open.segment_size);
+            } else {
+              /*timeshifting, remove the 1st segment and notify the player*/
+              record_removeSegment(ctx, pseg);
+
+              process_generateRecordStatus(ctx, &status);
+              process_notifyRecord(ctx, evt->record.event, &status);
+            }
+          }
+
+          if (ctx->record.param_open.is_timeshift
+              && ctx->record.param_open.max_size
+              && status.info.size >= ctx->record.param_open.max_size) {
+            DVR_WrapperRecordSegmentInfo_t *pseg;
+
+            /*as the player do not support null playlist,
+              there must be one segment existed at any time,
+              we have to keep two segments before remove one*/
+            pseg = list_last_entry(&ctx->segments, DVR_WrapperRecordSegmentInfo_t, head);
+            if (pseg == list_first_entry(&ctx->segments, DVR_WrapperRecordSegmentInfo_t, head)) {
+              /*only one segment, waiting for more*/
+              DVR_WRAPPER_DEBUG(1, "warning: the size(%lld) of record < max size of segment(%lld)\n",
+                status.info.size,
+                ctx->record.param_open.segment_size);
+            } else {
+              record_removeSegment(ctx, pseg);
+
+              process_generateRecordStatus(ctx, &status);
+              process_notifyRecord(ctx, evt->record.event, &status);
+            }
+          }
         } break;
         case DVR_RECORD_STATE_STOPPED:
         {
           ctx->record.seg_status = evt->record.status;
 
-          process_generateRecordStatus(ctx);
-
-          status.info.time += evt->record.status.info.duration;
-          status.info.size += evt->record.status.info.size;
-          status.info.pkts += evt->record.status.info.nb_packets;
-
+          process_generateRecordStatus(ctx, &status);
           process_notifyRecord(ctx, evt->record.event, &status);
         } break;
         default:
@@ -1832,13 +1903,13 @@ static int process_handleRecordEvent(DVR_WrapperEventCtx_t *evt, DVR_WrapperCtx_
 
 static inline int process_notifyPlayback(DVR_WrapperCtx_t *ctx, DVR_PlaybackEvent_t evt, DVR_WrapperPlaybackStatus_t *status)
 {
-  DVR_WRAPPER_DEBUG(1, "notify(sn:%ld) evt(0x%x) statistics:state/cur/full(%d/%ld/%ld) fn:%p\n",
+  DVR_WRAPPER_DEBUG(1, "notify(sn:%ld) evt(0x%x) statistics:state/cur/full/obsl(%d/%ld/%ld/%ld)\n",
     ctx->sn,
     evt,
     status->state,
     status->info_cur.time,
     status->info_full.time,
-    ctx->playback.event_fn);
+    status->info_obsolete.time);
 
   if (ctx->playback.event_fn)
     return ctx->playback.event_fn(evt, status, ctx->playback.event_userdata);
@@ -1846,7 +1917,7 @@ static inline int process_notifyPlayback(DVR_WrapperCtx_t *ctx, DVR_PlaybackEven
 }
 
 /*should run periodically to update the current status*/
-static int process_generatePlaybackStatus(DVR_WrapperCtx_t *ctx)
+static int process_generatePlaybackStatus(DVR_WrapperCtx_t *ctx, DVR_WrapperPlaybackStatus_t *status)
 {
   /*the current seg is not covered in the statistics*/
   DVR_WrapperPlaybackSegmentInfo_t *pseg;
@@ -1870,6 +1941,13 @@ static int process_generatePlaybackStatus(DVR_WrapperCtx_t *ctx)
     ctx->playback.status.info_full.time += pseg->seg_info.duration;
     ctx->playback.status.info_full.size += pseg->seg_info.size;
     ctx->playback.status.info_full.pkts += pseg->seg_info.nb_packets;
+  }
+
+  if (status) {
+    *status = ctx->playback.status;
+    /*deal with current, lack size and pkts with the current*/
+    status->info_cur.time += ctx->playback.seg_status.time_cur;
+    status->info_obsolete.time = ctx->playback.obsolete.time;
   }
 
   return DVR_SUCCESS;
@@ -1901,12 +1979,8 @@ static int process_handlePlaybackEvent(DVR_WrapperEventCtx_t *evt, DVR_WrapperCt
       /*copy status of segment*/
       ctx->playback.seg_status = evt->playback.status.play_status;
 
-      /*generate status of the whole playback, except current*/
-      process_generatePlaybackStatus(ctx);
-
-      status = ctx->playback.status;
-      /*deal with current, lack size and pkts with the current*/
-      status.info_cur.time += ctx->playback.seg_status.time_cur;
+      /*generate status of the whole playback*/
+      process_generatePlaybackStatus(ctx, &status);
 
       if (evt->playback.event == DVR_PLAYBACK_EVENT_REACHED_END) {
         if (ctx->playback.param_open.is_timeshift) {
