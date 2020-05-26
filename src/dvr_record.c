@@ -10,7 +10,7 @@
 #include "segment.h"
 #include <sys/time.h>
 
-#define DEBUG_PERFORMANCE
+//#define DEBUG_PERFORMANCE
 #define MAX_DVR_RECORD_SESSION_COUNT 2
 #define RECORD_BLOCK_SIZE (256 * 1024)
 
@@ -103,7 +103,7 @@ static int record_save_pcr(DVR_RecordContext_t *p_ctx, uint8_t *buf, loff_t pos)
     p++;
     len--;
     /* Parse pcr field, see 13818 spec table I-2-6,adaptation_field */
-    if (p[0] & 0x10 && len >= 6) {
+    if (p[0] & 0x10 && len >= 6 && adp_field_len >= 6) {
     /* get pcr value,pcr is 33bit value */
     pcr = (((uint64_t)(p[1])) << 25)
         | (((uint64_t)p[2]) << 17)

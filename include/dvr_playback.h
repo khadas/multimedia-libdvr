@@ -296,6 +296,7 @@ typedef struct
   DVR_Bool_t                 fffb_play;
   int32_t                    last_cur_time;
   uint64_t                   last_send_time_id;
+  int                        ts_cache_len;
 } DVR_Playback_t;
 /**\endcond*/
 

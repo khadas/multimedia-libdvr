@@ -397,6 +397,54 @@ loff_t segment_tell_position(Segment_Handle_t handle)
   return lseek64(p_ctx->ts_fd, 0, SEEK_CUR);
 }
 
+uint64_t segment_tell_position_time(Segment_Handle_t handle, loff_t position)
+{
+  Segment_Context_t *p_ctx;
+  char buf[256];
+  char value[256];
+  uint64_t pts = 0L;
+  loff_t offset = 0;
+  char *p1, *p2;
+
+  p_ctx = (Segment_Context_t *)handle;
+  DVR_RETURN_IF_FALSE(p_ctx);
+  DVR_RETURN_IF_FALSE(p_ctx->index_fp);
+  DVR_RETURN_IF_FALSE(p_ctx->ts_fd);
+
+  memset(buf, 0, sizeof(buf));
+  DVR_RETURN_IF_FALSE(fseek(p_ctx->index_fp, 0, SEEK_SET) != -1);
+  DVR_RETURN_IF_FALSE(position != -1);
+
+  while (fgets(buf, sizeof(buf), p_ctx->index_fp) != NULL) {
+    memset(value, 0, sizeof(value));
+    if ((p1 = strstr(buf, "time="))) {
+      p1 += 5;
+      if ((p2 = strstr(buf, ","))) {
+        memcpy(value, p1, p2 - p1);
+      }
+      pts = strtoull(value, NULL, 10);
+    }
+
+    memset(value, 0, sizeof(value));
+    if ((p1 = strstr(buf, "offset="))) {
+      p1 += 7;
+      if ((p2 = strstr(buf, "}"))) {
+        memcpy(value, p1, p2 - p1);
+      }
+      offset = strtoull(value, NULL, 10);
+    }
+
+    memset(buf, 0, sizeof(buf));
+    //DVR_DEBUG(1, "tell cur time=%llu, offset=%lld, position=%lld\n", pts, offset, position);
+    if (position <= offset) {
+      return pts;
+    }
+  }
+  //DVR_DEBUG(1, "tell cur time=%llu, offset=%lld, position=%lld\n", pts, offset, position);
+  return pts;
+}
+
+
 uint64_t segment_tell_current_time(Segment_Handle_t handle)
 {
   Segment_Context_t *p_ctx;
