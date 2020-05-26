@@ -584,8 +584,8 @@ int dvr_record_next_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t *
   /*Update segment info*/
   ret = segment_store_info(p_ctx->segment_handle, &p_ctx->segment_info);
 
-  pthread_create(&p_ctx->thread, NULL, record_thread, p_ctx);
   p_ctx->state = DVR_RECORD_STATE_STARTED;
+  pthread_create(&p_ctx->thread, NULL, record_thread, p_ctx);
   return DVR_SUCCESS;
 }
 
