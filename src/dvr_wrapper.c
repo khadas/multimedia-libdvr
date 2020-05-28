@@ -1525,7 +1525,7 @@ int dvr_wrapper_seek_playback (DVR_WrapperPlayback_t playback, uint32_t time_off
   } else if (ctx->playback.obsolete.time >= time_offset) {
     off = 0;
   } else {
-    off = time_offset - pre_off;
+    off = time_offset - pre_off - ctx->playback.obsolete.time;
   }
 
   DVR_WRAPPER_DEBUG(1, "seek playback(sn:%ld) (seg:%lld, off:%d)\n",
