@@ -639,6 +639,7 @@ static int _change_to_next_segment(DVR_PlaybackHandle_t handle)
   pthread_mutex_lock(&player->segment_lock);
   if (IS_FB(player->speed)) {
       //seek end pos -FB_DEFAULT_LEFT_TIME
+      player->ts_cache_len = 0;
       segment_seek(player->r_handle, total - FB_DEFAULT_LEFT_TIME, player->openParams.block_size);
       DVR_PB_DG(1, "seek pos [%d]", total - FB_DEFAULT_LEFT_TIME);
   }
@@ -994,6 +995,7 @@ static void* _dvr_playback_thread(void *arg)
         pthread_mutex_unlock(&player->lock);
         goto_rewrite = DVR_FALSE;
         real_read = 0;
+        player->ts_cache_len = 0;
         player->play_flag = player->play_flag & (~DVR_PLAYBACK_STARTED_PAUSEDLIVE);
         player->first_frame = 0;
         _dvr_playback_fffb((DVR_PlaybackHandle_t)player);
@@ -1106,10 +1108,12 @@ static void* _dvr_playback_thread(void *arg)
     real_read = real_read + read;
     wbufs.buf_size = real_read;
     wbufs.buf_data = buf;
+
     //check read data len,iflen < 0, we need continue
     if (wbufs.buf_size <= 0 || wbufs.buf_data == NULL) {
       DVR_PB_DG(1, "error occur read_read [%d],buf=[%p]",wbufs.buf_size, wbufs.buf_data);
       real_read = 0;
+      player->ts_cache_len = 0;
       continue;
     }
     //if need write whole block size, we need check read buf len is eq block size.
@@ -1166,13 +1170,17 @@ rewrite:
       //need drop ts data when seek occur.we need read next loop,drop this ts data
       goto_rewrite = DVR_FALSE;
       real_read = 0;
+      player->ts_cache_len = 0;
       player->drop_ts = DVR_FALSE;
       continue;
     }
+    player->ts_cache_len = real_read;
     ret = AmTsPlayer_writeData(player->handle, &wbufs, write_timeout_ms);
     if (ret == AM_TSPLAYER_OK) {
+      player->ts_cache_len = 0;
       real_read = 0;
       write_success++;
+      //DVR_PB_DG(1, "write  write_success:%d wbufs.buf_size:%d", write_success, wbufs.buf_size);
       continue;
     } else {
       DVR_PB_DG(1, "write time out write_success:%d wbufs.buf_size:%d", write_success, wbufs.buf_size);
@@ -2337,6 +2345,7 @@ int dvr_playback_seek(DVR_PlaybackHandle_t handle, uint64_t segment_id, uint32_t
   }
   pthread_mutex_lock(&player->segment_lock);
   player->drop_ts = DVR_TRUE;
+  player->ts_cache_len = 0;
   offset = segment_seek(player->r_handle, (uint64_t)time_offset, player->openParams.block_size);
   DVR_PB_DG(0, "seek get offset by time offset, offset=%d time_offset %u",offset, time_offset);
   pthread_mutex_unlock(&player->segment_lock);
@@ -2459,9 +2468,10 @@ static int _dvr_get_cur_time(DVR_PlaybackHandle_t handle) {
   int64_t cache = 0;//defalut es buf cache 500ms
   AmTsPlayer_getDelayTime(player->handle, &cache);
   pthread_mutex_lock(&player->segment_lock);
-  uint64_t cur = segment_tell_current_time(player->r_handle);
+  loff_t pos = segment_tell_position(player->r_handle) -player->ts_cache_len;
+  uint64_t cur = segment_tell_position_time(player->r_handle, pos);
   pthread_mutex_unlock(&player->segment_lock);
-  DVR_PB_DG(1, "get cur time [%lld] cache:%lld cur id [%lld]", cur, cache, player->cur_segment_id);
+  DVR_PB_DG(1, "get cur time [%lld] cache:%lld cur id [%lld] pb cache len [%d]", cur, cache, player->cur_segment_id, player->ts_cache_len);
   if (player->state == DVR_PLAYBACK_STATE_STOP) {
     cache = 0;
   }
@@ -2522,6 +2532,7 @@ static int _dvr_playback_calculate_seekpos(DVR_PlaybackHandle_t handle) {
     //seek segment pos
     if (player->r_handle) {
       pthread_mutex_lock(&player->segment_lock);
+      player->ts_cache_len = 0;
       if (segment_seek(player->r_handle, seek_time, player->openParams.block_size) == DVR_FAILURE) {
         seek_time = 0;
       }
@@ -2867,21 +2878,6 @@ int dvr_playback_set_speed(DVR_PlaybackHandle_t handle, DVR_PlaybackSpeed_t spee
   player->cmd.speed.mode = speed.mode;
   player->cmd.speed.speed = speed.speed;
   player->speed = (float)speed.speed.speed/(float)100;
-#if 0
-  if (abs((int)(player->speed)) > 1) {
-    //seek  speed*1000 ms at fb mode
-    pthread_mutex_lock(&player->segment_lock);
-    uint64_t cur = segment_tell_current_time(player->r_handle);
-    int diff = abs((int)(player->speed * 1000));
-    DVR_PB_DG(1, " cur:%ull diff:%d", cur, diff);
-     if (cur > diff)
-      cur = cur - diff;
-     else
-      cur = 0;
-    segment_seek(player->r_handle, cur, player->openParams.block_size);
-    pthread_mutex_unlock(&player->segment_lock);
-  }
-#endif
   //reset fffb time, if change speed value
   _dvr_init_fffb_t(handle);
   if (init_last_time == DVR_TRUE)

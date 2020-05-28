@@ -97,6 +97,13 @@ loff_t segment_seek(Segment_Handle_t handle, uint64_t time, int block_size);
  */
 loff_t segment_tell_position(Segment_Handle_t handle);
 
+/**\brief Tell the giving position time for the giving segment, used for playback
+ * \param[in] handle, Segment handle
+ * \return The segment giving position time on success
+ * \return error code on failure
+ */
+uint64_t segment_tell_position_time(Segment_Handle_t handle, loff_t position);
+
 /**\brief Tell the current time for the giving segment, used for playback
  * \param[in] handle, Segment handle
  * \return The segment current time on success
