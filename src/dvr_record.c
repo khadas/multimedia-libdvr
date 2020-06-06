@@ -624,6 +624,7 @@ int dvr_record_stop_segment(DVR_RecordHandle_t handle, DVR_RecordSegmentInfo_t *
   //add index file store
   pos = segment_tell_position(p_ctx->segment_handle);
   segment_update_pts_force(p_ctx->segment_handle, p_ctx->segment_info.duration, pos);
+  p_ctx->segment_info.duration = segment_tell_total_time(p_ctx->segment_handle);
 
   /*Update segment info*/
   memcpy(p_info, &p_ctx->segment_info, sizeof(p_ctx->segment_info));

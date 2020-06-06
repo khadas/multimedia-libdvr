@@ -70,6 +70,7 @@ typedef enum
 /**\brief playback speed*/
 typedef enum
 {
+  PLAYBACK_SPEED_FBX1 = -100,          /**<FB X 1 speed*/
   PLAYBACK_SPEED_FBX2 = -200,          /**<FB X 2 speed*/
   PLAYBACK_SPEED_FBX4 = -400,          /**<FB X 4 speed*/
   PLAYBACK_SPEED_FBX8 = -800,          /**<FB X 8 speed*/
@@ -297,6 +298,7 @@ typedef struct
   int32_t                    last_cur_time;
   uint64_t                   last_send_time_id;
   int                        ts_cache_len;
+  DVR_Bool_t                 first_trans_ok;
 } DVR_Playback_t;
 /**\endcond*/
 
