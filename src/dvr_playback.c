@@ -1977,7 +1977,7 @@ int dvr_playback_audio_stop(DVR_PlaybackHandle_t handle) {
   DVR_PB_DG(1, "lock");
   pthread_mutex_lock(&player->lock);
 
-  if (player->has_ad_audio) {
+  if (player->has_audio) {
     player->has_audio = DVR_FALSE;
     AmTsPlayer_stopAudioDecoding(player->handle);
   }
@@ -2079,6 +2079,10 @@ int dvr_playback_pause(DVR_PlaybackHandle_t handle, DVR_Bool_t flush) {
 
   if (player == NULL) {
     DVR_PB_DG(1, "player is NULL");
+    return DVR_FAILURE;
+  }
+  if (player->state == DVR_PLAYBACK_STATE_PAUSE ||player->state == DVR_PLAYBACK_STATE_STOP ) {
+    DVR_PB_DG(1, "player state  is [%d] pause or stop", player->state);
     return DVR_FAILURE;
   }
   DVR_PB_DG(1, "lock");
@@ -2210,6 +2214,7 @@ int dvr_playback_resume(DVR_PlaybackHandle_t handle) {
     DVR_PB_DG(1, "lock");
     pthread_mutex_lock(&player->lock);
     if (player->has_video) {
+      DVR_PB_DG(1, "dvr_playback_resume set trick mode none");
       AmTsPlayer_setTrickMode(player->handle, AV_VIDEO_TRICK_MODE_NONE);
       AmTsPlayer_resumeVideoDecoding(player->handle);
     }
@@ -2255,6 +2260,7 @@ int dvr_playback_resume(DVR_PlaybackHandle_t handle) {
     pthread_mutex_unlock(&player->lock);
   } else if (player->state == DVR_PLAYBACK_STATE_PAUSE){
     if (player->has_video) {
+      DVR_PB_DG(1, "dvr_playback_resume set trick mode none 1");
       AmTsPlayer_setTrickMode(player->handle, AV_VIDEO_TRICK_MODE_NONE);
       AmTsPlayer_resumeVideoDecoding(player->handle);
     }
@@ -2789,6 +2795,10 @@ int dvr_playback_set_speed(DVR_PlaybackHandle_t handle, DVR_PlaybackSpeed_t spee
     DVR_PB_DG(1, " func: not support speed [%d]", speed.speed.speed);
     return DVR_FAILURE;
   }
+  if (speed.speed.speed == player->cmd.speed.speed.speed) {
+    DVR_PB_DG(1, " func: eq speed [%d]", speed.speed.speed);
+    return DVR_SUCCESS;
+  }
   pthread_mutex_lock(&player->lock);
   if (player->cmd.cur_cmd != DVR_PLAYBACK_CMD_FF
     && player->cmd.cur_cmd != DVR_PLAYBACK_CMD_FB) {
@@ -2796,9 +2806,18 @@ int dvr_playback_set_speed(DVR_PlaybackHandle_t handle, DVR_PlaybackSpeed_t spee
   }
 
   if (player->state != DVR_PLAYBACK_STATE_PAUSE &&
-    IS_KERNEL_SPEED(speed.speed.speed) &&
-    player->state != DVR_PLAYBACK_STATE_STOP) {
-     //case 1. cur speed is 100,set 200 50 25 12 .
+    IS_KERNEL_SPEED(speed.speed.speed) ) {
+      //case 1. not start play.only set speed
+      if (player->state == DVR_PLAYBACK_STATE_STOP) {
+        //only set speed.and return;
+        player->cmd.speed.mode = DVR_PLAYBACK_KERNEL_SUPPORT;
+        player->cmd.speed.speed = speed.speed;
+        player->speed = (float)speed.speed.speed/(float)100;
+        player->fffb_play = DVR_FALSE;
+        pthread_mutex_unlock(&player->lock);
+        return DVR_SUCCESS;
+      }
+     //case 2. cur speed is 100,set 200 50 25 12 .
      //we think x1 and x2 s1/2 s 1/4 s 1/8 is normal speed. is not ff fb.
      if (IS_KERNEL_SPEED(player->cmd.speed.speed.speed)) {
       //if last speed is x2 or s2, we need stop fast
@@ -2826,16 +2845,6 @@ int dvr_playback_set_speed(DVR_PlaybackHandle_t handle, DVR_PlaybackSpeed_t spee
       pthread_mutex_unlock(&player->lock);
       return DVR_SUCCESS;
      }
-    //case 2. not start play
-    if (player->state == DVR_PLAYBACK_STATE_STOP) {
-      //only set speed.and return;
-      player->cmd.speed.mode = DVR_PLAYBACK_KERNEL_SUPPORT;
-      player->cmd.speed.speed = speed.speed;
-      player->speed = (float)speed.speed.speed/(float)100;
-      player->fffb_play = DVR_FALSE;
-      pthread_mutex_unlock(&player->lock);
-      return DVR_SUCCESS;
-    }
     //case 3 fffb mode
     if (player->cmd.cur_cmd == DVR_PLAYBACK_CMD_FF ||
       player->cmd.cur_cmd == DVR_PLAYBACK_CMD_FB) {
@@ -2859,9 +2868,7 @@ int dvr_playback_set_speed(DVR_PlaybackHandle_t handle, DVR_PlaybackSpeed_t spee
         // resume audio and stop fast play
         DVR_PB_DG(1, "stop fast");
         AmTsPlayer_stopFast(player->handle);
-        pthread_mutex_unlock(&player->lock);
-        _dvr_cmd(handle, DVR_PLAYBACK_CMD_ASTART);
-        pthread_mutex_lock(&player->lock);
+        player->cmd.cur_cmd = DVR_PLAYBACK_CMD_ASTART;
       } else {
         //set play speed and if audio is start, stop audio.
         if (player->has_audio) {
@@ -2869,8 +2876,8 @@ int dvr_playback_set_speed(DVR_PlaybackHandle_t handle, DVR_PlaybackSpeed_t spee
           AmTsPlayer_stopAudioDecoding(player->handle);
           player->has_audio = DVR_FALSE;
        }
-        DVR_PB_DG(1, "start fast");
-        AmTsPlayer_startFast(player->handle, (float)speed.speed.speed/(float)100);
+       DVR_PB_DG(1, "start fast");
+       AmTsPlayer_startFast(player->handle, (float)speed.speed.speed/(float)100);
      }
      player->cmd.speed.mode = DVR_PLAYBACK_KERNEL_SUPPORT;
      player->cmd.speed.speed = speed.speed;
