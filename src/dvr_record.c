@@ -256,9 +256,9 @@ void *record_thread(void *arg)
     //add DVR_RECORD_EVENT_WRITE_ERROR event if write error
     if (ret == -1 && len > 0 && p_ctx->event_notify_fn) {
       //send write event
-       if (p_ctx->notification_size &&
-        p_ctx->event_notify_fn) {
+       if (p_ctx->event_notify_fn) {
          memset(&record_status, 0, sizeof(record_status));
+         DVR_DEBUG(1, "%s,send event write error %d", __func__,__LINE__);
          p_ctx->event_notify_fn(DVR_RECORD_EVENT_WRITE_ERROR, &record_status, p_ctx->event_userdata);
         }
         DVR_DEBUG(1, "%s,write error %d", __func__,__LINE__);

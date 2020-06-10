@@ -1044,6 +1044,7 @@ static void* _dvr_playback_thread(void *arg)
       DVR_Play_Notify_t notify;
       memset(&notify, 0 , sizeof(DVR_Play_Notify_t));
       notify.event = DVR_PLAYBACK_EVENT_ERROR;
+      notify.info.error_reason = DVR_ERROR_REASON_READ;
       _dvr_playback_sent_event((DVR_PlaybackHandle_t)player,DVR_PLAYBACK_EVENT_ERROR, &notify, DVR_TRUE);
       goto end;
     } else if (read < 0) {
@@ -1406,6 +1407,13 @@ int dvr_playback_start(DVR_PlaybackHandle_t handle, DVR_PlaybackFlag_t flag) {
     return dvr_playback_resume(handle);
   }
   if (player->cmd.state == DVR_PLAYBACK_STATE_START) {
+    //if flag is puased and not decodec first frame. if user resume, we need
+    //clear flag and set trickmode none
+    if ((player->play_flag&DVR_PLAYBACK_STARTED_PAUSEDLIVE) == DVR_PLAYBACK_STARTED_PAUSEDLIVE) {
+      DVR_PB_DG(1, "[%p]clear pause live flag and clear trick mode", handle);
+      player->play_flag = player->play_flag & (~DVR_PLAYBACK_STARTED_PAUSEDLIVE);
+      AmTsPlayer_setTrickMode(player->handle, AV_VIDEO_TRICK_MODE_NONE);
+    }
     DVR_PB_DG(1, "stat is start, not need into start play");
     return DVR_SUCCESS;
   }

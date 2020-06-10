@@ -172,6 +172,16 @@ typedef struct {
   size_t           size; /**< Size of the buffer.*/
 } DVR_Buffer_t;
 
+/**DVR error reason.*/
+typedef enum
+{
+  DVR_ERROR_REASON_GENERIC,         /**< GENERIC error.*/
+  DVR_ERROR_REASON_READ,            /**< Disk read error.*/
+  DVR_ERROR_REASON_WRITE,           /**< Disk write error.*/
+  DVR_ERROR_REASON_DISK_FULL,       /**< Disk is    full.*/
+} DVR_Error_Reason_t;
+
+
 /**\brief Segment store information*/
 typedef struct {
   uint64_t            id;                                         /**< DVR segment id*/
