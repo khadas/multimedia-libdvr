@@ -1166,6 +1166,7 @@ int dvr_wrapper_open_playback (DVR_WrapperPlayback_t *playback, DVR_WrapperPlayb
   /*open_param.has_pids = 0;*/
 
   open_param.player_handle = (am_tsplayer_handle)params->playback_handle;
+  open_param.vendor = DVR_PLAYBACK_VENDOR_AML;
 
   error = dvr_playback_open(&ctx->playback.player, &open_param);
   if (error) {

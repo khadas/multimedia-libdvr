@@ -908,8 +908,13 @@ static void* _dvr_playback_thread(void *arg)
     DVR_PB_DG(1, "get segment error");
     return NULL;
   }
-  //get play statue not here
-  //_dvr_playback_sent_transition_ok((DVR_PlaybackHandle_t)player, DVR_TRUE);
+  DVR_PB_DG(1, "player->vendor %d,player->has_video[%d] ", player->vendor, player->has_video);
+  //get play statue not here,send ok event when vendor is aml or only audio channel if not send ok event
+  if (((player->first_trans_ok == DVR_FALSE) && (player->vendor == DVR_PLAYBACK_VENDOR_AML) ) ||
+    (player->first_trans_ok == DVR_FALSE && player->has_video == DVR_FALSE)) {
+    player->first_trans_ok = DVR_TRUE;
+    _dvr_playback_sent_transition_ok((DVR_PlaybackHandle_t)player, DVR_TRUE);
+  }
   _dvr_check_cur_segment_flag((DVR_PlaybackHandle_t)player);
   //set video show
   AmTsPlayer_showVideo(player->handle);
@@ -1035,7 +1040,7 @@ static void* _dvr_playback_thread(void *arg)
     pthread_mutex_lock(&player->segment_lock);
     //DVR_PB_DG(1, "start read");
     int read = segment_read(player->r_handle, buf + real_read, buf_len - real_read);
-    //DVR_PB_DG(1, "start read end");
+    //DVR_PB_DG(1, "start read end [%d]", read);
     pthread_mutex_unlock(&player->segment_lock);
     pthread_mutex_unlock(&player->lock);
     if (read < 0 && errno == EIO) {
@@ -1301,6 +1306,7 @@ int dvr_playback_open(DVR_PlaybackHandle_t *p_handle, DVR_PlaybackOpenParams_t *
   player->openParams.is_timeshift = params->is_timeshift;
   player->openParams.event_fn = params->event_fn;
   player->openParams.event_userdata = params->event_userdata;
+  player->vendor = params->vendor;
 
   player->has_pids = params->has_pids;
 
@@ -2512,7 +2518,7 @@ static int _dvr_get_cur_time(DVR_PlaybackHandle_t handle) {
   loff_t pos = segment_tell_position(player->r_handle) -player->ts_cache_len;
   uint64_t cur = segment_tell_position_time(player->r_handle, pos);
   pthread_mutex_unlock(&player->segment_lock);
-  DVR_PB_DG(1, "get cur time [%lld] cache:%lld cur id [%lld]last id [%lld] pb cache len [%d]", cur, cache, player->cur_segment_id,player->last_send_time_id,  player->ts_cache_len);
+  DVR_PB_DG(1, "get cur time [%lld] cache:%lld cur id [%lld]last id [%lld] pb cache len [%d] [%lld]", cur, cache, player->cur_segment_id,player->last_send_time_id,  player->ts_cache_len, pos);
   if (player->state == DVR_PLAYBACK_STATE_STOP) {
     cache = 0;
   }

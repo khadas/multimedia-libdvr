@@ -157,6 +157,13 @@ typedef struct
   DVR_PlaybackSegmentFlag_t flags; /**< playback played segment flag */
 } DVR_PlaybackStatus_t;
 
+/**\brief DVR playback vendor*/
+typedef enum {
+  DVR_PLAYBACK_VENDOR_DEF    ,               /**< default*/
+  DVR_PLAYBACK_VENDOR_AML                    /**< aml*/
+} DVR_PlaybackVendor_t;
+
+
 /**\brief DVR playback event*/
 typedef enum {
   DVR_PLAYBACK_EVENT_ERROR              = 0x1000,   /**< Signal a critical playback error*/
@@ -204,6 +211,7 @@ typedef struct
   DVR_Bool_t             has_pids;        /**< has video audo pid fmt info*/
   DVR_PlaybackEventFunction_t  event_fn;           /**< playback event callback function*/
   void                        *event_userdata;    /**< event userdata*/
+  DVR_PlaybackVendor_t         vendor;    /**< vendor type,default is 0*/
 } DVR_PlaybackOpenParams_t;
 
 /**\brief playback play state*/
@@ -299,6 +307,7 @@ typedef struct
   uint64_t                   last_send_time_id;
   int                        ts_cache_len;
   DVR_Bool_t                 first_trans_ok;
+  DVR_PlaybackVendor_t       vendor;
 } DVR_Playback_t;
 /**\endcond*/
 

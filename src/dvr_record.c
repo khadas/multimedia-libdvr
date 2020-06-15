@@ -258,7 +258,7 @@ void *record_thread(void *arg)
       //send write event
        if (p_ctx->event_notify_fn) {
          memset(&record_status, 0, sizeof(record_status));
-         DVR_DEBUG(1, "%s,send event write error %d", __func__,__LINE__);
+         DVR_DEBUG(1, "%s,send event write error", __func__,__LINE__);
          p_ctx->event_notify_fn(DVR_RECORD_EVENT_WRITE_ERROR, &record_status, p_ctx->event_userdata);
         }
         DVR_DEBUG(1, "%s,write error %d", __func__,__LINE__);
@@ -356,7 +356,7 @@ int dvr_record_open(DVR_RecordHandle_t *p_handle, DVR_RecordOpenParams_t *params
   DVR_RETURN_IF_FALSE(i < MAX_DVR_RECORD_SESSION_COUNT);
   DVR_RETURN_IF_FALSE(record_ctx[i].state == DVR_RECORD_STATE_CLOSED);
   p_ctx = &record_ctx[i];
-  DVR_DEBUG(1, "%s , current state:%d, dmx_id:%d, notification_size:%zu", __func__,
+  DVR_DEBUG(1, "%s , current state:%d, dmx_id:%d, notification_size:%zu ", __func__,
       p_ctx->state, params->dmx_dev_id, params->notification_size);
 
   /*Process event params*/
