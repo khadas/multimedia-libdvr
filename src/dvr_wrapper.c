@@ -1975,6 +1975,7 @@ static int process_handlePlaybackEvent(DVR_WrapperEventCtx_t *evt, DVR_WrapperCt
     case DVR_PLAYBACK_EVENT_TRANSITION_OK:
     case DVR_PLAYBACK_EVENT_NOTIFY_PLAYTIME:
     case DVR_PLAYBACK_EVENT_ERROR:
+    case DVR_PLAYBACK_EVENT_REACHED_BEGIN:
     {
       DVR_WrapperPlaybackStatus_t status;
 
@@ -1992,7 +1993,7 @@ static int process_handlePlaybackEvent(DVR_WrapperEventCtx_t *evt, DVR_WrapperCt
         } else {
           ctx->playback.reach_end = DVR_TRUE;
         }
-      } else {
+      } else if (evt->playback.event != DVR_PLAYBACK_EVENT_REACHED_BEGIN) {
         process_notifyPlayback(ctx, evt->playback.event, &status);
       }
     } break;
