@@ -2097,7 +2097,7 @@ int dvr_playback_pause(DVR_PlaybackHandle_t handle, DVR_Bool_t flush) {
   }
   if (player->state == DVR_PLAYBACK_STATE_PAUSE ||player->state == DVR_PLAYBACK_STATE_STOP ) {
     DVR_PB_DG(1, "player state  is [%d] pause or stop", player->state);
-    return DVR_FAILURE;
+    return DVR_SUCCESS;
   }
   DVR_PB_DG(1, "lock");
   pthread_mutex_lock(&player->lock);
