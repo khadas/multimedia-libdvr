@@ -1301,7 +1301,34 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
           ctx->playback.param_open.location, p_segment_ids[i], error);
         break;
       }
-
+      //add check if has audio  or video pid. if not exist. not add segment to playback
+      int ii = 0;
+      int has_av = 0;
+      for (ii = 0; ii < seg_info.nb_pids; ii++) {
+        int type = (seg_info.pids[ii].type >> 24) & 0x0f;
+        if (type == DVR_STREAM_TYPE_VIDEO ||
+          type == DVR_STREAM_TYPE_AUDIO ||
+          type == DVR_STREAM_TYPE_AD) {
+         DVR_WRAPPER_DEBUG(1, "success to get seg av info \n");
+          DVR_WRAPPER_DEBUG(1, "success to get seg av info type[0x%x][%d] [%d][%d][%d]\n",(seg_info.pids[ii].type >> 24)&0x0f,seg_info.pids[ii].pid,
+          DVR_STREAM_TYPE_VIDEO,
+          DVR_STREAM_TYPE_AUDIO,
+          DVR_STREAM_TYPE_AD);
+          has_av = 1;
+          //break;
+        } else {
+          DVR_WRAPPER_DEBUG(1, "error to get seg av info type[0x%x][%d] [%d][%d][%d]\n",(seg_info.pids[ii].type >> 24)&0x0f,seg_info.pids[ii].pid,
+          DVR_STREAM_TYPE_VIDEO,
+          DVR_STREAM_TYPE_AUDIO,
+          DVR_STREAM_TYPE_AD);
+        }
+      }
+      if (has_av == 0) {
+        DVR_WRAPPER_DEBUG(1, "fail to get seg av info \n");
+        continue;
+      } else {
+        DVR_WRAPPER_DEBUG(1, "success to get seg av info \n");
+      }
       flags = DVR_PLAYBACK_SEGMENT_DISPLAYABLE | DVR_PLAYBACK_SEGMENT_CONTINUOUS;
       error = wrapper_addPlaybackSegment(ctx, &seg_info, p_pids, flags);
       if (error)

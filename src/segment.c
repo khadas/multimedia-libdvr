@@ -331,7 +331,7 @@ loff_t segment_seek(Segment_Handle_t handle, uint64_t time, int block_size)
 
   if (time == 0) {
     offset = 0;
-    DVR_DEBUG(1, "seek time=%llu, offset=%lld time--%llu\n", pts, offset, time);
+    //DVR_DEBUG(1, "seek time=%llu, offset=%lld time--%llu\n", pts, offset, time);
     DVR_RETURN_IF_FALSE(lseek64(p_ctx->ts_fd, offset, SEEK_SET) != -1);
     return offset;
   }
