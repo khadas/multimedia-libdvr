@@ -197,6 +197,16 @@ void _dvr_tsplayer_callback(void *user_data, am_tsplayer_event *event)
           player->first_frame = 1;
         break;
     }
+    case AM_TSPLAYER_EVENT_TYPE_DECODE_FIRST_FRAME_AUDIO:
+        if (player->first_trans_ok == DVR_FALSE && player->has_video == DVR_FALSE) {
+          player->first_trans_ok = DVR_TRUE;
+          _dvr_playback_sent_transition_ok((DVR_PlaybackHandle_t)player, DVR_FALSE);
+        }
+        if (player != NULL && player->has_video == DVR_FALSE) {
+          DVR_PB_DG(1, "[evt]AM_TSPLAYER_EVENT_TYPE_DECODE_FIRST_FRAME_AUDIO [%d]\n", event->type);
+          player->first_frame = 1;
+        }
+      break;
     default:
       DVR_PB_DG(1, "[evt]unkown event [%d]\n", event->type);
       break;
