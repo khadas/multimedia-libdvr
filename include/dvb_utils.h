@@ -27,6 +27,16 @@ typedef enum {
  */
 int dvb_set_demux_source (int dmx_idx, DVB_DemuxSource_t src);
 
+/**
+ * Get the demux's input source.
+ * \param dmx_idx Demux device's index.
+ * \param point src that demux's input source.
+ * \retval 0 On success.
+ * \retval -1 On error.
+ */
+int dvb_get_demux_source (int dmx_idx, DVB_DemuxSource_t *src);
+
+
 #ifdef __cplusplus
 }
 #endif
