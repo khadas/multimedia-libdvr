@@ -20,7 +20,7 @@ LOCAL_SHARED_LIBRARIES += libcutils liblog libdl libc libmediahal_tsplayer
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/include \
                     $(MEDIAHAL_INCLUDE) \
                     $(AMADEC_C_INCLUDES) \
-                    $(ANDROID_LOG_INCLUDE)
+                    $(ANDROID_LOG_INCLUDE) 
 LOCAL_PRELINK_MODULE := false
 include $(BUILD_SHARED_LIBRARY)
 
@@ -34,7 +34,7 @@ LOCAL_SHARED_LIBRARIES += libcutils liblog libdl libc libmediahal_tsplayer.syste
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/include \
                     $(MEDIAHAL_INCLUDE) \
                     $(AMADEC_C_INCLUDES) \
-                    $(ANDROID_LOG_INCLUDE)
+                    $(ANDROID_LOG_INCLUDE) 
 LOCAL_PRELINK_MODULE := false
 include $(BUILD_SHARED_LIBRARY)
 
