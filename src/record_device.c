@@ -9,7 +9,8 @@
 #include <errno.h>
 #include <poll.h>
 
-#include <linux/dvb/dmx.h>
+
+#include "dmx.h"
 /*add for config define for linux dvb *.h*/
 #include "record_device.h"
 #include "dvr_types.h"
@@ -208,7 +209,7 @@ int record_device_add_pid(Record_DeviceHandle_t handle, int pid)
     }
     ret = ioctl(fd, DMX_START, 0);
     if (ret == -1) {
-      DVR_DEBUG(1, "%s start pes filter failed\"%s\" (%s)", __func__, dev_name, strerror(errno));
+      DVR_DEBUG(1, "%s start pes filter failed:\"%s\" (%s)", __func__, dev_name, strerror(errno));
       pthread_mutex_unlock(&p_ctx->lock);
       return DVR_FAILURE;
     }

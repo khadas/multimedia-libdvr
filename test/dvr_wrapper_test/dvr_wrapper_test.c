@@ -122,6 +122,7 @@
 
 #include "dvr_segment.h"
 #include "dvr_wrapper.h"
+#include "dvb_utils.h"
 
 typedef struct
 {
@@ -460,8 +461,9 @@ static int start_recording()
     int error;
 
     sprintf(cmd, "echo ts%d > /sys/class/stb/demux%d_source", tssrc, DMX_DEV_DVR);
-    system(cmd);
-
+    //system(cmd);
+    printf("set dmx source used api\r\n");
+    dvb_set_demux_source(DMX_DEV_DVR, tssrc);
     memset(&rec_open_params, 0, sizeof(DVR_WrapperRecordOpenParams_t));
 
     rec_open_params.dmx_dev_id = DMX_DEV_DVR;
@@ -493,6 +495,7 @@ static int start_recording()
        rec_open_params.max_time,
        rec_open_params.max_size,
        rec_open_params.location);
+
 
     memset(&rec_start_params, 0, sizeof(rec_start_params));
 
@@ -654,6 +657,9 @@ static int start_playback(int apid, int afmt, int vpid, int vfmt)
     }
 
     play_params.block_size = 188 * 1024;
+    printf("set dmx source hiu used api\r\n");
+    dvb_set_demux_source(DMX_DEV_DVR, DVB_DEMUX_SOURCE_DMA0);
+
     error = dvr_wrapper_open_playback(&player, &play_params);
     if (!error)
     {

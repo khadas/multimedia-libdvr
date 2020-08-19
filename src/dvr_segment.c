@@ -62,7 +62,7 @@ int dvr_segment_del_by_location(const char *location)
 {
   FILE *fp;
   char fpath[DVR_MAX_LOCATION_SIZE];
-  char cmd[256];
+  char cmd[DVR_MAX_LOCATION_SIZE + 64];
 
   DVR_RETURN_IF_FALSE(location);
 
@@ -81,21 +81,20 @@ int dvr_segment_del_by_location(const char *location)
   return DVR_SUCCESS;
 }
 
-
 int dvr_segment_get_list(const char *location, uint32_t *p_segment_nb, uint64_t **pp_segment_ids)
 {
   FILE *fp;
   char fpath[DVR_MAX_LOCATION_SIZE];
   uint32_t i = 0, j = 0, n = 0;
-  char buf[64];
+  char buf[DVR_MAX_LOCATION_SIZE + 10];
   uint64_t *p = NULL;
-  char cmd[256];
+  char cmd[DVR_MAX_LOCATION_SIZE + 64];
 
   DVR_RETURN_IF_FALSE(location);
   DVR_RETURN_IF_FALSE(p_segment_nb);
   DVR_RETURN_IF_FALSE(pp_segment_ids);
 
-  DVR_DEBUG(1, "%s location:%s", __func__, location);
+  //DVR_DEBUG(1, "%s location:%s", __func__, location);
   memset(fpath, 0, sizeof(fpath));
   sprintf(fpath, "%s.list", location);
 
@@ -104,7 +103,7 @@ int dvr_segment_get_list(const char *location, uint32_t *p_segment_nb, uint64_t 
     fp = fopen(fpath, "r");
     DVR_RETURN_IF_FALSE(fp);
     /*get segment numbers*/
-	  while (fgets(buf, sizeof(buf), fp) != NULL) {
+    while (fgets(buf, sizeof(buf), fp) != NULL) {
       i++;
     }
     *p_segment_nb = i;
@@ -114,14 +113,14 @@ int dvr_segment_get_list(const char *location, uint32_t *p_segment_nb, uint64_t 
     i = 0;
     /*set value*/
     memset(buf, 0, sizeof(buf));
-	  while (fgets(buf, sizeof(buf), fp) != NULL) {
+    while (fgets(buf, sizeof(buf), fp) != NULL) {
       p[i++] = strtoull(buf, NULL, 10);
       memset(buf, 0, sizeof(buf));
     }
     *pp_segment_ids = p;
     fclose(fp);
   } else {
-    uint32_t start = 0;
+    uint32_t id = 0;
     /*the list file does not exist*/
     memset(cmd, 0, sizeof(cmd));
     sprintf(cmd, "ls -l %s-*.ts | wc -l", location);
@@ -135,31 +134,32 @@ int dvr_segment_get_list(const char *location, uint32_t *p_segment_nb, uint64_t 
       pclose(fp);
       return DVR_FAILURE;
     }
-
+    //DVR_DEBUG(1, "%s location:%s   i: %d ls buf:%s", __func__, location, i, buf);
     n = i;
     p = malloc(n * sizeof(uint64_t));
-
     /*try to get the 1st segment id*/
     memset(cmd, 0, sizeof(cmd));
-    sprintf(cmd, "ls %s-*.ts | head -n 1", location);
+    sprintf(cmd, "ls %s-*.ts", location);
     fp = popen(cmd, "r");
     DVR_RETURN_IF_FALSE(fp);
     memset(buf, 0, sizeof(buf));
-    if (fgets(buf, sizeof(buf), fp) != NULL) {
-      snprintf(fpath, sizeof(fpath), "%s-%%d.ts", location);
-      if (sscanf(buf, fpath, &start) != 1)
-        start = 0;
-    }
-    pclose(fp);
-
-    for (i = start; i < (start + n); i++) {
-      memset(fpath, 0, sizeof(fpath));
-      sprintf(fpath, "%s-%04d.ts", location, i);
-      if (access(fpath, 0) != -1) {
-        p[j++] = i;
+    j = 0;
+    snprintf(fpath, sizeof(fpath), "%s-%%d.ts", location);
+    while (fgets(buf, sizeof(buf), fp) != NULL) {
+      //DVR_DEBUG(1, "%s buf:%s", __func__, buf);
+      if (sscanf(buf, fpath, &id) != 1) {
+        DVR_DEBUG(1, "%s location:%s  buf:%s not get id", __func__, location, buf);
+        id = 0;
+        n = n -1;
+      } else {
+        //DVR_DEBUG(1, "%s location:%s  buf:%s get id:%d", __func__, location, buf, id);
+        p[j++] = id;
       }
+      memset(buf, 0, sizeof(buf));
     }
-    *p_segment_nb = j;
+    //DVR_DEBUG(1, "%s location:%s  n=%d j=%d end", __func__, location, n, j);
+    pclose(fp);
+    *p_segment_nb = n;
     *pp_segment_ids = p;
   }
 
@@ -198,7 +198,7 @@ int dvr_segment_link(const char *location, uint32_t nb_segments, uint64_t *p_seg
   FILE *fp;
   char fpath[DVR_MAX_LOCATION_SIZE];
   uint32_t i;
-  char buf[64];
+  char buf[DVR_MAX_LOCATION_SIZE + 64];
 
   DVR_RETURN_IF_FALSE(location);
   DVR_RETURN_IF_FALSE(p_segment_ids);
