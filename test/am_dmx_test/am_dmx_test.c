@@ -394,7 +394,7 @@ static int get_section(int dmx, int timeout)
 				printf("pes: para[%d]:%d\n", i, u_para[i]);
 				memset(&pparam, 0, sizeof(pparam));
 				pparam.pid = u_pid[i];
-				pparam.pes_type = DMX_PES_OTHER;
+				pparam.pes_type = DMX_PES_SUBTITLE;
 				pparam.input = DMX_IN_FRONTEND;
 				pparam.output = DMX_OUT_TAP;
 				if(get_upara(i)&UPARA_DMX_TAP)
