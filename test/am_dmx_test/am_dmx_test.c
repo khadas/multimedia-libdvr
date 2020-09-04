@@ -67,12 +67,11 @@
  * \date 2020-04-29: create the document
  ***************************************************************************/
 
-#include "am_util.h"
 #include <stdio.h>
-#include <am_dmx.h>
-#include <am_pes.h>
 #include <string.h>
 #include <unistd.h>
+#include "dmx.h"
+#include "dvb_dmx_wrapper.h"
 
 #define FEND_DEV_NO   (0)
 
@@ -104,8 +103,9 @@ static int u_bs[USER_MAX]={[0 ... USER_MAX-1] = 0};
 static int u_para_g;
 static FILE *fp[USER_MAX];
 static FILE *fp_e[USER_MAX];
-
+#if 0
 static AM_PES_Handle_t h_pes[USER_MAX];
+#endif
 static char *u_path_g;
 static char u_path_g_b[256];
 /*
@@ -127,16 +127,24 @@ static char u_path_g_b[256];
 
 #define get_upara(_i) (u_para[(_i)]? u_para[(_i)] : u_para_g)
 
+#define AML_MACRO_BEGIN   do {
+#define AML_MACRO_END     } while(0)
+#define AM_TRY(_func) \
+	AML_MACRO_BEGIN\
+	int _ret;\
+	if ((_ret=(_func))!=0)\
+		return _ret;\
+	AML_MACRO_END
 
+#if 0
 static void pes_cb(AM_PES_Handle_t handle, uint8_t *buf, int size) {
 	int u = (int)(long)AM_PES_GetUserData(handle);
 	printf("pes cb u=%d b=%p, s:%d\n", u, buf, size);
 	int ret = fwrite(buf, 1, size, fp_e[u-1]);
 	if (ret != size)
 		printf("data w lost\n");
-
 }
-
+#endif
 static void dump_bytes(int dev_no, int fid, const uint8_t *data, int len, void *user_data)
 {
 	int u = (int)(long)user_data;
@@ -163,11 +171,11 @@ static void dump_bytes(int dev_no, int fid, const uint8_t *data, int len, void *
 
 		if(data[0]==0x40) {
 			printf("section:%8d,max:%8d\n",data[6],data[7]);
-			if((data[6] !=s_last_num+1)&&(s_last_num!=-1))//µÚÒ»¸ö»òÕß²»Á¬Ðø
+			if((data[6] !=s_last_num+1)&&(s_last_num!=-1))//ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ß²ï¿½ï¿½ï¿½ï¿½ï¿½
 			{
-				if(s_last_num ==data[7])//ÉÏÒ»¸öÊÇMAX
+				if(s_last_num ==data[7])//ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½MAX
 				{
-					if(data[6] != 0)//ÉÏÒ»¸öMAX Õâ¸ö²»ÊÇ 0
+					if(data[6] != 0)//ï¿½ï¿½Ò»ï¿½ï¿½MAX ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ 0
 					{
 						printf("##drop packet,tabid:0x%4x,cur:%8d,last:%8d,max:%8d\n",data[0],
 						data[6],s_last_num,data[7]);
@@ -177,7 +185,7 @@ static void dump_bytes(int dev_no, int fid, const uint8_t *data, int len, void *
 					{
 					}
 				}
-				else//ÉÏÒ»¸ö²»ÊÇ
+				else//ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 				{
 					printf("##drop packet,tabid:%4x,cur:%8d,last:%8d,max:%8d\n",data[0],
 					data[6],s_last_num,data[7]);
@@ -204,7 +212,7 @@ static void dump_bytes(int dev_no, int fid, const uint8_t *data, int len, void *
 				data[5], data[6], data[7], data[8]);
 			return;
 		}
-
+#if 0
 		if(get_upara(u-1)&UPARA_PR)
 			printf("[%d:%d %d] %02x %02x %02x %02x %02x %02x %02x %02x %02x\n", u-1, u_pid[u-1], len,
 				data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8]);
@@ -222,6 +230,7 @@ static void dump_bytes(int dev_no, int fid, const uint8_t *data, int len, void *
 				AM_PES_Decode(h_pes[u-1], data, len);
 			}
 		}
+#endif
 	}
 #endif
 }
@@ -251,34 +260,34 @@ static int get_section(int dmx, int timeout)
 #ifdef PAT_TEST
 	if(pat&0xf) {
 	printf("start pat...\n");
-	AM_TRY(AM_DMX_AllocateFilter(dmx, &fid));
-	AM_TRY(AM_DMX_SetCallback(dmx, fid, dump_bytes, NULL));
+	AM_TRY(AML_DMX_AllocateFilter(dmx, &fid));
+	AM_TRY(AML_DMX_SetCallback(dmx, fid, dump_bytes, NULL));
 	}
 #endif
 
 #ifdef EIT_TEST
 	if(eit&0xf) {
 	printf("start eit...\n");
-	AM_TRY(AM_DMX_AllocateFilter(dmx, &fid_eit_pf));
-	AM_TRY(AM_DMX_SetCallback(dmx, fid_eit_pf, dump_bytes, NULL));
-	AM_TRY(AM_DMX_AllocateFilter(dmx, &fid_eit_opf));
-	AM_TRY(AM_DMX_SetCallback(dmx, fid_eit_opf, dump_bytes, NULL));
+	AM_TRY(AML_DMX_AllocateFilter(dmx, &fid_eit_pf));
+	AM_TRY(AML_DMX_SetCallback(dmx, fid_eit_pf, dump_bytes, NULL));
+	AM_TRY(AML_DMX_AllocateFilter(dmx, &fid_eit_opf));
+	AM_TRY(AML_DMX_SetCallback(dmx, fid_eit_opf, dump_bytes, NULL));
 	}
 #endif
 
 #ifdef NIT_TEST
 	if(nit&0xf) {
 	printf("start nit...\n");
-	AM_TRY(AM_DMX_AllocateFilter(dmx, &fid_nit));
-	AM_TRY(AM_DMX_SetCallback(dmx, fid_nit, dump_bytes, NULL));
+	AM_TRY(AML_DMX_AllocateFilter(dmx, &fid_nit));
+	AM_TRY(AML_DMX_SetCallback(dmx, fid_nit, dump_bytes, NULL));
 	}
 #endif
 
 #ifdef BAT_TEST
 	if(bat&0xf) {
 	printf("start bat...\n");
-	AM_TRY(AM_DMX_AllocateFilter(dmx, &fid_bat));
-	AM_TRY(AM_DMX_SetCallback(dmx, fid_bat, dump_bytes, NULL));
+	AM_TRY(AML_DMX_AllocateFilter(dmx, &fid_bat));
+	AM_TRY(AML_DMX_SetCallback(dmx, fid_bat, dump_bytes, NULL));
 	}
 #endif
 
@@ -295,7 +304,7 @@ static int get_section(int dmx, int timeout)
 	param.flags = DMX_CHECK_CRC;
 	if(pat&UPARA_SF)
 		param.flags |= 0x100;
-	AM_TRY(AM_DMX_SetSecFilter(dmx, fid, &param));
+	AM_TRY(AML_DMX_SetSecFilter(dmx, fid, &param));
 	}
 #endif
 
@@ -308,7 +317,7 @@ static int get_section(int dmx, int timeout)
 	param.flags = DMX_CHECK_CRC;	
 	if(eit&UPARA_SF)
 		param.flags |= 0x100;
-	AM_TRY(AM_DMX_SetSecFilter(dmx, fid_eit_pf, &param));
+	AM_TRY(AML_DMX_SetSecFilter(dmx, fid_eit_pf, &param));
 	
 	memset(&param, 0, sizeof(param));
 	param.pid = 0x12;
@@ -317,7 +326,7 @@ static int get_section(int dmx, int timeout)
 	param.flags = DMX_CHECK_CRC;	
 	if(eit&UPARA_SF)
 		param.flags |= 0x100;
-	AM_TRY(AM_DMX_SetSecFilter(dmx, fid_eit_opf, &param));
+	AM_TRY(AML_DMX_SetSecFilter(dmx, fid_eit_opf, &param));
 	}
 #endif
 
@@ -331,7 +340,7 @@ static int get_section(int dmx, int timeout)
 		param.flags = DMX_CHECK_CRC;	
 	if(nit&UPARA_SF)
 		param.flags |= 0x100;
-	AM_TRY(AM_DMX_SetSecFilter(dmx, fid_nit, &param));
+	AM_TRY(AML_DMX_SetSecFilter(dmx, fid_nit, &param));
 	}
 #endif
 
@@ -345,48 +354,48 @@ static int get_section(int dmx, int timeout)
 		param.flags = DMX_CHECK_CRC;	
 	if(bat&UPARA_SF)
 		param.flags |= 0x100;
-	AM_TRY(AM_DMX_SetSecFilter(dmx, fid_bat, &param));
+	AM_TRY(AML_DMX_SetSecFilter(dmx, fid_bat, &param));
 	}
 #endif
 
 
 #ifdef PAT_TEST
 	if(pat&0xF) {
-	AM_TRY(AM_DMX_SetBufferSize(dmx, fid, 32*1024));
-	AM_TRY(AM_DMX_StartFilter(dmx, fid));
+	AM_TRY(AML_DMX_SetBufferSize(dmx, fid, 32*1024));
+	AM_TRY(AML_DMX_StartFilter(dmx, fid));
 	}
 #endif
 #ifdef EIT_TEST
 	if(eit&0xF) {
-	AM_TRY(AM_DMX_SetBufferSize(dmx, fid_eit_pf, 32*1024));
-	AM_TRY(AM_DMX_StartFilter(dmx, fid_eit_pf));
-	AM_TRY(AM_DMX_SetBufferSize(dmx, fid_eit_opf, 32*1024));
-	//AM_TRY(AM_DMX_StartFilter(dmx, fid_eit_opf));
+	AM_TRY(AML_DMX_SetBufferSize(dmx, fid_eit_pf, 32*1024));
+	AM_TRY(AML_DMX_StartFilter(dmx, fid_eit_pf));
+	AM_TRY(AML_DMX_SetBufferSize(dmx, fid_eit_opf, 32*1024));
+	//AM_TRY(AML_DMX_StartFilter(dmx, fid_eit_opf));
 	}
 #endif
 
 #ifdef NIT_TEST
 	if(nit&0xF) {
-	AM_TRY(AM_DMX_SetBufferSize(dmx, fid_nit, 32*1024));
-	AM_TRY(AM_DMX_StartFilter(dmx, fid_nit));
+	AM_TRY(AML_DMX_SetBufferSize(dmx, fid_nit, 32*1024));
+	AM_TRY(AML_DMX_StartFilter(dmx, fid_nit));
 	}
 #endif
 
 #ifdef BAT_TEST
 	if(bat&0xF) {
-	AM_TRY(AM_DMX_SetBufferSize(dmx, fid_bat, 64*1024));
-	AM_TRY(AM_DMX_StartFilter(dmx, fid_bat));
+	AM_TRY(AML_DMX_SetBufferSize(dmx, fid_bat, 64*1024));
+	AM_TRY(AML_DMX_StartFilter(dmx, fid_bat));
 	}
 #endif
 
 	for(i=0; i<USER_MAX; i++) {
 		if(u_pid[i]!=-1) {
-			AM_TRY(AM_DMX_AllocateFilter(dmx, &fid_user[i]));
+			AM_TRY(AML_DMX_AllocateFilter(dmx, &fid_user[i]));
 
-			AM_TRY(AM_DMX_SetCallback(dmx, fid_user[i], dump_bytes, (void*)(long)(i+1)));
+			AM_TRY(AML_DMX_SetCallback(dmx, fid_user[i], dump_bytes, (void*)(long)(i+1)));
 
 			if(u_bs[i]) {
-				AM_TRY(AM_DMX_SetBufferSize(dmx, fid_user[i], u_bs[i]));
+				AM_TRY(AML_DMX_SetBufferSize(dmx, fid_user[i], u_bs[i]));
 				printf("buffersize => %d\n", u_bs[i]);
 			}
 
@@ -401,7 +410,7 @@ static int get_section(int dmx, int timeout)
 					pparam.output = DMX_OUT_TSDEMUX_TAP;
 				if(get_upara(i)&UPARA_SF)
 					pparam.flags |= 0x100;
-				AM_TRY(AM_DMX_SetPesFilter(dmx, fid_user[i], &pparam));
+				AM_TRY(AML_DMX_SetPesFilter(dmx, fid_user[i], &pparam));
 
 			} else {/*sct*/
 				printf("section: para[%d]:%d\n", i, u_para[i]);
@@ -435,7 +444,7 @@ static int get_section(int dmx, int timeout)
 					param.flags = DMX_CHECK_CRC;
 				if(get_upara(i)&UPARA_SF)
 					param.flags |= 0x100;
-				AM_TRY(AM_DMX_SetSecFilter(dmx, fid_user[i], &param));
+				AM_TRY(AML_DMX_SetSecFilter(dmx, fid_user[i], &param));
 			}
 
 			if(get_upara(i)&UPARA_FILE) {
@@ -450,7 +459,7 @@ static int get_section(int dmx, int timeout)
 					printf("file open:[%s]\n", name);
 			}
 
-			AM_TRY(AM_DMX_StartFilter(dmx, fid_user[i]));
+			AM_TRY(AML_DMX_StartFilter(dmx, fid_user[i]));
 		}
 	}
 
@@ -458,35 +467,35 @@ static int get_section(int dmx, int timeout)
 
 #ifdef PAT_TEST
 	if(pat&0xF) {
-	AM_TRY(AM_DMX_StopFilter(dmx, fid));
-	AM_TRY(AM_DMX_FreeFilter(dmx, fid));
+	AM_TRY(AML_DMX_StopFilter(dmx, fid));
+	AM_TRY(AML_DMX_FreeFilter(dmx, fid));
 	}
 #endif	
 #ifdef EIT_TEST
 	if(eit&0xF) {
-	AM_TRY(AM_DMX_StopFilter(dmx, fid_eit_pf));
-	AM_TRY(AM_DMX_FreeFilter(dmx, fid_eit_pf));
-	AM_TRY(AM_DMX_StopFilter(dmx, fid_eit_opf));
-	AM_TRY(AM_DMX_FreeFilter(dmx, fid_eit_opf));
+	AM_TRY(AML_DMX_StopFilter(dmx, fid_eit_pf));
+	AM_TRY(AML_DMX_FreeFilter(dmx, fid_eit_pf));
+	AM_TRY(AML_DMX_StopFilter(dmx, fid_eit_opf));
+	AM_TRY(AML_DMX_FreeFilter(dmx, fid_eit_opf));
 	}
 #endif
 #ifdef NIT_TEST
 	if(nit&0xF){
-	AM_TRY(AM_DMX_StopFilter(dmx, fid_nit));
-	AM_TRY(AM_DMX_FreeFilter(dmx, fid_nit));
+	AM_TRY(AML_DMX_StopFilter(dmx, fid_nit));
+	AM_TRY(AML_DMX_FreeFilter(dmx, fid_nit));
 	}
 #endif	
 #ifdef BAT_TEST
 	if(bat&0xF) {
-	AM_TRY(AM_DMX_StopFilter(dmx, fid_bat));
-	AM_TRY(AM_DMX_FreeFilter(dmx, fid_bat));
+	AM_TRY(AML_DMX_StopFilter(dmx, fid_bat));
+	AM_TRY(AML_DMX_FreeFilter(dmx, fid_bat));
 	}
 #endif	
 	
 	for(i=0; i<USER_MAX; i++) {
 		if(u_pid[i]!=-1) {
-			AM_TRY(AM_DMX_StopFilter(dmx, fid_user[i]));
-			AM_TRY(AM_DMX_FreeFilter(dmx, fid_user[i]));
+			AM_TRY(AML_DMX_StopFilter(dmx, fid_user[i]));
+			AM_TRY(AML_DMX_FreeFilter(dmx, fid_user[i]));
 			if((get_upara(i)&UPARA_FILE) && fp[i])
 				fclose(fp[i]);
 		}
@@ -557,7 +566,6 @@ int main(int argc, char **argv)
 {
 	int i;
     int ret=0;
-	AM_DMX_OpenPara_t para;
 
 	if(argc==1)
 	{
@@ -585,17 +593,14 @@ int main(int argc, char **argv)
 	for(i=1; i< argc; i++)
 		get_para(argv[i]);
 
-	memset(&para, 0, sizeof(para));
-	//para.use_sw_filter = AM_TRUE;
-	//para.dvr_fifo_no = 1;
-	AM_TRY(AM_DMX_Open(dmx, &para));
+	AM_TRY(AML_DMX_Open(dmx));
 
-	AM_TRY(AM_DMX_SetSource(dmx, src));
+	AM_TRY(AML_DMX_SetSource(dmx, src));
 	printf("TS SRC = %d\n", src);
 
 	get_section(dmx, timeout);
 	
-	AM_DMX_Close(dmx);
+	AML_DMX_Close(dmx);
 	return ret;
 }
 
