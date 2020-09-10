@@ -32,7 +32,7 @@ int dvb_set_demux_source(int dmx_idx, DVB_DemuxSource_t src)
     r = stat(node, &st);
     if (r == -1)
     {
-        int fd, source;
+        int fd, source, input;
         memset(node, 0, sizeof(node));
         snprintf(node, sizeof(node), "/dev/dvb0.demux%d", dmx_idx);
         fd = open(node, O_WRONLY);
@@ -42,64 +42,96 @@ int dvb_set_demux_source(int dmx_idx, DVB_DemuxSource_t src)
             {
             case DVB_DEMUX_SOURCE_TS0:
                 source = FRONTEND_TS0;
+                input = INPUT_DEMOD;
                 break;
             case DVB_DEMUX_SOURCE_TS1:
                 source = FRONTEND_TS1;
+                input = INPUT_DEMOD;
                 break;
             case DVB_DEMUX_SOURCE_TS2:
                 source = FRONTEND_TS2;
+                input = INPUT_DEMOD;
                 break;
             case DVB_DEMUX_SOURCE_TS3:
                 source = FRONTEND_TS3;
+                input = INPUT_DEMOD;
                 break;
             case DVB_DEMUX_SOURCE_TS4:
                 source = FRONTEND_TS4;
+                input = INPUT_DEMOD;
                 break;
             case DVB_DEMUX_SOURCE_TS5:
                 source = FRONTEND_TS5;
+                input = INPUT_DEMOD;
                 break;
             case DVB_DEMUX_SOURCE_TS6:
                 source = FRONTEND_TS6;
+                input = INPUT_DEMOD;
                 break;
             case DVB_DEMUX_SOURCE_TS7:
                 source = FRONTEND_TS7;
+                input = INPUT_DEMOD;
                 break;
             case DVB_DEMUX_SOURCE_DMA0:
                 source = DMA_0;
+                input = INPUT_LOCAL;
                 break;
             case DVB_DEMUX_SOURCE_DMA1:
                 source = DMA_1;
+                input = INPUT_LOCAL;
                 break;
             case DVB_DEMUX_SOURCE_DMA2:
                 source = DMA_2;
+                input = INPUT_LOCAL;
                 break;
             case DVB_DEMUX_SOURCE_DMA3:
                 source = DMA_3;
+                input = INPUT_LOCAL;
                 break;
             case DVB_DEMUX_SOURCE_DMA4:
                 source = DMA_4;
+                input = INPUT_LOCAL;
                 break;
             case DVB_DEMUX_SOURCE_DMA5:
                 source = DMA_5;
+                input = INPUT_LOCAL;
                 break;
             case DVB_DEMUX_SOURCE_DMA6:
                 source = DMA_6;
+                input = INPUT_LOCAL;
                 break;
             case DVB_DEMUX_SOURCE_DMA7:
                 source = DMA_7;
+                input = INPUT_LOCAL;
                 break;
             default:
                 assert(0);
             }
-            if (ioctl(fd, DMX_SET_HW_SOURCE, &source) == -1)
+            if (ioctl(fd, DMX_SET_INPUT, input) == -1)
             {
-                DVR_DEBUG(1, "ioctl DMX_SET_HW_SOURCE:%d error:%d", source, errno);
+                DVR_DEBUG(1, "dvb_set_demux_source ioctl DMX_SET_INPUT:%d error:%d", input, errno);
+                r = -1;
+            }
+            else
+            {
+                DVR_DEBUG(1, "dvb_set_demux_source ioctl sucesss src:%d DMX_SET_INPUT:%d dmx_idx:%d", src, input, dmx_idx);
+                r = 0;
+            }
+            if (ioctl(fd, DMX_SET_HW_SOURCE, source) == -1)
+            {
+                DVR_DEBUG(1, "dvb_set_demux_source ioctl DMX_SET_HW_SOURCE:%d error:%d", source, errno);
+                r = -1;
+            }
+            else
+            {
+                DVR_DEBUG(1, "dvb_set_demux_source ioctl sucesss src:%d DMX_SET_HW_SOURCE:%d dmx_idx:%d", src, source, dmx_idx);
+                r = 0;
             }
             close(fd);
         }
         else
         {
-            DVR_DEBUG(1, "open \"%s\" failed, error:%d", node, errno);
+            DVR_DEBUG(1, "dvb_set_demux_source open \"%s\" failed, error:%d", node, errno);
         }
     }
     else
