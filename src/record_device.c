@@ -181,7 +181,7 @@ int record_device_add_pid(Record_DeviceHandle_t handle, int pid)
     if (p_ctx->streams[i].pid == DVR_INVALID_PID)
       break;
   }
-  DVR_RETURN_IF_FALSE(i < DVR_MAX_RECORD_PIDS_COUNT);
+  DVR_RETURN_IF_FALSE_WITH_UNLOCK(i < DVR_MAX_RECORD_PIDS_COUNT, &p_ctx->lock);
   DVR_RETURN_IF_FALSE_WITH_UNLOCK(p_ctx->streams[i].pid == DVR_INVALID_PID, &p_ctx->lock);
 
   p_ctx->streams[i].pid = pid;
@@ -242,7 +242,7 @@ int record_device_remove_pid(Record_DeviceHandle_t handle, int pid)
     if (p_ctx->streams[i].pid == pid)
       break;
   }
-  DVR_RETURN_IF_FALSE(i < DVR_MAX_RECORD_PIDS_COUNT);
+  DVR_RETURN_IF_FALSE_WITH_UNLOCK(i < DVR_MAX_RECORD_PIDS_COUNT, &p_ctx->lock);
   DVR_RETURN_IF_FALSE_WITH_UNLOCK(p_ctx->streams[i].pid == pid, &p_ctx->lock);
 
   fd = p_ctx->streams[i].fid;
