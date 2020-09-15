@@ -33,8 +33,6 @@
 #define SEC_BUF_SIZE (4096)
 #define DMX_POLL_TIMEOUT (200)
 
-/*#define DEBUG_DEMUX_DATA*/
-#define DMX_DBG(fmt, ...)       fprintf(stderr, "error:" fmt, ##__VA_ARGS__)
 
 typedef struct
 {
@@ -59,16 +57,16 @@ typedef struct
 
 static dvb_dmx_t dmx_devices[DMX_COUNT];
 
-static inline BOOLEAN dmx_get_dev(int dev_no, dvb_dmx_t **dev)
+static inline DVB_RESULT dmx_get_dev(int dev_no, dvb_dmx_t **dev)
 {
 	if ((dev_no < 0) || (dev_no >= DMX_COUNT))
 	{
-		DMX_DBG("invalid demux device number %d, must in(%d~%d)", dev_no, 0, DMX_COUNT-1);
-		return FALSE;
+		DVB_DEBUG(1, "invalid demux device number %d, must in(%d~%d)", dev_no, 0, DMX_COUNT-1);
+		return DVB_FAILURE;
 	}
 
 	*dev = &dmx_devices[dev_no];
-	return TRUE;
+	return DVB_SUCCESS;
 }
 
 static void* dmx_data_thread(void *arg)
@@ -133,7 +131,7 @@ static void* dmx_data_thread(void *arg)
         		filter = &dmx->filter[fids[i]];
         		if (!filter->enable || !filter->used || filter->need_free)
         		{
-        		    DMX_DBG("ch[%d] not used, not read", fids[i], len);
+        		    DVB_DEBUG(1, "ch[%d] not used, not read", fids[i], len);
         		    len = 0;
         		}
         		else
@@ -141,13 +139,13 @@ static void* dmx_data_thread(void *arg)
                      len = read(filter->fd, sec_buf, SEC_BUF_SIZE);
                      if (len <= 0)
                      {
-                         DMX_DBG("read demux filter[%d] failed (%s) %d", fids[i], strerror(errno), errno);
+                         DVB_DEBUG(1, "read demux filter[%d] failed (%s) %d", fids[i], strerror(errno), errno);
                      }
         		}
         		pthread_mutex_unlock(&dmx->lock);
 #ifdef DEBUG_DEMUX_DATA
         		if (len)
-        		    DMX_DBG("tid[%#x] ch[%d] %#x bytes", sec_buf[0], fids[i], len);
+        		    DVB_DEBUG(1, "tid[%#x] ch[%d] %#x bytes", sec_buf[0], fids[i], len);
 #endif
         		if (len > 0 && filter->cb)
         		{
@@ -169,29 +167,33 @@ static dvb_dmx_filter_t* dmx_get_filter(dvb_dmx_t * dev, int fhandle)
 {
     if (fhandle >= DMX_FILTER_COUNT)
     {
-    	DMX_DBG("wrong filter no");
+    	DVB_DEBUG(1, "wrong filter no");
     	return NULL;
     }
 
     if (!dev->filter[fhandle].used)
     {
-    	DMX_DBG("filter %d not allocated", fhandle);
+    	DVB_DEBUG(1, "filter %d not allocated", fhandle);
     	return NULL;
     }
     return &dev->filter[fhandle];
 }
 
-BOOLEAN AML_DMX_Open(int dev_no)
+/**\brief dmx device init, creat dmx thread
+ * \param dmx device number
+ * \return DVB_SUCCESS On success, DVB_FAILURE on error.
+ */
+DVB_RESULT AML_DMX_Open(int dev_no)
 {
     dvb_dmx_t *dev = NULL;
 
-    if (!dmx_get_dev(dev_no, &dev))
-        return FALSE;
+    if (dmx_get_dev(dev_no, &dev))
+        return DVB_FAILURE;
 
     if (dev->running)
     {
-	    DMX_DBG("dmx already initialized");
-	    return FALSE;
+	    DVB_DEBUG(1, "dmx already initialized");
+	    return DVB_FAILURE;
     }
 
 	dev->dev_no = dev_no;
@@ -200,10 +202,15 @@ BOOLEAN AML_DMX_Open(int dev_no)
     dev->running = 1;
     pthread_create(&dev->thread, NULL, dmx_data_thread, dev);
 
-    return TRUE;
+    return DVB_SUCCESS;
 }
 
-BOOLEAN AML_DMX_AllocateFilter(int dev_no, int *fhandle)
+/**\brief allocate dmx filter
+ * \param dmx device number
+ * \param get dmx filter index
+ * \return DVB_SUCCESS On success, DVB_FAILURE on error.
+ */
+DVB_RESULT AML_DMX_AllocateFilter(int dev_no, int *fhandle)
 {
     int fd;
     int fid;
@@ -212,10 +219,10 @@ BOOLEAN AML_DMX_AllocateFilter(int dev_no, int *fhandle)
 
     dvb_dmx_t *dev = NULL;
 
-    if (!dmx_get_dev(dev_no, &dev))
+    if (dmx_get_dev(dev_no, &dev))
     {
-        DMX_DBG("demux allocate failed, wrong dmx device no %d", dev_no);
-        return FALSE;
+        DVB_DEBUG(1, "demux allocate failed, wrong dmx device no %d", dev_no);
+        return DVB_FAILURE;
     }
 
     pthread_mutex_lock(&dev->lock);
@@ -230,9 +237,9 @@ BOOLEAN AML_DMX_AllocateFilter(int dev_no, int *fhandle)
 
     if (fid >= DMX_FILTER_COUNT)
     {
-        DMX_DBG("filter id:%d, have no filter to alloc", fid);
+        DVB_DEBUG(1, "filter id:%d, have no filter to alloc", fid);
         pthread_mutex_unlock(&dev->lock);
-        return FALSE;
+        return DVB_FAILURE;
     }
 
     memset(dev_name, 0, sizeof(dev_name));
@@ -240,9 +247,9 @@ BOOLEAN AML_DMX_AllocateFilter(int dev_no, int *fhandle)
     fd = open(dev_name, O_RDWR);
     if (fd == -1)
     {
-        DMX_DBG("cannot open \"%s\" (%s)", dev_name, strerror(errno));
+        DVB_DEBUG(1, "cannot open \"%s\" (%s)", dev_name, strerror(errno));
         pthread_mutex_unlock(&dev->lock);
-        return FALSE;
+        return DVB_FAILURE;
     }
 
     memset(&filter[fid], 0, sizeof(dvb_dmx_filter_t));
@@ -253,24 +260,30 @@ BOOLEAN AML_DMX_AllocateFilter(int dev_no, int *fhandle)
 
     pthread_mutex_unlock(&dev->lock);
 
-    //DMX_DBG("fhandle = %d", fid);
-    return TRUE;
+    //DVB_DEBUG(1, "fhandle = %d", fid);
+    return DVB_SUCCESS;
 }
 
-BOOLEAN AML_DMX_SetSecFilter(int dev_no, int fhandle, const struct dmx_sct_filter_params *params)
+/**\brief set demux section filter
+ * \param dmx device number
+ * \param dmx filter index
+ * \param dmx section filter param
+ * \return DVB_SUCCESS On success, DVB_FAILURE on error.
+ */
+DVB_RESULT AML_DMX_SetSecFilter(int dev_no, int fhandle, const struct dmx_sct_filter_params *params)
 {
-    BOOLEAN ret = TRUE;
+    DVB_RESULT ret = DVB_SUCCESS;
     dvb_dmx_t *dev = NULL;
     dvb_dmx_filter_t *filter = NULL;
 
-    if (!dmx_get_dev(dev_no, &dev))
+    if (dmx_get_dev(dev_no, &dev))
     {
-        DMX_DBG("Wrong dmx device no %d", dev_no);
-        return FALSE;
+        DVB_DEBUG(1, "Wrong dmx device no %d", dev_no);
+        return DVB_FAILURE;
     }
 
     if (!params)
-        return FALSE;
+        return DVB_FAILURE;
 
     pthread_mutex_lock(&dev->lock);
 
@@ -279,35 +292,41 @@ BOOLEAN AML_DMX_SetSecFilter(int dev_no, int fhandle, const struct dmx_sct_filte
     {
 	   if (ioctl(filter->fd, DMX_STOP, 0) < 0)
 	   {
-		   DMX_DBG("dmx stop filter failed error:%s", strerror(errno));
-		   ret = FALSE;
+		   DVB_DEBUG(1, "dmx stop filter failed error:%s", strerror(errno));
+		   ret = DVB_FAILURE;
 	   }
 	   else if (ioctl(filter->fd, DMX_SET_FILTER, params) < 0)
 	   {
-	   	  DMX_DBG("set filter failed error:%s", strerror(errno));
-		  ret = FALSE;
+	   	  DVB_DEBUG(1, "set filter failed error:%s", strerror(errno));
+		  ret = DVB_FAILURE;
 	   }
     }
 
     pthread_mutex_unlock(&dev->lock);
-    //DMX_DBG("pid = %#x", params->pid);
+    //DVB_DEBUG(1, "pid = %#x", params->pid);
     return ret;
 }
 
-BOOLEAN AML_DMX_SetPesFilter(int dev_no, int fhandle, const struct dmx_pes_filter_params *params)
+/**\brief set demux pes filter
+ * \param dmx device number
+ * \param dmx filter index
+ * \param dmx pes filter param
+ * \return DVB_SUCCESS On success, DVB_FAILURE on error.
+ */
+DVB_RESULT AML_DMX_SetPesFilter(int dev_no, int fhandle, const struct dmx_pes_filter_params *params)
 {
-    BOOLEAN ret = TRUE;
+    DVB_RESULT ret = DVB_SUCCESS;
     dvb_dmx_t *dev = NULL;
     dvb_dmx_filter_t *filter = NULL;
 
-    if (!dmx_get_dev(dev_no, &dev))
+    if (dmx_get_dev(dev_no, &dev))
     {
-        DMX_DBG("wrong dmx device no %d", dev_no);
-        return FALSE;
+        DVB_DEBUG(1, "wrong dmx device no %d", dev_no);
+        return DVB_FAILURE;
     }
 
     if (!params)
-        return FALSE;
+        return DVB_FAILURE;
 
     pthread_mutex_lock(&dev->lock);
 
@@ -316,36 +335,41 @@ BOOLEAN AML_DMX_SetPesFilter(int dev_no, int fhandle, const struct dmx_pes_filte
     {
 	   if (ioctl(filter->fd, DMX_STOP, 0) < 0)
 	   {
-               DMX_DBG("dmx stop filter failed error:%s", strerror(errno));
-               ret = FALSE;
+               DVB_DEBUG(1, "dmx stop filter failed error:%s", strerror(errno));
+               ret = DVB_FAILURE;
 	   }
 	   else
 	   {
 	      fcntl(filter->fd, F_SETFL, O_NONBLOCK);
 	      if (ioctl(filter->fd, DMX_SET_PES_FILTER, params) < 0)
 	      {
-                  DMX_DBG("set filter failed error:%s", strerror(errno));
-                  ret = FALSE;
+                  DVB_DEBUG(1, "set filter failed error:%s", strerror(errno));
+                  ret = DVB_FAILURE;
               }
 	   }
     }
 
     pthread_mutex_unlock(&dev->lock);
-    //DMX_DBG("pid = %#x", params->pid);
+    //DVB_DEBUG(1, "pid = %#x", params->pid);
     return ret;
 }
 
-
-BOOLEAN AML_DMX_SetBufferSize(int dev_no, int fhandle, int size)
+/**\brief set demux filter buffer
+ * \param dmx device number
+ * \param dmx filter index
+ * \param dmx filter buffer size
+ * \return DVB_SUCCESS On success, DVB_FAILURE on error.
+ */
+DVB_RESULT AML_DMX_SetBufferSize(int dev_no, int fhandle, int size)
 {
-    BOOLEAN ret = TRUE;
+    DVB_RESULT ret = DVB_SUCCESS;
     dvb_dmx_t *dev = NULL;
     dvb_dmx_filter_t *filter = NULL;
 
-    if (!dmx_get_dev(dev_no, &dev))
+    if (dmx_get_dev(dev_no, &dev))
     {
-        DMX_DBG("wrong dmx device no %d", dev_no);
-        return FALSE;
+        DVB_DEBUG(1, "wrong dmx device no %d", dev_no);
+        return DVB_FAILURE;
     }
 
     pthread_mutex_lock(&dev->lock);
@@ -355,8 +379,8 @@ BOOLEAN AML_DMX_SetBufferSize(int dev_no, int fhandle, int size)
     {
 	    if (ioctl(filter->fd, DMX_SET_BUFFER_SIZE, size) < 0)
 	    {
- 	   	  DMX_DBG("set buf size failed error:%s", strerror(errno));
-		  ret = FALSE;
+ 	   	  DVB_DEBUG(1, "set buf size failed error:%s", strerror(errno));
+		  ret = DVB_FAILURE;
 		}
     }
 
@@ -364,15 +388,20 @@ BOOLEAN AML_DMX_SetBufferSize(int dev_no, int fhandle, int size)
     return ret;
 }
 
-BOOLEAN AML_DMX_FreeFilter(int dev_no, int fhandle)
+/**\brief free demux filter
+ * \param dmx device number
+ * \param dmx filter index
+ * \return DVB_SUCCESS On success, DVB_FAILURE on error.
+ */
+DVB_RESULT AML_DMX_FreeFilter(int dev_no, int fhandle)
 {
     dvb_dmx_t *dev = NULL;
     dvb_dmx_filter_t *filter = NULL;
 
-    if (!dmx_get_dev(dev_no, &dev))
+    if (dmx_get_dev(dev_no, &dev))
     {
-        DMX_DBG("wrong dmx device no %d", dev_no);
-        return FALSE;
+        DVB_DEBUG(1, "wrong dmx device no %d", dev_no);
+        return DVB_FAILURE;
     }
 
     pthread_mutex_lock(&dev->lock);
@@ -385,20 +414,25 @@ BOOLEAN AML_DMX_FreeFilter(int dev_no, int fhandle)
 
     pthread_mutex_unlock(&dev->lock);
 
-    //DMX_DBG("fhandle = %d", fhandle);
-    return TRUE;
+    //DVB_DEBUG(1, "fhandle = %d", fhandle);
+    return DVB_SUCCESS;
 }
 
-BOOLEAN AML_DMX_StartFilter(int dev_no, int fhandle)
+/**\brief start demux filter
+ * \param dmx device number
+ * \param dmx filter index
+ * \return DVB_SUCCESS On success, DVB_FAILURE on error.
+ */
+DVB_RESULT AML_DMX_StartFilter(int dev_no, int fhandle)
 {
-    BOOLEAN ret = TRUE;
+    DVB_RESULT ret = DVB_SUCCESS;
     dvb_dmx_t *dev = NULL;
     dvb_dmx_filter_t *filter = NULL;
 
-    if (!dmx_get_dev(dev_no, &dev))
+    if (dmx_get_dev(dev_no, &dev))
     {
-        DMX_DBG("wrong dmx device no %d", dev_no);
-        return FALSE;
+        DVB_DEBUG(1, "wrong dmx device no %d", dev_no);
+        return DVB_FAILURE;
     }
 
     pthread_mutex_lock(&dev->lock);
@@ -408,8 +442,8 @@ BOOLEAN AML_DMX_StartFilter(int dev_no, int fhandle)
     {
         if (ioctl(filter->fd, DMX_START, 0) < 0)
         {
-            DMX_DBG("dmx start filter failed error:%s", strerror(errno));
-            ret = FALSE;
+            DVB_DEBUG(1, "dmx start filter failed error:%s", strerror(errno));
+            ret = DVB_FAILURE;
         }
         else
         {
@@ -418,20 +452,25 @@ BOOLEAN AML_DMX_StartFilter(int dev_no, int fhandle)
     }
 
     pthread_mutex_unlock(&dev->lock);
-    //DMX_DBG("ret = %d", ret);
+    //DVB_DEBUG(1, "ret = %d", ret);
     return ret;
 }
 
-BOOLEAN AML_DMX_StopFilter(int dev_no, int fhandle)
+/**\brief stop demux filter
+ * \param dmx device number
+ * \param dmx filter index
+ * \return DVB_SUCCESS On success, DVB_FAILURE on error.
+ */
+DVB_RESULT AML_DMX_StopFilter(int dev_no, int fhandle)
 {
-    BOOLEAN ret = TRUE;
+    DVB_RESULT ret = DVB_SUCCESS;
     dvb_dmx_t *dev = NULL;
     dvb_dmx_filter_t *filter = NULL;
 
-    if (!dmx_get_dev(dev_no, &dev))
+    if (dmx_get_dev(dev_no, &dev))
     {
-        DMX_DBG("wrong dmx device no %d", dev_no);
-        return FALSE;
+        DVB_DEBUG(1, "wrong dmx device no %d", dev_no);
+        return DVB_FAILURE;
     }
 
     pthread_mutex_lock(&dev->lock);
@@ -441,8 +480,8 @@ BOOLEAN AML_DMX_StopFilter(int dev_no, int fhandle)
     {
         if (ioctl(filter->fd, DMX_STOP, 0) < 0)
         {
-            DMX_DBG("dmx stop filter failed error:%s", strerror(errno));
-            ret = FALSE;
+            DVB_DEBUG(1, "dmx stop filter failed error:%s", strerror(errno));
+            ret = DVB_FAILURE;
         }
         else
         {
@@ -451,55 +490,27 @@ BOOLEAN AML_DMX_StopFilter(int dev_no, int fhandle)
     }
 
     pthread_mutex_unlock(&dev->lock);
-    //DMX_DBG("ret = %d", ret);
+    //DVB_DEBUG(1, "ret = %d", ret);
     return ret;
 }
 
-BOOLEAN AML_DMX_SetSource(int dev_no, AML_DMX_Source_t src)
+/**\brief set demux callback
+ * \param dmx device number
+ * \param dmx filter index
+ * \param dmx filter callback
+ * \param dmx filter callback param
+ * \return DVB_SUCCESS On success, DVB_FAILURE on error.
+ */
+DVB_RESULT AML_DMX_SetCallback(int dev_no, int fhandle, AML_DMX_DataCb cb, void *user_data)
 {
-	char buf[32];
-	char *cmd;
-
-	snprintf(buf, sizeof(buf), "/sys/class/stb/demux%d_source", dev_no);
-	switch(src)
-	{
-		case AML_DMX_SRC_TS0:
-			cmd = "ts0";
-		break;
-		case AML_DMX_SRC_TS1:
-			cmd = "ts1";
-		break;
-		case AML_DMX_SRC_TS2:
-			cmd = "ts2";
-		break;
-		case AML_DMX_SRC_TS3:
-			cmd = "ts3";
-		break;
-		case AML_DMX_SRC_HIU:
-			cmd = "hiu";
-		break;
-		case AML_DMX_SRC_HIU1:
-			cmd = "hiu1";
-		break;
-		default:
-			DMX_DBG("do not support demux source %d", src);
-		return FALSE;
-	}
-
-	return AML_DMX_FileEcho(buf, cmd);
-}
-
-
-BOOLEAN AML_DMX_SetCallback(int dev_no, int fhandle, AML_DMX_DataCb cb, void *user_data)
-{
-    BOOLEAN ret = TRUE;
+    DVB_RESULT ret = DVB_SUCCESS;
     dvb_dmx_t *dev = NULL;
     dvb_dmx_filter_t *filter = NULL;
 
-    if (!dmx_get_dev(dev_no, &dev))
+    if (dmx_get_dev(dev_no, &dev))
     {
-        DMX_DBG("wrong dmx device no %d", dev_no);
-        return FALSE;
+        DVB_DEBUG(1, "wrong dmx device no %d", dev_no);
+        return DVB_FAILURE;
     }
 
     pthread_mutex_lock(&dev->lock);
@@ -511,26 +522,30 @@ BOOLEAN AML_DMX_SetCallback(int dev_no, int fhandle, AML_DMX_DataCb cb, void *us
     }
     else
     {
-        ret = FALSE;
+        ret = DVB_FAILURE;
     }
 
     pthread_mutex_unlock(&dev->lock);
 
-    //DMX_DBG("ret = %d", ret);
+    //DVB_DEBUG(1, "ret = %d", ret);
     return ret;
 }
 
-BOOLEAN AML_DMX_Close(int dev_no)
+/**\brief dmx device uninit, destroy dmx thread
+ * \param dmx device number
+ * \return DVB_SUCCESS On success, DVB_FAILURE on error.
+ */
+DVB_RESULT AML_DMX_Close(int dev_no)
 {
     int i;
     int open_count = 0;
 	dvb_dmx_t *dev = NULL;
     dvb_dmx_filter_t *filter = NULL;
 
-    if (!dmx_get_dev(dev_no, &dev))
+    if (dmx_get_dev(dev_no, &dev))
     {
-        DMX_DBG("wrong dmx device no %d", dev_no);
-        return FALSE;
+        DVB_DEBUG(1, "wrong dmx device no %d", dev_no);
+        return DVB_FAILURE;
     }
 
     pthread_mutex_lock(&dev->lock);
@@ -560,32 +575,5 @@ BOOLEAN AML_DMX_Close(int dev_no)
     }
 
     pthread_mutex_unlock(&dev->lock);
-    return TRUE;
-}
-
-BOOLEAN AML_DMX_FileEcho(const char *name, const char *cmd)
-{
-	int fd, len, ret;
-
-	if (!name || !cmd)
-		return FALSE;
-
-	fd = open(name, O_WRONLY);
-	if (fd == -1)
-	{
-		DMX_DBG("cannot open file \"%s\"", name);
-		return FALSE;
-	}
-
-	len = strlen(cmd);
-	ret = write(fd, cmd, len);
-	if (ret != len)
-	{
-		DMX_DBG("write failed file:\"%s\" cmd:\"%s\" error:\"%s\"", name, cmd, strerror(errno));
-		close(fd);
-		return FALSE;
-	}
-
-	close(fd);
-	return TRUE;
+    return DVB_SUCCESS;
 }

@@ -131,9 +131,12 @@ static char u_path_g_b[256];
 #define AML_MACRO_END     } while(0)
 #define AM_TRY(_func) \
 	AML_MACRO_BEGIN\
-	int _ret;\
-	if ((_ret=(_func))!=0)\
+	DVB_RESULT _ret;\
+	if ((_ret=(_func))!=DVB_SUCCESS)\
+	{\
+	    printf("error line:%d ret:%d\n", __LINE__, _ret);\
 		return _ret;\
+	}\
 	AML_MACRO_END
 
 #if 0
@@ -567,13 +570,13 @@ int main(int argc, char **argv)
 	int i;
     int ret=0;
 
-	if(argc==1)
+	if (argc == 1)
 	{
 		printf(
 			"Usage:%s [src=] [dmx=] [timeout=] [pat=] [eit=] [bat=] [nit=] [pidx=] [parax=] [para=] [extx=] [bsx=]\n"
 			"  default   - src:0 dmx:0 parax:0\n"
 			"  x         - 0~4\n"
-			"  para      - d6->|111111|<-d1\n"
+			"  para      - d6->|111111|<-d1\n"π
 			"    d1 - 0:sec 1:pes (means enable for pat/eit/bat/nit)\n"
 			"    d2 - 1:crc : sec only\n"
 			"    d3 - 1:print\n"
@@ -585,22 +588,19 @@ int main(int argc, char **argv)
 			"    eg. 0x82:0xff,0x02:0xff\n"
 			"    up to 16 filter data:mask(s)\n"
 			"  bs        - buffersize\n"
-			"  path      - output path\n"
-			, argv[0]);
+			"  path      - output path\n",
+			argv[0]);
 		return 0;
 	}
 
-	for(i=1; i< argc; i++)
+	for (i = 1; i < argc; i++)
 		get_para(argv[i]);
 
 	AM_TRY(AML_DMX_Open(dmx));
-
-	AM_TRY(AML_DMX_SetSource(dmx, src));
+	AM_TRY(dvb_set_demux_source(dmx, src));
 	printf("TS SRC = %d\n", src);
 
 	get_section(dmx, timeout);
-	
 	AML_DMX_Close(dmx);
-	return ret;
+	return 0;
 }
-
