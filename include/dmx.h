@@ -156,6 +156,13 @@ struct dmx_sec_es_data {
 	__u32 data_end;
 };
 
+struct dmx_sec_ts_data {
+	__u32 buf_start;
+	__u32 buf_end;
+	__u32 data_start;
+	__u32 data_end;
+};
+
 enum dmx_audio_format {
 	AUDIO_UNKNOWN = 0,	/* unknown media */
 	AUDIO_MPX = 1,		/* mpeg audio MP2/MP3 */
@@ -175,6 +182,10 @@ struct dmx_mem_info {
 	__u32 wp_offset;
 };
 
+struct dmx_sec_mem {
+	__u32 buff;
+	__u32 size;
+};
 #endif
 
 /**
@@ -275,6 +286,9 @@ enum {
 #define DMX_GET_MEM_INFO        _IOR('o', 81, struct dmx_mem_info)
 #define DMX_SET_HW_SOURCE       _IO('o', 82)
 #define DMX_GET_HW_SOURCE       _IOR('o', 83, int)
+#define DMX_GET_FILTER_MEM_INFO _IOR('o', 84, struct dmx_filter_mem_info)
+/*just for dvr sec mem, please call before DMX_SET_PES_FILTER*/
+#define DMX_SET_SEC_MEM			_IOW('o', 85, struct dmx_sec_mem)
 #endif
 
 #endif /* _UAPI_DVBDMX_H_ */

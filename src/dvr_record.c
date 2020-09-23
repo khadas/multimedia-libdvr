@@ -35,6 +35,14 @@ typedef struct {
   uint32_t len;                                                         /**< Secure mode record buffer length*/
 } DVR_SecureBuffer_t;
 
+/**\brief DVR record new dmx secure mode buffer*/
+typedef struct {
+  uint32_t buf_start;                                                        /**< Secure mode record buffer address*/
+  uint32_t buf_end;                                                         /**< Secure mode record buffer length*/
+  uint32_t data_start;                                                        /**< Secure mode record buffer address*/
+  uint32_t data_end;                                                         /**< Secure mode record buffer length*/
+} DVR_NewDmxSecureBuffer_t;
+
 /**\brief DVR record context*/
 typedef struct {
   pthread_t                       thread;                               /**< DVR thread handle*/
@@ -54,6 +62,7 @@ typedef struct {
   int                             is_secure_mode;                       /**< Record session run in secure pipeline */
   size_t                          last_send_size;                       /**< Last send notify segment size */
   uint32_t                        block_size;                           /**< DVR record block size */
+  DVR_Bool_t                      is_new_dmx;                           /**< DVR is used new dmx driver */
 } DVR_RecordContext_t;
 
 static DVR_RecordContext_t record_ctx[MAX_DVR_RECORD_SESSION_COUNT] = {
@@ -171,6 +180,7 @@ void *record_thread(void *arg)
   time_t pre_time = 0;
   #define DVR_STORE_INFO_TIME (400)
   DVR_SecureBuffer_t secure_buf;
+  DVR_NewDmxSecureBuffer_t new_dmx_secure_buf;
 
   buf = (uint8_t *)malloc(block_size);
   if (!buf) {
@@ -203,11 +213,16 @@ void *record_thread(void *arg)
 
     /* data from dmx, normal dvr case */
     if (p_ctx->is_secure_mode) {
-      memset(&secure_buf, 0, sizeof(secure_buf));
-      len = record_device_read(p_ctx->dev_handle, &secure_buf, sizeof(secure_buf), 1000);
-    if (len != DVR_FAILURE) {
-      DVR_DEBUG(1, "%s, secure_buf:%#x, size:%#x", __func__, secure_buf.addr, secure_buf.len);
-    }
+      if (p_ctx->is_new_dmx) {
+          memset(&new_dmx_secure_buf, 0, sizeof(new_dmx_secure_buf));
+          len = record_device_read(p_ctx->dev_handle, &new_dmx_secure_buf, sizeof(new_dmx_secure_buf), 1000);
+      } else {
+          memset(&secure_buf, 0, sizeof(secure_buf));
+          len = record_device_read(p_ctx->dev_handle, &secure_buf, sizeof(secure_buf), 1000);
+      }
+      if (len != DVR_FAILURE) {
+        DVR_DEBUG(1, "%s, secure_buf:%#x, size:%#x", __func__, secure_buf.addr, secure_buf.len);
+      }
     } else {
       len = record_device_read(p_ctx->dev_handle, buf, block_size, 1000);
     }
@@ -231,8 +246,13 @@ void *record_thread(void *arg)
 
       if (p_ctx->is_secure_mode) {
         crypto_params.input_buffer.type = DVR_BUFFER_TYPE_SECURE;
-        crypto_params.input_buffer.addr = secure_buf.addr;
-        crypto_params.input_buffer.size = secure_buf.len;
+        if (p_ctx->is_new_dmx) {
+          crypto_params.input_buffer.addr = new_dmx_secure_buf.data_start;
+          crypto_params.input_buffer.size = new_dmx_secure_buf.data_end - new_dmx_secure_buf.data_start;
+        } else {
+          crypto_params.input_buffer.addr = secure_buf.addr;
+          crypto_params.input_buffer.size = secure_buf.len;
+        }
       } else {
         crypto_params.input_buffer.type = DVR_BUFFER_TYPE_NORMAL;
         crypto_params.input_buffer.addr = (size_t)buf;
@@ -246,8 +266,10 @@ void *record_thread(void *arg)
       p_ctx->enc_func(&crypto_params, p_ctx->enc_userdata);
       gettimeofday(&t3, NULL);
       /* Out buffer length may not equal in buffer length */
-      ret = segment_write(p_ctx->segment_handle, buf_out, crypto_params.output_size);
-      len = crypto_params.output_size;
+      if (crypto_params.output_size > 0) {
+        ret = segment_write(p_ctx->segment_handle, buf_out, crypto_params.output_size);
+        len = crypto_params.output_size;
+      }
     } else {
       gettimeofday(&t3, NULL);
       ret = segment_write(p_ctx->segment_handle, buf, len);
@@ -303,7 +325,7 @@ void *record_thread(void *arg)
 
     if (p_ctx->segment_info.duration - pre_time > DVR_STORE_INFO_TIME) {
       pre_time = p_ctx->segment_info.duration + DVR_STORE_INFO_TIME;
-    segment_store_info(p_ctx->segment_handle, &(p_ctx->segment_info));
+      segment_store_info(p_ctx->segment_handle, &(p_ctx->segment_info));
     }
     gettimeofday(&t6, NULL);
      /*Event notification*/
@@ -364,8 +386,9 @@ int dvr_record_open(DVR_RecordHandle_t *p_handle, DVR_RecordOpenParams_t *params
   p_ctx->event_notify_fn = params->event_fn;
   p_ctx->event_userdata = params->event_userdata;
   p_ctx->last_send_size = 0;
+  //check is new driver
+  p_ctx->is_new_dmx = dvr_check_dmx_isNew();
   /*Process crypto params, todo*/
-
   memset((void *)&dev_open_params, 0, sizeof(dev_open_params));
   if (params->data_from_memory) {
     /* data from memory, VOD case */
