@@ -68,24 +68,24 @@ int key_close(int fd)
 	s_fd = -1;
 	return 0;
 }
-int key_malloc(int fd, int is_iv)
+int key_alloc(int fd, int is_iv)
 {
 	int ret = 0;
-	struct key_malloc param;
+	struct key_alloc param;
 
 	if (fd == -1) {
-		printf("key malloc fd invalid\n");
+		printf("key alloc fd invalid\n");
 		return -1;
 	}
 	param.is_iv = is_iv;
 	param.key_index  = -1;
 
-	ret = ioctl(fd, KEY_MALLOC_SLOT, &param);
+	ret = ioctl(fd, KEY_ALLOC, &param);
 	if (ret == 0) {
-		printf("key_malloc index:%d\n", param.key_index);
+		printf("key_alloc index:%d\n", param.key_index);
 		return param.key_index;
 	} else {
-		printf("key_malloc key fail,fd:%d, is_iv:%d\n", fd, is_iv);
+		printf("key_alloc key fail,fd:%d, is_iv:%d\n", fd, is_iv);
 		printf("fail \"%s\" (%d:%s)", DEV_NAME, errno, strerror(errno));
 		return -1;
 	}
@@ -97,7 +97,7 @@ int key_config(int fd, int key_index, int key_userid, int key_algo)
 	struct key_config config;
 
 	if (fd == -1) {
-		printf("key malloc fd invalid\n");
+		printf("key config fd invalid\n");
 		return -1;
 	}
 	config.key_userid = key_userid;
@@ -124,7 +124,7 @@ int key_free(int fd, int key_index)
 		return -1;
 	}
 
-	ret = ioctl(fd, KEY_FREE_SLOT, key_index);
+	ret = ioctl(fd, KEY_FREE, key_index);
 	if (ret == 0) {
 		printf("key_free key_index:%d succees\n", key_index);
 		return 0;
