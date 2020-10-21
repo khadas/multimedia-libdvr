@@ -319,7 +319,8 @@ static int get_section(int dmx, int timeout)
 					if (u_odd_key[i]) {
 						memset(key, 0, sizeof(key));
 						get_key_from_para(u_odd_key[i],strlen(u_odd_key[i]), key, &key_len);
-						key_index[s_index] =  key_malloc(key_fd, key_userid, key_algo, 0);
+						key_index[s_index] = key_malloc(key_fd, 0);
+						key_config(key_fd, key_index[s_index], key_userid, key_algo);
 						key_set(key_fd, key_index[s_index], key, key_len);
 						ca_set_key(dmx, ca_index[i], CA_KEY_ODD_TYPE, key_index[s_index]);
 						s_index++;
@@ -327,7 +328,8 @@ static int get_section(int dmx, int timeout)
 					if (u_even_key[i]) {
 						memset(key, 0, sizeof(key));
 						get_key_from_para(u_even_key[i],strlen(u_even_key[i]), key, &key_len);
-						key_index[s_index] = key_malloc(key_fd, key_userid, key_algo, 0);
+						key_index[s_index] = key_malloc(key_fd, 0);
+						key_config(key_fd, key_index[s_index], key_userid, key_algo);
 						key_set(key_fd, key_index[s_index],key, key_len);
 						ca_set_key(dmx, ca_index[i], CA_KEY_EVEN_TYPE, key_index[s_index]);
 						s_index++;
@@ -335,7 +337,8 @@ static int get_section(int dmx, int timeout)
 					if (u_00_key[i]) {
 						memset(key, 0, sizeof(key));
 						get_key_from_para(u_00_key[i],strlen(u_00_key[i]), key, &key_len);
-						key_index[s_index] =  key_malloc(key_fd, key_userid, key_algo, 0);
+						key_index[s_index] = key_malloc(key_fd, 0);
+						key_config(key_fd, key_index[s_index], key_userid, key_algo);
 						key_set(key_fd, key_index[s_index], key, key_len);
 						ca_set_key(dmx, ca_index[i], CA_KEY_00_TYPE, key_index[s_index]);
 						s_index++;
@@ -343,7 +346,8 @@ static int get_section(int dmx, int timeout)
 					if (u_odd_iv[i]) {
 						memset(key, 0, sizeof(key));
 						get_key_from_para(u_odd_iv[i],strlen(u_odd_iv[i]), key, &key_len);
-						key_index[s_index] =  key_malloc(key_fd, key_userid, key_algo, 1);
+						key_index[s_index] =  key_malloc(key_fd, 1);
+						key_config(key_fd, key_index[s_index], key_userid, key_algo);
 						key_set(key_fd, key_index[s_index], key, key_len);
 						ca_set_key(dmx, ca_index[i], CA_KEY_ODD_IV_TYPE, key_index[s_index]);
 						s_index++;
@@ -351,7 +355,8 @@ static int get_section(int dmx, int timeout)
 					if (u_even_iv[i]) {
 						memset(key, 0, sizeof(key));
 						get_key_from_para(u_even_iv[i],strlen(u_even_iv[i]), key, &key_len);
-						key_index[s_index] =  key_malloc(key_fd, key_userid, key_algo, 1);
+						key_index[s_index] = key_malloc(key_fd, 1);
+						key_config(key_fd, key_index[s_index], key_userid, key_algo);
 						key_set(key_fd, key_index[s_index], key, key_len);
 						ca_set_key(dmx, ca_index[i], CA_KEY_EVEN_IV_TYPE, key_index[s_index]);
 						s_index++;
@@ -359,7 +364,8 @@ static int get_section(int dmx, int timeout)
 					if (u_00_iv[i]) {
 						memset(key, 0, sizeof(key));
 						get_key_from_para(u_00_iv[i],strlen(u_00_iv[i]), key, &key_len);
-						key_index[s_index] =  key_malloc(key_fd, key_userid, key_algo, 1);
+						key_index[s_index] =  key_malloc(key_fd, 1);
+						key_config(key_fd, key_index[s_index], key_userid, key_algo);
 						key_set(key_fd, key_index[s_index], key, key_len);
 						ca_set_key(dmx, ca_index[i], CA_KEY_00_IV_TYPE, key_index[s_index]);
 						s_index++;
