@@ -922,7 +922,8 @@ static void* _dvr_playback_thread(void *arg)
     DVR_PB_DG(1, "get segment error");
     return NULL;
   }
-  DVR_PB_DG(1, "player->vendor %d,player->has_video[%d] ", player->vendor, player->has_video);
+  DVR_PB_DG(1, "player->vendor %d,player->has_video[%d] bufsize[0x%x]whole block[%d]",
+  player->vendor, player->has_video, buf_len, b_writed_whole_block);
   //get play statue not here,send ok event when vendor is aml or only audio channel if not send ok event
   if (((player->first_trans_ok == DVR_FALSE) && (player->vendor == DVR_PLAYBACK_VENDOR_AML) ) ||
     (player->first_trans_ok == DVR_FALSE && player->has_video == DVR_FALSE)) {
@@ -1175,7 +1176,8 @@ static void* _dvr_playback_thread(void *arg)
       memcpy(crypto_params.location, player->cur_segment.location, strlen(player->cur_segment.location));
       crypto_params.segment_id = player->cur_segment.segment_id;
       crypto_params.offset = segment_tell_position(player->r_handle);
-
+      if ((crypto_params.offset % (256*1024)) != 0)
+        DVR_PB_DG(1, "offset is not 256k");
       crypto_params.input_buffer.type = DVR_BUFFER_TYPE_NORMAL;
       crypto_params.input_buffer.addr = (size_t)buf;
       crypto_params.input_buffer.size = real_read;

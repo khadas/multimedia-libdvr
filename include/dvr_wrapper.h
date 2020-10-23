@@ -160,6 +160,14 @@ int dvr_wrapper_update_record_pids (DVR_WrapperRecord_t rec, DVR_WrapperUpdatePi
 int dvr_wrapper_get_record_status (DVR_WrapperRecord_t rec, DVR_WrapperRecordStatus_t *status);
 
 /**
+ * check record mode is secure or free.
+ * \param rec The record handle.
+ * \retval 1:secure 0: free mode.
+ * \return secure or free.
+ */
+int dvr_wrapper_record_is_secure_mode(DVR_WrapperRecord_t rec);
+
+/**
  * Set record secure buffer.
  * \param rec The record handle.
  * \param p_secure_buf record p_secure_buf addr.

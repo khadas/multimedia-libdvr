@@ -221,7 +221,7 @@ void *record_thread(void *arg)
           len = record_device_read(p_ctx->dev_handle, &secure_buf, sizeof(secure_buf), 1000);
       }
       if (len != DVR_FAILURE) {
-        DVR_DEBUG(1, "%s, secure_buf:%#x, size:%#x", __func__, secure_buf.addr, secure_buf.len);
+        //DVR_DEBUG(1, "%s, secure_buf:%#x, size:%#x", __func__, secure_buf.addr, secure_buf.len);
       }
     } else {
       len = record_device_read(p_ctx->dev_handle, buf, block_size, 1000);
@@ -262,7 +262,18 @@ void *record_thread(void *arg)
       crypto_params.output_buffer.type = DVR_BUFFER_TYPE_NORMAL;
       crypto_params.output_buffer.addr = (size_t)buf_out;
       crypto_params.output_buffer.size = block_size + 188;
-
+      if ((p_ctx->segment_info.size % (256 * 1024))  != 0) {
+         DVR_DEBUG(1, "%s：%d,offset is not 256k error", __func__,__LINE__);
+      }
+      if (p_ctx->segment_info.size == 0) {
+        DVR_DEBUG(1, "%s：%d,offset is 0k success", __func__,__LINE__);
+      }
+      if (p_ctx->is_secure_mode && secure_buf.len != (256 * 1024)) {
+        DVR_DEBUG(1, "%s：%d,secure buf len is not 256k [0x%x] continue", __func__,__LINE__, secure_buf.len);
+        continue;
+      } else {
+        DVR_DEBUG(1, "%s：%d,read is 256k success", __func__,__LINE__);
+      }
       p_ctx->enc_func(&crypto_params, p_ctx->enc_userdata);
       gettimeofday(&t3, NULL);
       /* Out buffer length may not equal in buffer length */
@@ -280,7 +291,7 @@ void *record_thread(void *arg)
       //send write event
        if (p_ctx->event_notify_fn) {
          memset(&record_status, 0, sizeof(record_status));
-         DVR_DEBUG(1, "%s,send event write error", __func__,__LINE__);
+         DVR_DEBUG(1, "%s：%d,send event write error", __func__,__LINE__);
          p_ctx->event_notify_fn(DVR_RECORD_EVENT_WRITE_ERROR, &record_status, p_ctx->event_userdata);
         }
         DVR_DEBUG(1, "%s,write error %d", __func__,__LINE__);
@@ -343,8 +354,10 @@ void *record_thread(void *arg)
       record_status.info.size = p_ctx->segment_info.size;
       record_status.info.nb_packets = p_ctx->segment_info.size/188;
       p_ctx->event_notify_fn(DVR_RECORD_EVENT_STATUS, &record_status, p_ctx->event_userdata);
-      DVR_DEBUG(1, "%s notify record status, state:%d, id:%lld, duration:%ld ms, size:%zu",
-          __func__, record_status.state, record_status.info.id, record_status.info.duration, record_status.info.size);
+      DVR_DEBUG(1, "%s notify record status, state:%d, id:%lld, duration:%ld ms, size:%zu loc[%s]",
+          __func__, record_status.state,
+          record_status.info.id, record_status.info.duration,
+          record_status.info.size, p_ctx->location);
     }
     gettimeofday(&t7, NULL);
 #ifdef DEBUG_PERFORMANCE
@@ -469,7 +482,7 @@ int dvr_record_start_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t 
   }
   DVR_RETURN_IF_FALSE(p_ctx == &record_ctx[i]);
 
-  DVR_DEBUG(1, "%s , current state:%d", __func__, p_ctx->state);
+  DVR_DEBUG(1, "%s , current state:%d pids:%d params->location:%s", __func__, p_ctx->state, params->segment.nb_pids, params->location);
   DVR_RETURN_IF_FALSE(p_ctx->state != DVR_RECORD_STATE_STARTED);
   DVR_RETURN_IF_FALSE(p_ctx->state != DVR_RECORD_STATE_CLOSED);
   DVR_RETURN_IF_FALSE(params);
@@ -529,7 +542,7 @@ int dvr_record_next_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t *
   }
   DVR_RETURN_IF_FALSE(p_ctx == &record_ctx[i]);
 
-  DVR_DEBUG(1, "%s , current state:%d", __func__, p_ctx->state);
+  DVR_DEBUG(1, "%s , current state:%d p_ctx->location:%s", __func__, p_ctx->state, p_ctx->location);
   DVR_RETURN_IF_FALSE(p_ctx->state == DVR_RECORD_STATE_STARTED);
   //DVR_RETURN_IF_FALSE(p_ctx->state != DVR_RECORD_STATE_CLOSED);
   DVR_RETURN_IF_FALSE(params);
@@ -626,7 +639,7 @@ int dvr_record_stop_segment(DVR_RecordHandle_t handle, DVR_RecordSegmentInfo_t *
   }
   DVR_RETURN_IF_FALSE(p_ctx == &record_ctx[i]);
 
-  DVR_DEBUG(1, "%s , current state:%d", __func__, p_ctx->state);
+  DVR_DEBUG(1, "%s , current state:%d p_ctx->location:%s", __func__, p_ctx->state, p_ctx->location);
   DVR_RETURN_IF_FALSE(p_ctx->state != DVR_RECORD_STATE_STOPPED);
   DVR_RETURN_IF_FALSE(p_ctx->state != DVR_RECORD_STATE_CLOSED);
   DVR_RETURN_IF_FALSE(p_info);/*should support NULL*/
@@ -791,5 +804,25 @@ int dvr_record_set_secure_buffer(DVR_RecordHandle_t handle, uint8_t *p_secure_bu
   DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
 
   p_ctx->is_secure_mode = 1;
+  return ret;
+}
+
+int dvr_record_is_secure_mode(DVR_RecordHandle_t handle)
+{
+  DVR_RecordContext_t *p_ctx;
+  uint32_t i;
+  int ret;
+
+  p_ctx = (DVR_RecordContext_t *)handle;
+  for (i = 0; i < MAX_DVR_RECORD_SESSION_COUNT; i++) {
+    if (p_ctx == &record_ctx[i])
+      break;
+  }
+  DVR_RETURN_IF_FALSE(p_ctx == &record_ctx[i]);
+
+  if (p_ctx->is_secure_mode == 1)
+    ret = 1;
+  else
+    ret = 0;
   return ret;
 }

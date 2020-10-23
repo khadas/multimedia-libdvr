@@ -1092,6 +1092,22 @@ int dvr_wrapper_get_record_status(DVR_WrapperRecord_t rec, DVR_WrapperRecordStat
   return error;
 }
 
+int dvr_wrapper_record_is_secure_mode(DVR_WrapperRecord_t rec)
+{
+  DVR_WrapperCtx_t *ctx;
+  int error;
+
+  DVR_RETURN_IF_FALSE(rec);
+
+  ctx = ctx_getRecord((unsigned long)rec);
+  DVR_RETURN_IF_FALSE(ctx);
+
+  pthread_mutex_lock(&ctx->lock);
+  error = dvr_record_is_secure_mode(ctx->record.recorder);
+  pthread_mutex_unlock(&ctx->lock);
+  return error;
+}
+
 int dvr_wrapper_set_record_secure_buffer (DVR_WrapperRecord_t rec,  uint8_t *p_secure_buf, uint32_t len)
 {
   DVR_WrapperCtx_t *ctx;

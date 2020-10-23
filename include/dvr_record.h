@@ -203,6 +203,13 @@ int dvr_record_set_encrypt_callback(DVR_RecordHandle_t handle, DVR_CryptoFunctio
  */
 int dvr_record_set_secure_buffer(DVR_RecordHandle_t handle, uint8_t *p_secure_buf, uint32_t len);
 
+/**
+ * check record mode is secure or free.
+ * \param handle The record  session handle.
+ * \retval 1:secure 0: free mode.
+ * \return secure or free.
+ */
+int dvr_record_is_secure_mode(DVR_RecordHandle_t handle);
 #ifdef __cplusplus
 }
 #endif
