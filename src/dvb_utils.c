@@ -292,3 +292,19 @@ int dvb_get_demux_source(int dmx_idx, DVB_DemuxSource_t *src)
 
     return r;
 }
+//check is device platform is used new dmx
+int dvr_check_dmx_isNew(void)
+{
+    char node[32];
+    struct stat st;
+    int r;
+
+    snprintf(node, sizeof(node), "/sys/class/stb/demux%d_source", 0);
+
+    r = stat(node, &st);
+    if (r == -1)
+    {
+        return 1;
+    }
+    return 0;
+}

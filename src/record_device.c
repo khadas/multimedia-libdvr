@@ -10,11 +10,12 @@
 #include <poll.h>
 
 
-#include "dmx.h"
+#include <dmx.h>
 /*add for config define for linux dvb *.h*/
 #include "record_device.h"
 #include "dvr_types.h"
 #include "dvr_utils.h"
+#include "dvb_utils.h"
 
 #define MAX_RECORD_DEVICE_COUNT 2
 #define MAX_DEMUX_DEVICE_COUNT 3
@@ -445,6 +446,26 @@ int record_device_set_secure_buffer(Record_DeviceHandle_t handle, uint8_t *sec_b
     return DVR_FAILURE;
   }
 
+  if (dvr_check_dmx_isNew() == 1) {
+    //new dmx drive,used io to set sec buf.
+    int fd;
+    char node[32] = {0};
+    memset(node, 0, sizeof(node));
+    snprintf(node, sizeof(node), "/dev/dvb0.demux%d", i);
+    fd = open(node, O_RDONLY);
+    struct dmx_sec_mem sec_mem;
+    sec_mem.buff = (uint32_t)sec_buf;
+    sec_mem.size = len;
+    if (ioctl(fd, DMX_SET_SEC_MEM, sec_mem) == -1) {
+      DVR_DEBUG(1, "record_device_set_secure_buffer ioctl DMX_SET_SEC_MEM error:%d", errno);
+    }
+    else
+    {
+      DVR_DEBUG(1, "record_device_set_secure_buffer ioctl sucesss DMX_SET_SEC_MEM: dmx_idx:%d", i);
+    }
+    pthread_mutex_unlock(&p_ctx->lock);
+    return DVR_SUCCESS;
+  }
   memset(buf, 0, sizeof(buf));
   snprintf(buf, sizeof(buf), "/sys/class/stb/asyncfifo%d_secure_enable", i);
   dvr_file_echo(buf, "1");
@@ -462,3 +483,4 @@ int record_device_set_secure_buffer(Record_DeviceHandle_t handle, uint8_t *sec_b
   pthread_mutex_unlock(&p_ctx->lock);
   return DVR_SUCCESS;
 }
+

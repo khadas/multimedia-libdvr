@@ -47,6 +47,12 @@ int dvb_set_demux_source (int dmx_idx, DVB_DemuxSource_t src);
  * \retval -1 On error.
  */
 int dvb_get_demux_source (int dmx_idx, DVB_DemuxSource_t *src);
+/**
+ * check the demux's is new driver.
+ * \retval 0 On old.
+ * \retval 1 On new.
+ */
+int dvr_check_dmx_isNew(void);
 
 
 #ifdef __cplusplus
