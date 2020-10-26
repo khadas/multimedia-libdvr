@@ -456,7 +456,7 @@ int record_device_set_secure_buffer(Record_DeviceHandle_t handle, uint8_t *sec_b
     struct dmx_sec_mem sec_mem;
     sec_mem.buff = (uint32_t)sec_buf;
     sec_mem.size = len;
-    if (ioctl(fd, DMX_SET_SEC_MEM, sec_mem) == -1) {
+    if (ioctl(fd, DMX_SET_SEC_MEM, &sec_mem) == -1) {
       DVR_DEBUG(1, "record_device_set_secure_buffer ioctl DMX_SET_SEC_MEM error:%d", errno);
     }
     else
