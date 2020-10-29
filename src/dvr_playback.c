@@ -2303,7 +2303,8 @@ int dvr_playback_resume(DVR_PlaybackHandle_t handle) {
     DVR_PB_DG(1, "set start state cur cmd[%d]", player->cmd.cur_cmd);
     player->cmd.state = DVR_PLAYBACK_STATE_START;
     player->state = DVR_PLAYBACK_STATE_START;
-    _dvr_cmd(handle, player->cmd.cur_cmd);
+    if (player->cmd.speed.speed.speed == PLAYBACK_SPEED_X1)
+      _dvr_cmd(handle, player->cmd.cur_cmd);
   } else {
     if ((player->play_flag&DVR_PLAYBACK_STARTED_PAUSEDLIVE) == DVR_PLAYBACK_STARTED_PAUSEDLIVE)
     {

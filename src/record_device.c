@@ -62,7 +62,7 @@ int record_device_open(Record_DeviceHandle_t *p_handle, Record_DeviceOpenParams_
   int i;
   int dev_no;
   char dev_name[32];
-  //int ret;
+  int ret;
   char buf[64];
   char cmd[32];
   Record_DeviceContext_t *p_ctx;
@@ -101,6 +101,16 @@ int record_device_open(Record_DeviceHandle_t *p_handle, Record_DeviceOpenParams_
   DVR_DEBUG(1, "%s, %d fd: %d %p %d %p", __func__, __LINE__, p_ctx->fd, &(p_ctx->fd), p_ctx->evtfd, &(p_ctx->evtfd));
 
   /*Configure flush size*/
+  if (dvr_check_dmx_isNew() == 1) {
+    //set buf size
+    int buf_size = params->buf_size;
+    ret = ioctl(p_ctx->fd, DMX_SET_BUFFER_SIZE, buf_size);
+    if (ret == -1) {
+      DVR_DEBUG(1, "%s set dvr buf size failed\"%s\" (%s) buf_size:%d", __func__, dev_name, strerror(errno), buf_size);
+    } else {
+      DVR_DEBUG(1, "%s set dvr buf size success \"%s\" buf_size:%d", __func__, dev_name, buf_size);
+    }
+  }
   memset(buf, 0, sizeof(buf));
   snprintf(buf, sizeof(buf), "/sys/class/stb/asyncfifo%d_flush_size", dev_no);
   memset(cmd, 0, sizeof(cmd));

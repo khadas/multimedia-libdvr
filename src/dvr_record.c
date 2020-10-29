@@ -13,6 +13,7 @@
 //#define DEBUG_PERFORMANCE
 #define MAX_DVR_RECORD_SESSION_COUNT 2
 #define RECORD_BLOCK_SIZE (256 * 1024)
+#define NEW_DEVICE_RECORD_BLOCK_SIZE (30 * 1024 * 188)
 
 /**\brief DVR index file type*/
 typedef enum {
@@ -262,18 +263,7 @@ void *record_thread(void *arg)
       crypto_params.output_buffer.type = DVR_BUFFER_TYPE_NORMAL;
       crypto_params.output_buffer.addr = (size_t)buf_out;
       crypto_params.output_buffer.size = block_size + 188;
-      if ((p_ctx->segment_info.size % (256 * 1024))  != 0) {
-         DVR_DEBUG(1, "%s：%d,offset is not 256k error", __func__,__LINE__);
-      }
-      if (p_ctx->segment_info.size == 0) {
-        DVR_DEBUG(1, "%s：%d,offset is 0k success", __func__,__LINE__);
-      }
-      if (p_ctx->is_secure_mode && secure_buf.len != (256 * 1024)) {
-        DVR_DEBUG(1, "%s：%d,secure buf len is not 256k [0x%x] continue", __func__,__LINE__, secure_buf.len);
-        continue;
-      } else {
-        DVR_DEBUG(1, "%s：%d,read is 256k success", __func__,__LINE__);
-      }
+
       p_ctx->enc_func(&crypto_params, p_ctx->enc_userdata);
       gettimeofday(&t3, NULL);
       /* Out buffer length may not equal in buffer length */
@@ -411,7 +401,8 @@ int dvr_record_open(DVR_RecordHandle_t *p_handle, DVR_RecordOpenParams_t *params
     /* data from dmx, normal dvr case */
     dev_open_params.dmx_dev_id = params->dmx_dev_id;
     dev_open_params.buf_size = (params->flush_size > 0 ? params->flush_size : RECORD_BLOCK_SIZE);
-
+    if (p_ctx->is_new_dmx)
+      dev_open_params.buf_size = NEW_DEVICE_RECORD_BLOCK_SIZE;
     ret = record_device_open(&p_ctx->dev_handle, &dev_open_params);
     if (ret != DVR_SUCCESS) {
       DVR_DEBUG(1, "%s, open record devices failed", __func__);
@@ -420,11 +411,13 @@ int dvr_record_open(DVR_RecordHandle_t *p_handle, DVR_RecordOpenParams_t *params
   }
 
   p_ctx->block_size = (params->flush_size > 0 ? params->flush_size : RECORD_BLOCK_SIZE);
+  if (p_ctx->is_new_dmx)
+      p_ctx->block_size = NEW_DEVICE_RECORD_BLOCK_SIZE;
   p_ctx->enc_func = NULL;
   p_ctx->enc_userdata = NULL;
   p_ctx->is_secure_mode = 0;
   p_ctx->state = DVR_RECORD_STATE_OPENED;
-
+  DVR_DEBUG(1, "%s, block_size:%d is_new:%d", __func__, p_ctx->block_size, p_ctx->is_new_dmx);
   *p_handle = p_ctx;
   return DVR_SUCCESS;
 }
