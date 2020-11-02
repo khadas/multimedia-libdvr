@@ -1176,8 +1176,8 @@ static void* _dvr_playback_thread(void *arg)
       memcpy(crypto_params.location, player->cur_segment.location, strlen(player->cur_segment.location));
       crypto_params.segment_id = player->cur_segment.segment_id;
       crypto_params.offset = segment_tell_position(player->r_handle);
-      if ((crypto_params.offset % (256*1024)) != 0)
-        DVR_PB_DG(1, "offset is not 256k");
+      if ((crypto_params.offset % (player->openParams.block_size)) != 0)
+        DVR_PB_DG(1, "offset is not block_size %d", player->openParams.block_size);
       crypto_params.input_buffer.type = DVR_BUFFER_TYPE_NORMAL;
       crypto_params.input_buffer.addr = (size_t)buf;
       crypto_params.input_buffer.size = real_read;

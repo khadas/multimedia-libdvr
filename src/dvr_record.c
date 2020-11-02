@@ -270,6 +270,8 @@ void *record_thread(void *arg)
       if (crypto_params.output_size > 0) {
         ret = segment_write(p_ctx->segment_handle, buf_out, crypto_params.output_size);
         len = crypto_params.output_size;
+      } else {
+        len = 0;
       }
     } else {
       gettimeofday(&t3, NULL);
