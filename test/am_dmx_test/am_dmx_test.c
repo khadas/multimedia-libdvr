@@ -576,7 +576,7 @@ int main(int argc, char **argv)
 			"Usage:%s [src=] [dmx=] [timeout=] [pat=] [eit=] [bat=] [nit=] [pidx=] [parax=] [para=] [extx=] [bsx=]\n"
 			"  default   - src:0 dmx:0 parax:0\n"
 			"  x         - 0~4\n"
-			"  para      - d6->|111111|<-d1\n"π
+			"  para      - d6->|111111|<-d1\n"
 			"    d1 - 0:sec 1:pes (means enable for pat/eit/bat/nit)\n"
 			"    d2 - 1:crc : sec only\n"
 			"    d3 - 1:print\n"
