@@ -2455,7 +2455,7 @@ int dvr_playback_seek(DVR_PlaybackHandle_t handle, uint64_t segment_id, uint32_t
   //get segment info and audio video pid fmt ;
   _dvr_playback_get_playinfo(handle, segment_id, &vparams, &aparams, &adparams);
   //start audio and video
-  if (!VALID_PID(vparams.pid) && !VALID_PID(aparams.pid)) {
+  if (vparams.pid != 0x2fff && !VALID_PID(vparams.pid) && !VALID_PID(aparams.pid)) {
     //audio abnd video pis is all invalid, return error.
     DVR_PB_DG(0, "unlock seek start dvr play back start error, not found audio and video info");
     pthread_mutex_unlock(&player->lock);
@@ -3056,11 +3056,16 @@ int dvr_playback_get_status(DVR_PlaybackHandle_t handle,
 //
   DVR_Playback_t *player = (DVR_Playback_t *) handle;
 
+  _dvr_playback_get_status(handle, p_status, DVR_TRUE);
+
   if (player == NULL) {
     DVR_PB_DG(1, "player is NULL");
     return DVR_FAILURE;
   }
-  _dvr_playback_get_status(handle, p_status, DVR_TRUE);
+  pthread_mutex_lock(&player->lock);
+  if (!player->has_video && !player->has_audio)
+    p_status->time_cur = 0;
+  pthread_mutex_unlock(&player->lock);
 
   return DVR_SUCCESS;
 }
