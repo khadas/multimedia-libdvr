@@ -17,8 +17,8 @@
 #include "dvr_utils.h"
 #include "dvb_utils.h"
 
-#define MAX_RECORD_DEVICE_COUNT 2
-#define MAX_DEMUX_DEVICE_COUNT 3
+#define MAX_RECORD_DEVICE_COUNT 8
+#define MAX_DEMUX_DEVICE_COUNT 8
 
 /**\brief DVR record device state*/
 typedef enum {
