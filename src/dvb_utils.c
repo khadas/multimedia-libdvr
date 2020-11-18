@@ -150,6 +150,13 @@ int dvb_set_demux_source(int dmx_idx, DVB_DemuxSource_t src)
             val = "ts2";
             break;
         case DVB_DEMUX_SOURCE_DMA0:
+        case DVB_DEMUX_SOURCE_DMA1:
+        case DVB_DEMUX_SOURCE_DMA2:
+        case DVB_DEMUX_SOURCE_DMA3:
+        case DVB_DEMUX_SOURCE_DMA4:
+        case DVB_DEMUX_SOURCE_DMA5:
+        case DVB_DEMUX_SOURCE_DMA6:
+        case DVB_DEMUX_SOURCE_DMA7:
             val = "hiu";
             break;
         default:
