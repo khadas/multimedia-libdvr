@@ -1446,7 +1446,7 @@ int dvr_playback_start(DVR_PlaybackHandle_t handle, DVR_PlaybackFlag_t flag) {
   pthread_mutex_lock(&player->lock);
   _dvr_playback_get_playinfo(handle, segment_id, &vparams, &aparams, &adparams);
   //start audio and video
-  if (!VALID_PID(vparams.pid) && !VALID_PID(aparams.pid)) {
+  if (vparams.pid != 0x2fff && !VALID_PID(vparams.pid) && !VALID_PID(aparams.pid)) {
     //audio abnd video pis is all invalid, return error.
     DVR_PB_DG(0, "unlock dvr play back start error, not found audio and video info");
     pthread_mutex_unlock(&player->lock);
