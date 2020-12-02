@@ -70,9 +70,9 @@ int main(int argc, char **argv)
   start_param.segment.pids[0].pid = vpid;
   start_param.segment.pids[0].type = DVR_STREAM_TYPE_VIDEO;
   start_param.segment.pid_action[0] = DVR_RECORD_PID_CREATE;
-  start_param.segment.pids[0].pid = apid;
-  start_param.segment.pids[0].type = DVR_STREAM_TYPE_VIDEO;
-  start_param.segment.pid_action[0] = DVR_RECORD_PID_CREATE;
+  start_param.segment.pids[1].pid = apid;
+  start_param.segment.pids[1].type = DVR_STREAM_TYPE_VIDEO;
+  start_param.segment.pid_action[1] = DVR_RECORD_PID_CREATE;
   printf("rec---start \r\n");
   error = dvr_record_start_segment(recorder, &start_param);
   printf("rec---start end \r\n");

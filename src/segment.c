@@ -208,13 +208,14 @@ ssize_t segment_read(Segment_Handle_t handle, void *buf, size_t count)
 ssize_t segment_write(Segment_Handle_t handle, void *buf, size_t count)
 {
   Segment_Context_t *p_ctx;
-
+  ssize_t len;
   p_ctx = (Segment_Context_t *)handle;
   DVR_RETURN_IF_FALSE(p_ctx);
   DVR_RETURN_IF_FALSE(buf);
   DVR_RETURN_IF_FALSE(p_ctx->ts_fd != -1);
-
-  return write(p_ctx->ts_fd, buf, count);
+  len = write(p_ctx->ts_fd, buf, count);
+  fsync(p_ctx->ts_fd);
+  return len;
 }
 
 int segment_update_pts_force(Segment_Handle_t handle, uint64_t pts, loff_t offset)
