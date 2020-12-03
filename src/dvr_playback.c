@@ -2787,8 +2787,8 @@ static int _dvr_playback_replay(DVR_PlaybackHandle_t handle, DVR_Bool_t trick) {
     if (VALID_PID(aparams.pid)) {
       player->has_audio = DVR_TRUE;
       DVR_PB_DG(1, "start audio");
-      AmTsPlayer_startAudioDecoding(player->handle);
       AmTsPlayer_setAudioParams(player->handle, &aparams);
+      AmTsPlayer_startAudioDecoding(player->handle);
     }
     if (VALID_PID(adparams.pid)) {
       player->has_ad_audio = DVR_TRUE;
