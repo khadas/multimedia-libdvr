@@ -10,6 +10,7 @@ typedef void* Record_DeviceHandle_t;
 
 /**\brief DVR record open parameters*/
 typedef struct Record_DeviceOpenParams_t_s {
+  int         fend_dev_id;  /**< frontend device id*/
   int         dmx_dev_id;   /**< demux device id*/
   uint32_t    buf_size;     /**< dvr record buffer size*/
 } Record_DeviceOpenParams_t;

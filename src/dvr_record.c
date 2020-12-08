@@ -13,7 +13,7 @@
 //#define DEBUG_PERFORMANCE
 #define MAX_DVR_RECORD_SESSION_COUNT 2
 #define RECORD_BLOCK_SIZE (256 * 1024)
-#define NEW_DEVICE_RECORD_BLOCK_SIZE (30 * 1024 * 188)
+#define NEW_DEVICE_RECORD_BLOCK_SIZE (1024 * 188)
 
 /**\brief DVR index file type*/
 typedef enum {
@@ -205,7 +205,6 @@ void *record_thread(void *arg)
           __func__,__LINE__, record_status.state, p_ctx->segment_info.id);
   }
   DVR_DEBUG(1, "%s, secure_mode:%d, block_size:%d", __func__, p_ctx->is_secure_mode, block_size);
-
   clock_gettime(CLOCK_MONOTONIC, &start_ts);
 
   struct timeval t1, t2, t3, t4, t5, t6, t7;
@@ -215,8 +214,24 @@ void *record_thread(void *arg)
     /* data from dmx, normal dvr case */
     if (p_ctx->is_secure_mode) {
       if (p_ctx->is_new_dmx) {
+
+          /* We resolve the below invoke for dvbcore to be under safety status */
           memset(&new_dmx_secure_buf, 0, sizeof(new_dmx_secure_buf));
-          len = record_device_read(p_ctx->dev_handle, &new_dmx_secure_buf, sizeof(new_dmx_secure_buf), 1000);
+          len = record_device_read(p_ctx->dev_handle, &new_dmx_secure_buf, sizeof(new_dmx_secure_buf), 10);
+	  if (len == DVR_FAILURE) {
+	    DVR_DEBUG(1, "handle[%#x] ret:%d\n", p_ctx->dev_handle, ret);
+	    /*For the second recording, poll always failed which we should check
+	     * dvbcore further. For now, Just ignore the fack poll fail, I think
+	     * it won't influce anything. But we need adjust the poll timeout
+	     * from 1000ms to 10ms.
+	     */
+	    //continue;
+	  }
+
+	  /* Read data from secure demux TA */
+	  len = record_device_read_ext(p_ctx->dev_handle, &secure_buf.addr,
+				       &secure_buf.len);
+
       } else {
           memset(&secure_buf, 0, sizeof(secure_buf));
           len = record_device_read(p_ctx->dev_handle, &secure_buf, sizeof(secure_buf), 1000);
@@ -247,10 +262,13 @@ void *record_thread(void *arg)
 
       if (p_ctx->is_secure_mode) {
         crypto_params.input_buffer.type = DVR_BUFFER_TYPE_SECURE;
+#if 0
         if (p_ctx->is_new_dmx) {
           crypto_params.input_buffer.addr = new_dmx_secure_buf.data_start;
           crypto_params.input_buffer.size = new_dmx_secure_buf.data_end - new_dmx_secure_buf.data_start;
-        } else {
+        } else
+#endif
+	{
           crypto_params.input_buffer.addr = secure_buf.addr;
           crypto_params.input_buffer.size = secure_buf.len;
         }
@@ -414,7 +432,7 @@ int dvr_record_open(DVR_RecordHandle_t *p_handle, DVR_RecordOpenParams_t *params
 
   p_ctx->block_size = (params->flush_size > 0 ? params->flush_size : RECORD_BLOCK_SIZE);
   if (p_ctx->is_new_dmx)
-      p_ctx->block_size = NEW_DEVICE_RECORD_BLOCK_SIZE;
+      p_ctx->block_size = NEW_DEVICE_RECORD_BLOCK_SIZE * 30;
   p_ctx->enc_func = NULL;
   p_ctx->enc_userdata = NULL;
   p_ctx->is_secure_mode = 0;

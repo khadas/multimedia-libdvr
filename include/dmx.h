@@ -109,6 +109,11 @@ struct dmx_sct_filter_params
 #define DMX_KERNEL_CLIENT   0x8000
 #ifdef CONFIG_AMLOGIC_DVB_COMPAT
 #define DMX_USE_SWFILTER    0x100
+
+/*bit 8~15 for mem sec_level*/
+#define DMX_MEM_SEC_LEVEL1   (1 << 10)
+#define DMX_MEM_SEC_LEVEL2   (1 << 11)
+#define DMX_MEM_SEC_LEVEL3   (1 << 12)
 #endif
 };
 
@@ -180,6 +185,7 @@ struct dmx_mem_info {
 	__u32 dvb_core_total_size;
 	__u32 dvb_core_free_size;
 	__u32 wp_offset;
+	__u64 newest_pts;
 };
 
 struct dmx_sec_mem {
@@ -268,6 +274,30 @@ enum {
 	FRONTEND_TS6,
 	FRONTEND_TS7,
 };
+
+/*define filter mem_info type*/
+enum {
+	DMX_VIDEO_TYPE = 0,
+	DMX_AUDIO_TYPE,
+	DMX_SUBTITLE_TYPE,
+	DMX_TELETEXT_TYPE,
+	DMX_SECTION_TYPE,
+};
+
+struct filter_mem_info {
+	__u32 type;
+	__u32 pid;
+	struct dmx_mem_info	filter_info;
+};
+
+struct dmx_filter_mem_info {
+	__u32 filter_num;
+	struct filter_mem_info info[40];
+};
+
+struct dvr_mem_info {
+	__u32 wp_offset;
+};
 #endif
 
 #define DMX_START                _IO('o', 41)
@@ -289,6 +319,7 @@ enum {
 #define DMX_GET_FILTER_MEM_INFO _IOR('o', 84, struct dmx_filter_mem_info)
 /*just for dvr sec mem, please call before DMX_SET_PES_FILTER*/
 #define DMX_SET_SEC_MEM			_IOW('o', 85, struct dmx_sec_mem)
+#define DMX_GET_DVR_MEM			_IOR('o', 86, struct dvr_mem_info)
 #endif
 
 #endif /* _UAPI_DVBDMX_H_ */

@@ -877,6 +877,7 @@ int dvr_wrapper_open_record (DVR_WrapperRecord_t *rec, DVR_WrapperRecordOpenPara
   wrapper_requestThreadFor(ctx);
 
   memset(&open_param, 0, sizeof(DVR_RecordOpenParams_t));
+  open_param.fend_dev_id = params->fend_dev_id;
   open_param.dmx_dev_id = params->dmx_dev_id;
   open_param.data_from_memory = 0;
   open_param.flags = params->flags;

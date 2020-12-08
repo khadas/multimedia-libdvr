@@ -69,6 +69,7 @@ typedef struct {
 
 /**Record wrapper open parameters.*/
 typedef struct {
+  int                   fend_dev_id;                     /**< Frontend device's index.*/
   int                   dmx_dev_id;                      /**< Demux device's index.*/
   char                  location[DVR_MAX_LOCATION_SIZE]; /**< Location of the record file.*/
   DVR_Bool_t            is_timeshift;                    /**< The record file is used by timeshift.*/

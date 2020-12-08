@@ -80,6 +80,7 @@ typedef DVR_Result_t (*DVR_RecordEventFunction_t) (DVR_RecordEvent_t event, void
 
 /**\brief DVR record open parameters*/
 typedef struct {
+  int                         fend_dev_id;        /**< Frontend device id */
   int                         dmx_dev_id;         /**< Demux device id*/
   int                         data_from_memory;   /**< Indicate record data from demux or memory*/
   DVR_RecordFlag_t            flags;              /**< DVR record flag*/
