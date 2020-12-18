@@ -409,7 +409,7 @@ static int _dvr_playback_sent_playtime(DVR_PlaybackHandle_t handle, DVR_Bool_t i
 {
   DVR_Playback_t *player = (DVR_Playback_t *) handle;
 
-  if (1) {
+  if (0) {
     return DVR_SUCCESS;
   }
   if (player == NULL) {
@@ -418,11 +418,11 @@ static int _dvr_playback_sent_playtime(DVR_PlaybackHandle_t handle, DVR_Bool_t i
   }
 
   if (player->send_time ==0) {
-    player->send_time = _dvr_time_getClock() + 1000;
-  } else if (player->send_time > _dvr_time_getClock()) {
+    player->send_time = _dvr_time_getClock() + 500;
+  } else if (player->send_time >= _dvr_time_getClock()) {
     return DVR_SUCCESS;
   }
-  player->send_time = _dvr_time_getClock() + 1000;
+  player->send_time = _dvr_time_getClock() + 500;
   DVR_Play_Notify_t notify;
   memset(&notify, 0 , sizeof(DVR_Play_Notify_t));
   notify.event = DVR_PLAYBACK_EVENT_NOTIFY_PLAYTIME;
@@ -2668,6 +2668,8 @@ static int _dvr_playback_fffb_replay(DVR_PlaybackHandle_t handle) {
   if (VALID_PID(vparams.pid)) {
     player->has_video = DVR_TRUE;
     DVR_PB_DG(1, "fffb start video");
+    //DVR_PB_DG(1, "fffb start video and save last frame");
+    //AmTsPlayer_setVideoBlackOut(player->handle, 0);
     AmTsPlayer_setTrickMode(player->handle, AV_VIDEO_TRICK_MODE_NONE);
     AmTsPlayer_setTrickMode(player->handle, AV_VIDEO_TRICK_MODE_PAUSE_NEXT);
     AmTsPlayer_setVideoParams(player->handle, &vparams);
