@@ -1475,6 +1475,7 @@ int dvr_playback_start(DVR_PlaybackHandle_t handle, DVR_PlaybackFlag_t flag) {
         DVR_PB_DG(1, "set trick mode ---none");
         AmTsPlayer_setTrickMode(player->handle, AV_VIDEO_TRICK_MODE_NONE);
       }
+      AmTsPlayer_showVideo(player->handle);
       AmTsPlayer_setVideoParams(player->handle,  &vparams);
       AmTsPlayer_startVideoDecoding(player->handle);
     }
@@ -1923,7 +1924,7 @@ int dvr_playback_stop(DVR_PlaybackHandle_t handle, DVR_Bool_t clear) {
   }
   if (player->has_video) {
     player->has_video = DVR_FALSE;
-    AmTsPlayer_showVideo(player->handle);
+    AmTsPlayer_hideVideo(player->handle);
     AmTsPlayer_stopVideoDecoding(player->handle);
   }
   if (player->has_audio) {
