@@ -186,7 +186,7 @@ int dvr_segment_get_info(const char *location, uint64_t segment_id, DVR_RecordSe
   }
   //DVR_DEBUG(1, "%s, id:%lld, nb_pids:%d, duration:%ld ms, size:%zu, nb_packets:%d",
     //  __func__, p_info->id, p_info->nb_pids, p_info->duration, p_info->size, p_info->nb_packets);
-
+  DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
   ret = segment_close(segment_handle);
   DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
 

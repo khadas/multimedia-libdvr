@@ -861,7 +861,8 @@ int dvr_wrapper_open_record (DVR_WrapperRecord_t *rec, DVR_WrapperRecordOpenPara
 
   pthread_mutex_lock(&ctx->lock);
 
-  DVR_WRAPPER_DEBUG(1, "open record(dmx:%d) ...\n", params->dmx_dev_id);
+  DVR_WRAPPER_DEBUG(1, "open record(dmx:%d) .istf(%d)..time (%ld)ms max size(%lld)byte seg size(%lld)byte\n",
+  params->dmx_dev_id, params->is_timeshift, params->max_time, params->max_size, params->segment_size);
 
   ctx_reset(ctx);
 
