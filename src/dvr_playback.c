@@ -1636,11 +1636,13 @@ int dvr_playback_update_segment_flags(DVR_PlaybackHandle_t handle,
       if ((segment->flags & DVR_PLAYBACK_SEGMENT_DISPLAYABLE) == DVR_PLAYBACK_SEGMENT_DISPLAYABLE
         && (flags & DVR_PLAYBACK_SEGMENT_DISPLAYABLE) == 0) {
         //disable display, mute
+        DVR_PB_DG(1, "mute av");
         AmTsPlayer_hideVideo(player->handle);
         AmTsPlayer_setAudioMute(player->handle, 1, 1);
       } else if ((segment->flags & DVR_PLAYBACK_SEGMENT_DISPLAYABLE) == 0 &&
           (flags & DVR_PLAYBACK_SEGMENT_DISPLAYABLE) == DVR_PLAYBACK_SEGMENT_DISPLAYABLE) {
         //enable display, unmute
+        DVR_PB_DG(1, "unmute av");
         AmTsPlayer_showVideo(player->handle);
         AmTsPlayer_setAudioMute(player->handle, 0, 0);
       } else {
@@ -1924,7 +1926,7 @@ int dvr_playback_stop(DVR_PlaybackHandle_t handle, DVR_Bool_t clear) {
   }
   if (player->has_video) {
     player->has_video = DVR_FALSE;
-    AmTsPlayer_hideVideo(player->handle);
+    //AmTsPlayer_hideVideo(player->handle);
     AmTsPlayer_stopVideoDecoding(player->handle);
   }
   if (player->has_audio) {
