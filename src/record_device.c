@@ -8,7 +8,7 @@
 #include <string.h>
 #include <errno.h>
 #include <poll.h>
-
+#include <dlfcn.h>
 
 #include <dmx.h>
 /*add for config define for linux dvb *.h*/
@@ -16,7 +16,6 @@
 #include "dvr_types.h"
 #include "dvr_utils.h"
 #include "dvb_utils.h"
-#include "secdmx_client.h"
 
 #define MAX_RECORD_DEVICE_COUNT 8
 #define MAX_DEMUX_DEVICE_COUNT 8
@@ -64,11 +63,54 @@ static Record_DeviceContext_t record_ctx[MAX_RECORD_DEVICE_COUNT] = {
     .lock = PTHREAD_MUTEX_INITIALIZER
   }
 };
+/*define sec dmx function api ptr*/
+static int SECDMX_API_INIT = 0;
+int (*SECDMX_Init_Ptr)(void);
+int (*SECDMX_Deinit_Ptr)(void);
+int (*SECDMX_AllocateDVRBuffer_Ptr)(int sid, size_t size, size_t *addr);
+int (*SECDMX_FreeDVRBuffer_Ptr)(int sid);
+int (*SECDMX_AddOutputBuffer_Ptr)(int sid, size_t addr, size_t size, size_t *handle);
+int (*SECDMX_AddDVRPids_Ptr)(size_t handle, uint16_t *pids, int pid_num);
+int (*SECDMX_RemoveOutputBuffer_Ptr)(size_t handle);
+int (*SECDMX_GetOutputBufferStatus_Ptr)(size_t handle, size_t *start_addr, size_t *len);
+int (*SECDMX_ProcessData_Ptr)(int sid, size_t wp);
+
+int load_secdmx_api(void)
+{
+  if (SECDMX_API_INIT == 1) {
+    return 0;
+  }
+  SECDMX_API_INIT = 1;
+  void* handle = NULL;
+  handle = dlopen("libdmx_client_sys.so", RTLD_NOW);//RTLD_NOW  RTLD_LAZY
+
+  if (handle == NULL) {
+    DVR_DEBUG(0, "load_secdmx_api load libdmx_client_sys error[%s] no:%d", strerror(errno), errno);
+    handle = dlopen("libdmx_client.so", RTLD_NOW);//RTLD_NOW  RTLD_LAZY
+  }
+
+  if (handle == NULL) {
+    DVR_DEBUG(0, "load_secdmx_api load libdmx_client error[%s] no:%d", strerror(errno), errno);
+    return 0;
+  }
+
+  SECDMX_Init_Ptr = dlsym(handle, "SECDMX_Init");
+  SECDMX_Deinit_Ptr = dlsym(handle, "SECDMX_Deinit");
+  SECDMX_AllocateDVRBuffer_Ptr = dlsym(handle, "SECDMX_AllocateDVRBuffer");
+  SECDMX_FreeDVRBuffer_Ptr = dlsym(handle, "SECDMX_FreeDVRBuffer");
+  SECDMX_AddOutputBuffer_Ptr = dlsym(handle, "SECDMX_AddOutputBuffer");
+  SECDMX_AddDVRPids_Ptr = dlsym(handle, "SECDMX_AddDVRPids");
+  SECDMX_RemoveOutputBuffer_Ptr = dlsym(handle, "SECDMX_RemoveOutputBuffer");
+  SECDMX_GetOutputBufferStatus_Ptr = dlsym(handle, "SECDMX_GetOutputBufferStatus");
+  SECDMX_ProcessData_Ptr = dlsym(handle, "SECDMX_ProcessData");
+
+  return 0;
+}
 
 int add_dvr_pids(Record_DeviceContext_t *p_ctx)
 {
   int i;
-  int result;
+  int result = DVR_SUCCESS;
   int cnt = 0;
   uint16_t pids[DVR_MAX_RECORD_PIDS_COUNT];
 
@@ -80,10 +122,11 @@ int add_dvr_pids(Record_DeviceContext_t *p_ctx)
     for (i = 0; i < DVR_MAX_RECORD_PIDS_COUNT; i++) {
       if (p_ctx->streams[i].pid != DVR_INVALID_PID) {
         pids[cnt++] = p_ctx->streams[i].pid;
-	DVR_DEBUG(0, "dvr pid:%#x, cnt:%#x", pids[cnt-1], cnt);
+        DVR_DEBUG(0, "dvr pid:%#x, cnt:%#x", pids[cnt-1], cnt);
       }
     }
-    result = SECDMX_AddDVRPids(p_ctx->output_handle, pids, cnt);
+    if (SECDMX_AddDVRPids_Ptr != NULL)
+      result = SECDMX_AddDVRPids_Ptr(p_ctx->output_handle, pids, cnt);
     DVR_RETURN_IF_FALSE(result == DVR_SUCCESS);
   }
 
@@ -132,13 +175,15 @@ int record_device_open(Record_DeviceHandle_t *p_handle, Record_DeviceOpenParams_
 
   p_ctx->evtfd = eventfd(0, 0);
   DVR_DEBUG(1, "%s, %d fd: %d %p %d %p", __func__, __LINE__, p_ctx->fd, &(p_ctx->fd), p_ctx->evtfd, &(p_ctx->evtfd));
-
+  load_secdmx_api();
   /*Configure flush size*/
   if (dvr_check_dmx_isNew() == 1) {
     /* initialize secure demux client */
-    ret = SECDMX_Init();
-    if (ret != DVR_SUCCESS) {
-      DVR_DEBUG(1, "%s secure demux init failed:%d", __func__, ret);
+    if (SECDMX_Init_Ptr != NULL) {
+      ret = SECDMX_Init_Ptr();
+      if (ret != DVR_SUCCESS) {
+        DVR_DEBUG(1, "%s secure demux init failed:%d", __func__, ret);
+      }
     }
 
     //set buf size
@@ -212,11 +257,13 @@ int record_device_close(Record_DeviceHandle_t handle)
   close(p_ctx->evtfd);
   if (dvr_check_dmx_isNew()) {
     if (p_ctx->output_handle) {
-      SECDMX_RemoveOutputBuffer(p_ctx->output_handle);
+      if (SECDMX_RemoveOutputBuffer_Ptr != NULL)
+        SECDMX_RemoveOutputBuffer_Ptr(p_ctx->output_handle);
       p_ctx->output_handle = (size_t)NULL;
     }
     if (p_ctx->dvr_buf) {
-      SECDMX_FreeDVRBuffer(p_ctx->fend_dev_id);
+      if (SECDMX_FreeDVRBuffer_Ptr != NULL)
+        SECDMX_FreeDVRBuffer_Ptr(p_ctx->fend_dev_id);
       p_ctx->dvr_buf = (size_t)NULL;
     }
   }
@@ -520,7 +567,8 @@ ssize_t record_device_read_ext(Record_DeviceHandle_t handle, size_t *buf, size_t
   result = ioctl(p_ctx->fd, DMX_GET_DVR_MEM, &info);
   //DVR_DEBUG(1, "sid[%d] fd[%d] wp:%#x\n", sid, p_ctx->fd, info.wp_offset);
   if (result == DVR_SUCCESS) {
-    result = SECDMX_ProcessData(sid, info.wp_offset);
+    if (SECDMX_ProcessData_Ptr != NULL)
+      result = SECDMX_ProcessData_Ptr(sid, info.wp_offset);
   }
   if (result) {
     DVR_DEBUG(1, "result:%#x\n", result);
@@ -528,8 +576,8 @@ ssize_t record_device_read_ext(Record_DeviceHandle_t handle, size_t *buf, size_t
   pthread_mutex_unlock(&secdmx_lock[sid]);
 
   DVR_RETURN_IF_FALSE_WITH_UNLOCK(result == DVR_SUCCESS, &p_ctx->lock);
-
-  result = SECDMX_GetOutputBufferStatus(p_ctx->output_handle, buf, len);
+  if (SECDMX_GetOutputBufferStatus_Ptr != NULL)
+    result = SECDMX_GetOutputBufferStatus_Ptr(p_ctx->output_handle, buf, len);
   //DVR_DEBUG(1, "addr:%#x, len:%#x\n", *buf, *len);
   DVR_RETURN_IF_FALSE_WITH_UNLOCK(result == DVR_SUCCESS, &p_ctx->lock);
 
@@ -575,8 +623,8 @@ int record_device_set_secure_buffer(Record_DeviceHandle_t handle, uint8_t *sec_b
     memset(node, 0, sizeof(node));
     snprintf(node, sizeof(node), "/dev/dvb0.demux%d", i);
     fd = open(node, O_RDONLY);
-
-    result = SECDMX_AllocateDVRBuffer(sid, len, &dvr_buf);
+    if (SECDMX_AllocateDVRBuffer_Ptr != NULL)
+      result = SECDMX_AllocateDVRBuffer_Ptr(sid, len, &dvr_buf);
     DVR_RETURN_IF_FALSE_WITH_UNLOCK(result == DVR_SUCCESS, &p_ctx->lock);
     p_ctx->dvr_buf = dvr_buf;
 
@@ -590,14 +638,15 @@ int record_device_set_secure_buffer(Record_DeviceHandle_t handle, uint8_t *sec_b
     {
       DVR_DEBUG(1, "record_device_set_secure_buffer ioctl sucesss DMX_SET_SEC_MEM: dmx_idx:%d", i);
     }
-
-    result = SECDMX_AddOutputBuffer(sid, (size_t)sec_buf, len, &op_handle);
+    if (SECDMX_AddOutputBuffer_Ptr != NULL)
+      result = SECDMX_AddOutputBuffer_Ptr(sid, (size_t)sec_buf, len, &op_handle);
     DVR_RETURN_IF_FALSE_WITH_UNLOCK(result == DVR_SUCCESS, &p_ctx->lock);
     p_ctx->output_handle = op_handle;
 
     pthread_mutex_unlock(&p_ctx->lock);
     return DVR_SUCCESS;
   }
+
   memset(buf, 0, sizeof(buf));
   snprintf(buf, sizeof(buf), "/sys/class/stb/asyncfifo%d_secure_enable", i);
   dvr_file_echo(buf, "1");

@@ -174,7 +174,9 @@ typedef enum {
   DVR_PLAYBACK_EVENT_REACHED_BEGIN     ,            /**< reached begin*/
   DVR_PLAYBACK_EVENT_REACHED_END,                    /**< reached end*/
   DVR_PLAYBACK_EVENT_NOTIFY_PLAYTIME,               /**< notify play cur segmeng time ms*/
-  DVR_PLAYBACK_EVENT_FIRST_FRAME                    /**< first frame*/
+  DVR_PLAYBACK_EVENT_FIRST_FRAME,                   /**< first frame*/
+  DVR_PLAYBACK_EVENT_NODATA,                        /**< no data*/
+  DVR_PLAYBACK_EVENT_DATARESUME                     /**< data resume*/
 } DVR_PlaybackEvent_t;
 
 /**\brief DVR playback event notify function*/
@@ -212,6 +214,7 @@ typedef struct
   DVR_PlaybackEventFunction_t  event_fn;           /**< playback event callback function*/
   void                        *event_userdata;    /**< event userdata*/
   DVR_PlaybackVendor_t         vendor;    /**< vendor type,default is 0*/
+  DVR_Bool_t                 is_notify_time;  /**< notify play time info true or not*/
 } DVR_PlaybackOpenParams_t;
 
 /**\brief playback play state*/
@@ -308,6 +311,7 @@ typedef struct
   int                        ts_cache_len;
   DVR_Bool_t                 first_trans_ok;
   DVR_PlaybackVendor_t       vendor;
+  int                        noData;
 } DVR_Playback_t;
 /**\endcond*/
 

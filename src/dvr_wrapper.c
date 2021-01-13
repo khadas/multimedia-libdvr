@@ -468,13 +468,14 @@ static void *wrapper_task(void *arg)
   while (tctx->running) {
     {
       int ret;
+
       ret = wrapper_threadWait(tctx);
     }
 
     while ((evt = ((tctx->type == W_REC)? ctx_getRecordEvent() : ctx_getPlaybackEvent()))) {
       DVR_WrapperCtx_t *ctx = (evt->type == W_REC)?
         ctx_getRecord(evt->sn) : ctx_getPlayback(evt->sn);
-
+      DVR_WRAPPER_DEBUG(1, "start name(%s) sn(%d) runing(%d) type(%d)event end...\n", tctx->name, ctx->sn, tctx->running, tctx->type);
       if (tctx->running) {
         /*
           continue not break,
@@ -494,9 +495,11 @@ static void *wrapper_task(void *arg)
 processed:
       ctx_freeEvent(evt);
     }
+    DVR_WRAPPER_DEBUG(1, "start name(%d) runing(%d) type(%d)event con...\n", tctx->name, tctx->running, tctx->type);
   }
 
   pthread_mutex_unlock(&tctx->lock);
+  DVR_WRAPPER_DEBUG(1, "end name(%s) runing(%d) type(%d)event end...\n", tctx->name, tctx->running, tctx->type);
   return NULL;
 }
 
@@ -1182,7 +1185,7 @@ int dvr_wrapper_open_playback (DVR_WrapperPlayback_t *playback, DVR_WrapperPlayb
   open_param.event_fn = wrapper_playback_event_handler;
   open_param.event_userdata = (void*)ctx->sn;
   /*open_param.has_pids = 0;*/
-
+  open_param.is_notify_time = params->is_notify_time;
   open_param.player_handle = (am_tsplayer_handle)params->playback_handle;
   open_param.vendor = DVR_PLAYBACK_VENDOR_AML;
 
@@ -2010,7 +2013,10 @@ static int process_handlePlaybackEvent(DVR_WrapperEventCtx_t *evt, DVR_WrapperCt
     evt->playback.status.play_status.time_end);
 
   /*evt PLAYTIME will break the last logic, do not save*/
-  if (evt->playback.event != DVR_PLAYBACK_EVENT_NOTIFY_PLAYTIME)
+  if (evt->playback.event != DVR_PLAYBACK_EVENT_NOTIFY_PLAYTIME
+      && evt->playback.event != DVR_PLAYBACK_EVENT_NODATA
+      && evt->playback.event != DVR_PLAYBACK_EVENT_DATARESUME
+      )
     ctx->playback.last_event = evt->playback.event;
 
   switch (evt->playback.event)
@@ -2021,6 +2027,8 @@ static int process_handlePlaybackEvent(DVR_WrapperEventCtx_t *evt, DVR_WrapperCt
     case DVR_PLAYBACK_EVENT_NOTIFY_PLAYTIME:
     case DVR_PLAYBACK_EVENT_ERROR:
     case DVR_PLAYBACK_EVENT_REACHED_BEGIN:
+    case DVR_PLAYBACK_EVENT_NODATA:
+    case DVR_PLAYBACK_EVENT_DATARESUME:
     {
       DVR_WrapperPlaybackStatus_t status;
 
