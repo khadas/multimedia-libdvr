@@ -1264,10 +1264,27 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
   DVR_RecordSegmentInfo_t seg_info_1st;
   int got_1st_seg;
   DVR_WrapperCtx_t *ctx_record;/*for timeshift*/
-
+  DVR_Bool_t is_timeshift = DVR_FALSE;
 
   DVR_RETURN_IF_FALSE(playback);
   DVR_RETURN_IF_FALSE(p_pids);
+
+  ctx_record = NULL;
+
+  /*lock the recorder to avoid changing the recording segments*/
+  ctx_record = ctx_getRecord(sn_timeshift_record);
+
+  if (ctx_record) {
+    pthread_mutex_lock(&ctx_record->lock);
+    if (!ctx_valid(ctx_record)
+      || ctx_record->sn != sn_timeshift_record) {
+      DVR_WRAPPER_DEBUG(1, "timeshift, record is not for timeshifting, FATAL error found\n");
+      pthread_mutex_unlock(&ctx_record->lock);
+      is_timeshift  = DVR_FALSE;
+    } else {
+      is_timeshift  = DVR_TRUE;
+    }
+  }
 
   ctx = ctx_getPlayback((unsigned long)playback);
   DVR_RETURN_IF_FALSE(ctx);
@@ -1286,23 +1303,16 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
 
   DVR_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->lock);
 
-  ctx_record = NULL;
   if (ctx->playback.param_open.is_timeshift) {
     /*lock the recorder to avoid changing the recording segments*/
-    ctx_record = ctx_getRecord(sn_timeshift_record);
-
-    if (ctx_record) {
-      pthread_mutex_lock(&ctx_record->lock);
-      if (!ctx_valid(ctx_record)
-        || ctx_record->sn != sn_timeshift_record) {
-        DVR_WRAPPER_DEBUG(1, "timeshift, record is not for timeshifting, FATAL error\n");
-        pthread_mutex_unlock(&ctx_record->lock);
-      } else {
-        DVR_WRAPPER_DEBUG(1, "playback(sn:%ld) record(sn:%ld) locked ok due to timeshift\n",
-          ctx->sn, ctx_record->sn);
-      }
+    if (is_timeshift == DVR_FALSE) {
+      DVR_WRAPPER_DEBUG(1, "timeshift, record is not for timeshifting, FATAL error return\n");
+      pthread_mutex_unlock(&ctx->lock);
+      return DVR_FAILURE;
+    } else {
+      DVR_WRAPPER_DEBUG(1, "playback(sn:%ld) record(sn:%ld) locked ok due to timeshift\n",
+        ctx->sn, ctx_record->sn);
     }
-    DVR_RETURN_IF_FALSE_WITH_UNLOCK(ctx_record, &ctx->lock);
   }
 
   /*obtain all segments in a list*/
