@@ -10,7 +10,7 @@
 #include "segment.h"
 #include <sys/time.h>
 
-//#define DEBUG_PERFORMANCE
+#define DEBUG_PERFORMANCE
 #define MAX_DVR_RECORD_SESSION_COUNT 2
 #define RECORD_BLOCK_SIZE (256 * 1024)
 #define NEW_DEVICE_RECORD_BLOCK_SIZE (1024 * 188)
@@ -422,7 +422,7 @@ int dvr_record_open(DVR_RecordHandle_t *p_handle, DVR_RecordOpenParams_t *params
     dev_open_params.dmx_dev_id = params->dmx_dev_id;
     dev_open_params.buf_size = (params->flush_size > 0 ? params->flush_size : RECORD_BLOCK_SIZE);
     if (p_ctx->is_new_dmx)
-      dev_open_params.buf_size = NEW_DEVICE_RECORD_BLOCK_SIZE;
+      dev_open_params.buf_size = NEW_DEVICE_RECORD_BLOCK_SIZE * 30;
     ret = record_device_open(&p_ctx->dev_handle, &dev_open_params);
     if (ret != DVR_SUCCESS) {
       DVR_DEBUG(1, "%s, open record devices failed", __func__);
