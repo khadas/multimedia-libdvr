@@ -2350,6 +2350,12 @@ int dvr_playback_resume(DVR_PlaybackHandle_t handle) {
       DVR_PB_DG(1, "clear pause live flag cur cmd[%d]", player->cmd.cur_cmd);
       player->play_flag = player->play_flag & (~DVR_PLAYBACK_STARTED_PAUSEDLIVE);
       AmTsPlayer_setTrickMode(player->handle, AV_VIDEO_TRICK_MODE_NONE);
+      if (player->has_video) {
+        AmTsPlayer_resumeVideoDecoding(player->handle);
+      }
+      if (player->has_audio)
+        AmTsPlayer_resumeAudioDecoding(player->handle);
+
       pthread_mutex_unlock(&player->lock);
     }
   }
