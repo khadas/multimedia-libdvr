@@ -519,6 +519,7 @@ static int _dvr_has_next_segmentId(DVR_PlaybackHandle_t handle, int segmentid) {
       found = 2;
       break;
     }
+    pre_segment = segment;
   }
   if (found != 2) {
     //list is null or reache list  end

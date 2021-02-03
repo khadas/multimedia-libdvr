@@ -10,7 +10,7 @@
 #include "segment.h"
 #include <sys/time.h>
 
-#define DEBUG_PERFORMANCE
+//#define DEBUG_PERFORMANCE
 #define MAX_DVR_RECORD_SESSION_COUNT 2
 #define RECORD_BLOCK_SIZE (256 * 1024)
 #define NEW_DEVICE_RECORD_BLOCK_SIZE (1024 * 188)
