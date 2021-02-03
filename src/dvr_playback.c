@@ -1816,10 +1816,10 @@ int dvr_playback_update_segment_pids(DVR_PlaybackHandle_t handle, uint64_t segme
           pthread_mutex_unlock(&player->lock);
           //check video pids, stop or restart
           _do_check_pid_info((DVR_PlaybackHandle_t)player, segment->pids.video, p_pids->video, 0);
-          //check audio pids stop or restart
-          _do_check_pid_info((DVR_PlaybackHandle_t)player, segment->pids.audio, p_pids->audio, 1);
           //check sub audio pids stop or restart
           _do_check_pid_info((DVR_PlaybackHandle_t)player, segment->pids.ad, p_pids->ad, 2);
+          //check audio pids stop or restart
+          _do_check_pid_info((DVR_PlaybackHandle_t)player, segment->pids.audio, p_pids->audio, 1);
           //check pcr pids stop or restart
           _do_check_pid_info((DVR_PlaybackHandle_t)player, segment->pids.pcr, p_pids->pcr, 3);
           pthread_mutex_lock(&player->lock);
