@@ -968,6 +968,7 @@ static void* _dvr_playback_thread(void *arg)
             //clear flag
             player->play_flag = player->play_flag & (~DVR_PLAYBACK_STARTED_PAUSEDLIVE);
             player->first_frame = 0;
+            AmTsPlayer_setTrickMode(player->handle, AV_VIDEO_TRICK_MODE_NONE);
             AmTsPlayer_pauseVideoDecoding(player->handle);
             AmTsPlayer_pauseAudioDecoding(player->handle);
           } else {
@@ -1961,7 +1962,7 @@ int dvr_playback_stop(DVR_PlaybackHandle_t handle, DVR_Bool_t clear) {
   }
   if (player->has_video) {
     player->has_video = DVR_FALSE;
-    //AmTsPlayer_hideVideo(player->handle);
+    AmTsPlayer_hideVideo(player->handle);
     AmTsPlayer_stopVideoDecoding(player->handle);
   }
   if (player->has_audio) {
