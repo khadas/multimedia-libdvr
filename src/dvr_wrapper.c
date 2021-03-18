@@ -475,6 +475,10 @@ static void *wrapper_task(void *arg)
     while ((evt = ((tctx->type == W_REC)? ctx_getRecordEvent() : ctx_getPlaybackEvent()))) {
       DVR_WrapperCtx_t *ctx = (evt->type == W_REC)?
         ctx_getRecord(evt->sn) : ctx_getPlayback(evt->sn);
+      if (ctx == NULL) {
+        DVR_WRAPPER_DEBUG(1, "warp not get ctx.free event..\n");
+        goto processed;
+      }
       DVR_WRAPPER_DEBUG(1, "start name(%s) sn(%d) runing(%d) type(%d)event end...\n", tctx->name, ctx->sn, tctx->running, tctx->type);
       if (tctx->running) {
         /*
