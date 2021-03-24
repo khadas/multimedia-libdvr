@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <dvr_types.h>
 #include <dvr_utils.h>
+#include <cutils/properties.h>
 
 /****************************************************************************
  * Macro definitions
@@ -207,7 +208,8 @@ int dvr_prop_echo(const char *name, const char *cmd)
     rwPropCb.writePropCb(name, cmd);
     return DVR_SUCCESS;
   }
-  DVR_DEBUG(1, "dvr_prop_echo: error writePropCb is NULL");
+  property_set(name, cmd);
+  DVR_DEBUG(1, "dvr_prop_echo: error writePropCb is NULL, used property_set");
   return DVR_FAILURE;
 }
 
@@ -230,7 +232,8 @@ int dvr_prop_read(const char *name, char *buf, int len)
     rwPropCb.readPropCb(name, buf, len);
     return DVR_SUCCESS;
   }
-  DVR_DEBUG(1, "dvr_prop_read: error readPropCb is NULL");
+  property_get(name, buf, "");
+  DVR_DEBUG(1, "dvr_prop_read: error readPropCb is NULL, used property_get");
   return DVR_FAILURE;
 }
 
