@@ -1122,6 +1122,7 @@ static void* _dvr_playback_thread(void *arg)
       }
       //send reached event
       if ((ret != DVR_SUCCESS &&
+	(player->vendor != DVR_PLAYBACK_VENDOR_AMAZON) &&
         (delay <= MIN_TSPLAYER_DELAY_TIME ||
           player->cmd.cur_cmd == DVR_PLAYBACK_CMD_FF) &&
         _dvr_pauselive_decode_sucess((DVR_PlaybackHandle_t)player)) ||

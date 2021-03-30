@@ -106,7 +106,8 @@ typedef struct {
   void                   *crypto_data;                     /**< Crypto function's user data.*/
   DVR_PlaybackEventFunction_t  event_fn;                   /**< playback event callback function*/
   void                        *event_userdata;             /**< event userdata*/
-  DVR_Bool_t              is_notify_time;                    /**< 0:not notify time, 1 : notify*/
+  DVR_Bool_t              is_notify_time;                  /**< 0:not notify time, 1 : notify*/
+  DVR_PlaybackVendor_t    vendor;                          /**< vendor type*/
 } DVR_WrapperPlaybackOpenParams_t;
 
 /**

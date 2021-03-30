@@ -1168,7 +1168,7 @@ int dvr_wrapper_open_playback (DVR_WrapperPlayback_t *playback, DVR_WrapperPlayb
 
   pthread_mutex_lock(&ctx->lock);
 
-  DVR_WRAPPER_DEBUG(1, "open playback(dmx:%d) ...\n", params->dmx_dev_id);
+  DVR_WRAPPER_DEBUG(1, "open playback(dmx:%d) ..vendor[%d].\n", params->dmx_dev_id, params->vendor);
 
   ctx_reset(ctx);
 
@@ -1191,7 +1191,8 @@ int dvr_wrapper_open_playback (DVR_WrapperPlayback_t *playback, DVR_WrapperPlayb
   /*open_param.has_pids = 0;*/
   open_param.is_notify_time = params->is_notify_time;
   open_param.player_handle = (am_tsplayer_handle)params->playback_handle;
-  open_param.vendor = DVR_PLAYBACK_VENDOR_AML;
+  open_param.vendor = params->vendor;
+
 
   error = dvr_playback_open(&ctx->playback.player, &open_param);
   if (error) {
