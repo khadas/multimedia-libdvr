@@ -313,6 +313,7 @@ typedef struct
   DVR_Bool_t                 first_trans_ok;
   DVR_PlaybackVendor_t       vendor;
   int                        noData;
+  DVR_Bool_t                 seek_pause;
 } DVR_Playback_t;
 /**\endcond*/
 

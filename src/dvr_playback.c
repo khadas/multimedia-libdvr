@@ -193,8 +193,10 @@ void _dvr_tsplayer_callback(void *user_data, am_tsplayer_event *event)
           player->first_trans_ok = DVR_TRUE;
           _dvr_playback_sent_transition_ok((DVR_PlaybackHandle_t)player, DVR_FALSE);
         }
-        if (player != NULL)
+        if (player != NULL) {
           player->first_frame = 1;
+          player->seek_pause = DVR_FALSE;
+        }
         break;
     }
     case AM_TSPLAYER_EVENT_TYPE_DECODE_FIRST_FRAME_AUDIO:
@@ -205,6 +207,7 @@ void _dvr_tsplayer_callback(void *user_data, am_tsplayer_event *event)
         if (player != NULL && player->has_video == DVR_FALSE) {
           DVR_PB_DG(1, "[evt]AM_TSPLAYER_EVENT_TYPE_DECODE_FIRST_FRAME_AUDIO [%d]\n", event->type);
           player->first_frame = 1;
+          player->seek_pause = DVR_FALSE;
         }
       break;
     default:
@@ -1036,7 +1039,8 @@ static void* _dvr_playback_thread(void *arg)
       }
     }
 
-    if (player->state == DVR_PLAYBACK_STATE_PAUSE) {
+    if (player->state == DVR_PLAYBACK_STATE_PAUSE
+        && player->seek_pause == DVR_FALSE) {
       //check is need send time send end
       DVR_PB_DG(1, "pause, continue");
       _dvr_playback_sent_playtime((DVR_PlaybackHandle_t)player, DVR_FALSE);
@@ -1404,6 +1408,7 @@ int dvr_playback_open(DVR_PlaybackHandle_t *p_handle, DVR_PlaybackOpenParams_t *
 
   player->last_send_time_id = UINT64_MAX;
   player->last_cur_time = 0;
+  player->seek_pause = DVR_FALSE;
 
   *p_handle = player;
   return DVR_SUCCESS;
@@ -2552,6 +2557,7 @@ int dvr_playback_seek(DVR_PlaybackHandle_t handle, uint64_t segment_id, uint32_t
      player->cmd.last_cmd == DVR_PLAYBACK_CMD_FB))*/) {
     player->cmd.state = DVR_PLAYBACK_STATE_PAUSE;
     player->state = DVR_PLAYBACK_STATE_PAUSE;
+    player->seek_pause = DVR_TRUE;
     DVR_PB_DG(1, "set state pause in seek");
   } else if (player->cmd.cur_cmd == DVR_PLAYBACK_CMD_FF ||
     player->cmd.cur_cmd == DVR_PLAYBACK_CMD_FF ||
