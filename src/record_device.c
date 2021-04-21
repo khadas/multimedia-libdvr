@@ -56,10 +56,12 @@ static pthread_mutex_t secdmx_lock[MAX_FEND_DEVICE_COUNT] = PTHREAD_MUTEX_INITIA
 static Record_DeviceContext_t record_ctx[MAX_RECORD_DEVICE_COUNT] = {
   {
     .state = RECORD_DEVICE_STATE_CLOSED,
+    .fend_dev_id = -1,
     .lock = PTHREAD_MUTEX_INITIALIZER
   },
   {
     .state = RECORD_DEVICE_STATE_CLOSED,
+    .fend_dev_id = -1,
     .lock = PTHREAD_MUTEX_INITIALIZER
   }
 };
@@ -262,11 +264,22 @@ int record_device_close(Record_DeviceHandle_t handle)
       p_ctx->output_handle = (size_t)NULL;
     }
     if (p_ctx->dvr_buf) {
-      if (SECDMX_FreeDVRBuffer_Ptr != NULL)
-        SECDMX_FreeDVRBuffer_Ptr(p_ctx->fend_dev_id);
-      p_ctx->dvr_buf = (size_t)NULL;
+      if (SECDMX_FreeDVRBuffer_Ptr != NULL) {
+	for (i = 0; i < MAX_RECORD_DEVICE_COUNT; i++) {
+	  if (&record_ctx[i] != p_ctx &&
+	      record_ctx[i].fend_dev_id == p_ctx->fend_dev_id &&
+	      record_ctx[i].dvr_buf == p_ctx->dvr_buf) {
+		break;
+	  }
+	}
+	if (i >= MAX_RECORD_DEVICE_COUNT) {
+          SECDMX_FreeDVRBuffer_Ptr(p_ctx->fend_dev_id);
+	}
+	p_ctx->dvr_buf = (size_t)NULL;
+      }
     }
   }
+  p_ctx->fend_dev_id = -1;
   p_ctx->state = RECORD_DEVICE_STATE_CLOSED;
   pthread_mutex_unlock(&p_ctx->lock);
   return DVR_SUCCESS;
@@ -623,20 +636,36 @@ int record_device_set_secure_buffer(Record_DeviceHandle_t handle, uint8_t *sec_b
     memset(node, 0, sizeof(node));
     snprintf(node, sizeof(node), "/dev/dvb0.demux%d", i);
     fd = open(node, O_RDONLY);
-    if (SECDMX_AllocateDVRBuffer_Ptr != NULL)
-      result = SECDMX_AllocateDVRBuffer_Ptr(sid, len, &dvr_buf);
-    DVR_RETURN_IF_FALSE_WITH_UNLOCK(result == DVR_SUCCESS, &p_ctx->lock);
-    p_ctx->dvr_buf = dvr_buf;
+    if (SECDMX_AllocateDVRBuffer_Ptr != NULL) {
+	for (i = 0; i < MAX_RECORD_DEVICE_COUNT; i++) {
+	  if (record_ctx[i].state != RECORD_DEVICE_STATE_CLOSED &&
+	      &record_ctx[i] != p_ctx &&
+	      record_ctx[i].fend_dev_id == p_ctx->fend_dev_id &&
+	      record_ctx[i].dvr_buf != 0) {
+		break;
+	  }
+	}
+	if (i >= MAX_RECORD_DEVICE_COUNT) {
+	  result = SECDMX_AllocateDVRBuffer_Ptr(sid, len, &dvr_buf);
+	  DVR_RETURN_IF_FALSE_WITH_UNLOCK(result == DVR_SUCCESS, &p_ctx->lock);
+	} else {
+	  dvr_buf = record_ctx[i].dvr_buf;
+	}
+
+	p_ctx->dvr_buf = dvr_buf;
+    } else {
+	p_ctx->dvr_buf = (size_t)sec_buf;
+    }
 
     struct dmx_sec_mem sec_mem;
-    sec_mem.buff = dvr_buf;
+    sec_mem.buff = p_ctx->dvr_buf;
     sec_mem.size = len;
     if (ioctl(fd, DMX_SET_SEC_MEM, &sec_mem) == -1) {
       DVR_DEBUG(1, "record_device_set_secure_buffer ioctl DMX_SET_SEC_MEM error:%d", errno);
     }
     else
     {
-      DVR_DEBUG(1, "record_device_set_secure_buffer ioctl sucesss DMX_SET_SEC_MEM: dmx_idx:%d", i);
+      DVR_DEBUG(1, "record_device_set_secure_buffer ioctl sucesss DMX_SET_SEC_MEM: fd:%d, buf:%#x\n", fd, p_ctx->dvr_buf);
     }
     if (SECDMX_AddOutputBuffer_Ptr != NULL)
       result = SECDMX_AddOutputBuffer_Ptr(sid, (size_t)sec_buf, len, &op_handle);
