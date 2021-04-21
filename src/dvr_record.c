@@ -64,6 +64,7 @@ typedef struct {
   size_t                          last_send_size;                       /**< Last send notify segment size */
   uint32_t                        block_size;                           /**< DVR record block size */
   DVR_Bool_t                      is_new_dmx;                           /**< DVR is used new dmx driver */
+  int                             index_type;                           /**< DVR is used pcr or local time */
 } DVR_RecordContext_t;
 
 static DVR_RecordContext_t record_ctx[MAX_DVR_RECORD_SESSION_COUNT] = {
@@ -132,7 +133,7 @@ static int record_save_pcr(DVR_RecordContext_t *p_ctx, uint8_t *buf, loff_t pos)
     }
   }
 
-  if (has_pcr) {
+  if (has_pcr && p_ctx->index_type == DVR_INDEX_TYPE_PCR) {
     segment_update_pts(p_ctx->segment_handle, pcr/90, pos);
   }
   return has_pcr;
@@ -177,11 +178,12 @@ void *record_thread(void *arg)
   struct timespec start_ts, end_ts;
   DVR_RecordStatus_t record_status;
   int has_pcr;
-  int index_type = DVR_INDEX_TYPE_INVALID;
+
   time_t pre_time = 0;
   #define DVR_STORE_INFO_TIME (400)
   DVR_SecureBuffer_t secure_buf;
   DVR_NewDmxSecureBuffer_t new_dmx_secure_buf;
+  p_ctx->index_type == DVR_INDEX_TYPE_INVALID;
 
   buf = (uint8_t *)malloc(block_size);
   if (!buf) {
@@ -311,28 +313,28 @@ void *record_thread(void *arg)
     uint8_t *index_buf = p_ctx->enc_func ? buf_out : buf;
     pos = segment_tell_position(p_ctx->segment_handle);
     has_pcr = record_do_pcr_index(p_ctx, index_buf, len);
-    if (has_pcr == 0 && index_type == DVR_INDEX_TYPE_INVALID) {
+    if (has_pcr == 0 && p_ctx->index_type == DVR_INDEX_TYPE_INVALID) {
       clock_gettime(CLOCK_MONOTONIC, &end_ts);
       if ((end_ts.tv_sec*1000 + end_ts.tv_nsec/1000000) -
           (start_ts.tv_sec*1000 + start_ts.tv_nsec/1000000) > 40) {
         /* PCR interval threshlod > 40 ms*/
         DVR_DEBUG(1, "%s use local clock time index", __func__);
-        index_type = DVR_INDEX_TYPE_LOCAL_CLOCK;
+        p_ctx->index_type = DVR_INDEX_TYPE_LOCAL_CLOCK;
       }
-    } else if (has_pcr && index_type == DVR_INDEX_TYPE_INVALID){
+    } else if (has_pcr && p_ctx->index_type == DVR_INDEX_TYPE_INVALID){
       DVR_DEBUG(1, "%s use pcr time index", __func__);
-      index_type = DVR_INDEX_TYPE_PCR;
+      p_ctx->index_type = DVR_INDEX_TYPE_PCR;
     }
     gettimeofday(&t5, NULL);
 
     /* Update segment info */
     p_ctx->segment_info.size += len;
     /*Duration need use pcr to calculate, todo...*/
-    if (index_type == DVR_INDEX_TYPE_PCR) {
+    if (p_ctx->index_type == DVR_INDEX_TYPE_PCR) {
       p_ctx->segment_info.duration = segment_tell_total_time(p_ctx->segment_handle);
       if (pre_time == 0)
        pre_time = p_ctx->segment_info.duration;
-    } else if (index_type == DVR_INDEX_TYPE_LOCAL_CLOCK) {
+    } else if (p_ctx->index_type == DVR_INDEX_TYPE_LOCAL_CLOCK) {
       clock_gettime(CLOCK_MONOTONIC, &end_ts);
       p_ctx->segment_info.duration = (end_ts.tv_sec*1000 + end_ts.tv_nsec/1000000) -
         (start_ts.tv_sec*1000 + start_ts.tv_nsec/1000000);
