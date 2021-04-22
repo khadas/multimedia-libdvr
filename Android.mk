@@ -40,8 +40,10 @@ include $(BUILD_SHARED_LIBRARY)
 
 include $(CLEAR_VARS)
 LOCAL_MODULE := libamdvr.system
-LOCAL_MODULE_PATH_32 := $(TARGET_OUT_SYSTEM_EXT)/lib/
+ifeq ($(shell test $(PLATFORM_SDK_VERSION) -ge 30 && echo OK),OK)
 LOCAL_SYSTEM_EXT_MODULE := true
+LOCAL_MODULE_PATH_32 := $(TARGET_OUT_SYSTEM_EXT)/lib/
+endif
 LOCAL_MODULE_TAGS := optional
 LOCAL_FILE_LIST := $(wildcard $(LOCAL_PATH)/src/*.c)
 LOCAL_SRC_FILES := $(LOCAL_FILE_LIST:$(LOCAL_PATH)/%=%)
