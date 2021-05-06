@@ -1859,7 +1859,11 @@ static int process_handleRecordEvent(DVR_WrapperEventCtx_t *evt, DVR_WrapperCtx_
 
   DVR_WRAPPER_DEBUG(1, "evt (sn:%ld) 0x%x (state:%d)\n",
     evt->sn, evt->record.event, evt->record.status.state);
-
+  if (ctx->record.param_update.segment.segment_id != evt->record.status.info.id) {
+    DVR_WRAPPER_DEBUG(1, "evt (sn:%ld) cur id:0x%x (event id:%d)\n",
+    evt->sn, ctx->record.param_update.segment.segment_id, evt->record.status.info.id);
+    return 0;
+  }
   switch (evt->record.event)
   {
     case DVR_RECORD_EVENT_STATUS:
