@@ -1,0 +1,141 @@
+// Copyright (c) 2014 Amlogic, Inc. All rights reserved.
+//
+// This source code is subject to the terms and conditions defined in the
+// file 'LICENSE' which is part of this source code package.
+//
+// Description: makefile
+
+
+cc_library_shared {
+    name: "libamdvr",
+    vendor: true,
+    compile_multilib: "32",
+
+    arch: {
+        arm: {
+            instruction_set: "arm",
+        },
+        arm64: {
+            enabled: false,
+        },
+        x86: {
+            enabled: false,
+        },
+        x86_64: {
+            enabled: false,
+        },
+    },
+    srcs: [
+        "src/dvb_dmx_wrapper.c",
+        "src/dvb_frontend_wrapper.c",
+        "src/dvb_utils.c",
+        "src/dvr_playback.c",
+        "src/dvr_record.c",
+        "src/dvr_segment.c",
+        "src/dvr_utils.c",
+        "src/dvr_wrapper.c",
+        "src/index_file.c",
+        "src/list_file.c",
+        "src/record_device.c",
+        "src/segment.c",
+    ],
+    shared_libs: [
+        "libcutils",
+        "liblog",
+        "libdl",
+        "libc",
+        "liblog",
+        "libmediahal_tsplayer",
+    ],
+    cflags: [
+
+    ],
+
+    // TODO: revise
+    include_dirs: [
+      "hardware/amlogic/media/amcodec/include",
+      "system/core/liblog/include",
+      "vendor/amlogic/common/mediahal_sdk/include",
+      "vendor/amlogic/common/libdvr_release/include",
+    ],
+
+    static_libs: [
+
+    ],
+
+
+    export_include_dirs: [
+        "include",
+    ],
+
+
+    ldflags: ["-shared"],
+}
+
+cc_library_shared {
+    name: "libamdvr.system",
+    compile_multilib: "32",
+    system_ext_specific: true,
+
+    arch: {
+        arm: {
+            instruction_set: "arm",
+        },
+        arm64: {
+            enabled: false,
+        },
+        x86: {
+            enabled: false,
+        },
+        x86_64: {
+            enabled: false,
+        },
+    },
+    srcs: [
+        "src/dvb_dmx_wrapper.c",
+        "src/dvb_frontend_wrapper.c",
+        "src/dvb_utils.c",
+        "src/dvr_playback.c",
+        "src/dvr_record.c",
+        "src/dvr_segment.c",
+        "src/dvr_utils.c",
+        "src/dvr_wrapper.c",
+        "src/index_file.c",
+        "src/list_file.c",
+        "src/record_device.c",
+        "src/segment.c",
+    ],
+    shared_libs: [
+        "libcutils",
+        "liblog",
+        "libdl",
+        "libc",
+        "liblog",
+        "libmediahal_tsplayer.system",
+    ],
+    cflags: [
+
+    ],
+
+    // TODO: revise
+    include_dirs: [
+      "hardware/amlogic/media/amcodec/include",
+      "system/core/liblog/include",
+      "vendor/amlogic/common/mediahal_sdk/include",
+      "vendor/amlogic/common/libdvr_release/include",
+    ],
+
+    static_libs: [
+
+    ],
+
+
+    export_include_dirs: [
+        "include",
+    ],
+
+
+    ldflags: ["-shared"],
+
+}
+
