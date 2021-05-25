@@ -76,6 +76,7 @@
 #include <sys/ioctl.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <signal.h>
 
 /*{{ third party header files */
 #define  AV_AUDIO_STEREO        AV_AUDIO_STEREO_TSP

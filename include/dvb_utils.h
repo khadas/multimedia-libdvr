@@ -5,7 +5,10 @@
 
 #ifndef DVB_UTILS_H_
 #define DVB_UTILS_H_
+
 #include <android/log.h>
+#include <stdio.h>
+#include <inttypes.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -21,8 +24,13 @@ extern "C" {
 #define DVB_LOG_TAG "dvb_debug"
 /**Default debug level*/
 #define DVB_DEBUG_LEVEL 1
+
 /**Log output*/
 #define dvb_log_print(...) __android_log_print(ANDROID_LOG_INFO, DVB_LOG_TAG, __VA_ARGS__)
+
+#ifndef __ANDROID_API__
+typedef unsigned int uint_t;
+#endif
 
 /**Output debug message.*/
 #define DVB_DEBUG(_level, _fmt...) \

@@ -17,8 +17,8 @@
 
 #include "dvr_wrapper.h"
 
-#define DVR_WRAPPER_DEBUG(_level, _fmt, ...) \
-  DVR_DEBUG(_level, "wrapper %-30.30s:%d " _fmt, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+#define DVR_WRAPPER_DEBUG(_level, _fmt...) \
+  DVR_DEBUG_FL(_level, "wrapper", _fmt)
 
 /*duration of data to resume if paused with EVT_REACHED_END in timeshifting*/
 #define TIMESHIFT_DATA_DURATION_TO_RESUME (600)
@@ -479,7 +479,7 @@ static void *wrapper_task(void *arg)
         DVR_WRAPPER_DEBUG(1, "warp not get ctx.free event..\n");
         goto processed;
       }
-      DVR_WRAPPER_DEBUG(1, "start name(%s) sn(%d) runing(%d) type(%d)event end...\n", tctx->name, ctx->sn, tctx->running, tctx->type);
+      DVR_WRAPPER_DEBUG(1, "start name(%s) sn(%d) runing(%d) type(%d)event end...\n", tctx->name, (int)ctx->sn, tctx->running, tctx->type);
       if (tctx->running) {
         /*
           continue not break,
@@ -499,7 +499,7 @@ static void *wrapper_task(void *arg)
 processed:
       ctx_freeEvent(evt);
     }
-    DVR_WRAPPER_DEBUG(1, "start name(%d) runing(%d) type(%d)event con...\n", tctx->name, tctx->running, tctx->type);
+    DVR_WRAPPER_DEBUG(1, "start name(%s) runing(%d) type(%d)event con...\n", tctx->name, tctx->running, tctx->type);
   }
 
   pthread_mutex_unlock(&tctx->lock);
@@ -738,7 +738,7 @@ static int wrapper_addRecordSegment(DVR_WrapperCtx_t *ctx, DVR_RecordSegmentInfo
         /*only if playback has started, the previous segments have been loaded*/
         if (!list_empty(&ctx_playback->segments)) {
           flags = DVR_PLAYBACK_SEGMENT_DISPLAYABLE | DVR_PLAYBACK_SEGMENT_CONTINUOUS;
-          if (ctx->record.param_open.flags | DVR_RECORD_FLAG_SCRAMBLED)
+          if (ctx->record.param_open.flags & DVR_RECORD_FLAG_SCRAMBLED)
             flags |= DVR_PLAYBACK_SEGMENT_ENCRYPTED;
           wrapper_addPlaybackSegment(ctx_playback, seg_info, &ctx_playback->playback.pids_req, flags);
         }
@@ -1861,7 +1861,7 @@ static int process_handleRecordEvent(DVR_WrapperEventCtx_t *evt, DVR_WrapperCtx_
     evt->sn, evt->record.event, evt->record.status.state);
   if (ctx->record.param_update.segment.segment_id != evt->record.status.info.id) {
     DVR_WRAPPER_DEBUG(1, "evt (sn:%ld) cur id:0x%x (event id:%d)\n",
-    evt->sn, ctx->record.param_update.segment.segment_id, evt->record.status.info.id);
+    evt->sn, (int)ctx->record.param_update.segment.segment_id, (int)evt->record.status.info.id);
     return 0;
   }
   switch (evt->record.event)
