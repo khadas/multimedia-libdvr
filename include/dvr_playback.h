@@ -314,6 +314,8 @@ typedef struct
   DVR_PlaybackVendor_t       vendor;
   int                        noData;
   DVR_Bool_t                 seek_pause;
+  int                        last_segment_tatol;        /**< last segment tatol time*/
+
 } DVR_Playback_t;
 /**\endcond*/
 

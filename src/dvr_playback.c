@@ -542,7 +542,7 @@ static int _dvr_get_next_segmentId(DVR_PlaybackHandle_t handle) {
   DVR_Playback_t *player = (DVR_Playback_t *) handle;
   DVR_PlaybackSegmentInfo_t *segment;
   DVR_PlaybackSegmentInfo_t *pre_segment = NULL;
-
+  
   if (player == NULL) {
     DVR_PB_DG(1, "player is NULL");
     return DVR_FAILURE;
@@ -581,6 +581,8 @@ static int _dvr_get_next_segmentId(DVR_PlaybackHandle_t handle) {
       }
       //save segment info
       player->last_segment_id = player->cur_segment_id;
+      if (player->r_handle)
+      player->last_segment_tatol = segment_tell_total_time(player->r_handle);
       player->last_segment.segment_id = player->cur_segment.segment_id;
       player->last_segment.flags = player->cur_segment.flags;
       memcpy(player->last_segment.location, player->cur_segment.location, DVR_MAX_LOCATION_SIZE);
@@ -818,10 +820,10 @@ static int _dvr_replay_changed_pid(DVR_PlaybackHandle_t handle) {
   {
     //check video pids, stop or restart
     _do_check_pid_info(handle, player->last_segment.pids.video, player->cur_segment.pids.video, 0);
-    //check audio pids stop or restart
-    _do_check_pid_info(handle, player->last_segment.pids.audio, player->cur_segment.pids.audio, 1);
     //check sub audio pids stop or restart
     _do_check_pid_info(handle, player->last_segment.pids.ad, player->cur_segment.pids.ad, 2);
+    //check audio pids stop or restart
+    _do_check_pid_info(handle, player->last_segment.pids.audio, player->cur_segment.pids.audio, 1);
     DVR_PB_DG(1, ":last apid: %d  set apid: %d", player->last_segment.pids.audio.pid,player->cur_segment.pids.audio.pid);
     //check pcr pids stop or restart
     _do_check_pid_info(handle, player->last_segment.pids.pcr, player->cur_segment.pids.pcr, 3);
@@ -1108,6 +1110,7 @@ static void* _dvr_playback_thread(void *arg)
         DVR_PB_DG(1, "read end but cache time is %d > %d, to sleep end and continue", _cache_time, MIN_CACHE_TIME);
         //continue;
       }
+
       int ret = _change_to_next_segment((DVR_PlaybackHandle_t)player);
       //init fffb time if change segment
        _dvr_init_fffb_time((DVR_PlaybackHandle_t)player);
@@ -1539,17 +1542,17 @@ int dvr_playback_start(DVR_PlaybackHandle_t handle, DVR_PlaybackFlag_t flag) {
         DVR_PB_DG(1, "start fast");
         AmTsPlayer_startFast(player->handle, (float)player->cmd.speed.speed.speed/100.0f);
       } else {
-        if (VALID_PID(aparams.pid)) {
-          DVR_PB_DG(1, "start audio");
-          player->has_audio = DVR_TRUE;
-          AmTsPlayer_setAudioParams(player->handle,  &aparams);
-          AmTsPlayer_startAudioDecoding(player->handle);
-        }
         if (VALID_PID(adparams.pid)) {
           player->has_ad_audio = DVR_TRUE;
           DVR_PB_DG(1, "start ad audio");
           AmTsPlayer_setADParams(player->handle,  &adparams);
           AmTsPlayer_enableADMix(player->handle);
+        }
+        if (VALID_PID(aparams.pid)) {
+          DVR_PB_DG(1, "start audio");
+          player->has_audio = DVR_TRUE;
+          AmTsPlayer_setAudioParams(player->handle,  &aparams);
+          AmTsPlayer_startAudioDecoding(player->handle);
         }
       }
       player->cmd.state = DVR_PLAYBACK_STATE_START;
@@ -2013,17 +2016,17 @@ int dvr_playback_audio_start(DVR_PlaybackHandle_t handle, am_tsplayer_audio_para
   DVR_PB_DG(1, "lock");
   pthread_mutex_lock(&player->lock);
 
-  if (VALID_PID(param->pid)) {
-    DVR_PB_DG(1, "start audio");
-    player->has_audio = DVR_TRUE;
-    AmTsPlayer_setAudioParams(player->handle, param);
-    AmTsPlayer_startAudioDecoding(player->handle);
-  }
   if (VALID_PID(adparam->pid)) {
     player->has_ad_audio = DVR_TRUE;
     DVR_PB_DG(1, "start ad audio");
     AmTsPlayer_setADParams(player->handle, adparam);
     AmTsPlayer_enableADMix(player->handle);
+  }
+  if (VALID_PID(param->pid)) {
+    DVR_PB_DG(1, "start audio");
+    player->has_audio = DVR_TRUE;
+    AmTsPlayer_setAudioParams(player->handle, param);
+    AmTsPlayer_startAudioDecoding(player->handle);
   }
 
   player->cmd.last_cmd = player->cmd.cur_cmd;
@@ -2313,19 +2316,19 @@ int dvr_playback_resume(DVR_PlaybackHandle_t handle) {
     uint64_t segmentid = player->cur_segment_id;
     _dvr_playback_get_playinfo(handle, segmentid, &vparams, &aparams, &adparams);
     //valid audio pid, start audio
+    if (player->has_ad_audio == DVR_FALSE && VALID_PID(adparams.pid) && (player->cmd.speed.speed.speed == PLAYBACK_SPEED_X1)) {
+      player->has_ad_audio = DVR_TRUE;
+      DVR_PB_DG(1, "start ad audio");
+      AmTsPlayer_setADParams(player->handle,  &adparams);
+      AmTsPlayer_enableADMix(player->handle);
+    }
+
     if (player->has_audio == DVR_FALSE && VALID_PID(aparams.pid) && (player->cmd.speed.speed.speed == PLAYBACK_SPEED_X1)) {
       player->has_audio = DVR_TRUE;
       AmTsPlayer_setAudioParams(player->handle, &aparams);
       AmTsPlayer_startAudioDecoding(player->handle);
     } else {
       DVR_PB_DG(1, "aparams.pid:%d player->has_audio:%d speed:%d", aparams.pid, player->has_audio, player->cmd.speed.speed.speed);
-    }
-
-    if (player->has_ad_audio == DVR_FALSE && VALID_PID(adparams.pid) && (player->cmd.speed.speed.speed == PLAYBACK_SPEED_X1)) {
-      player->has_ad_audio = DVR_TRUE;
-      DVR_PB_DG(1, "start ad audio");
-      AmTsPlayer_setADParams(player->handle,  &adparams);
-      AmTsPlayer_enableADMix(player->handle);
     }
 
     if (player->cmd.cur_cmd == DVR_PLAYBACK_CMD_FF ||
@@ -2537,17 +2540,17 @@ int dvr_playback_seek(DVR_PlaybackHandle_t handle, uint64_t segment_id, uint32_t
       }
       player->has_video = DVR_TRUE;
     }
-    if (VALID_PID(aparams.pid) && player->speed == 1.0) {
-      DVR_PB_DG(1, "start audio seek");
-      AmTsPlayer_setAudioParams(player->handle, &aparams);
-      AmTsPlayer_startAudioDecoding(player->handle);
-      player->has_audio = DVR_TRUE;
-    }
     if (VALID_PID(adparams.pid) && player->speed == 1.0) {
       player->has_ad_audio = DVR_TRUE;
       DVR_PB_DG(1, "start ad audio");
       AmTsPlayer_setADParams(player->handle,  &adparams);
       AmTsPlayer_enableADMix(player->handle);
+    }
+    if (VALID_PID(aparams.pid) && player->speed == 1.0) {
+      DVR_PB_DG(1, "start audio seek");
+      AmTsPlayer_setAudioParams(player->handle, &aparams);
+      AmTsPlayer_startAudioDecoding(player->handle);
+      player->has_audio = DVR_TRUE;
     }
   }
   if (player->state == DVR_PLAYBACK_STATE_PAUSE /*&&
@@ -2599,6 +2602,42 @@ static int _dvr_get_cur_time(DVR_PlaybackHandle_t handle) {
     cache = 0;
   }
   int cur_time = (int)(cur > cache ? cur - cache : 0);
+  return cur_time;
+}
+
+static int _dvr_get_play_cur_time(DVR_PlaybackHandle_t handle, uint64_t *id) {
+  //get cur time of segment
+  DVR_Playback_t *player = (DVR_Playback_t *) handle;
+
+  if (player == NULL || player->handle == NULL) {
+    DVR_PB_DG(1, "player is NULL");
+    return DVR_FAILURE;
+  }
+
+  int64_t cache = 0;//defalut es buf cache 500ms
+  int cur_time = 0;
+  AmTsPlayer_getDelayTime(player->handle, &cache);
+  pthread_mutex_lock(&player->segment_lock);
+  loff_t pos = segment_tell_position(player->r_handle) -player->ts_cache_len;
+  uint64_t cur = segment_tell_position_time(player->r_handle, pos);
+  pthread_mutex_unlock(&player->segment_lock);
+  DVR_PB_DG(1, "get play cur time [%lld] cache:%lld cur id [%lld]last id [%lld] pb cache len [%d] [%lld]", cur, cache, player->cur_segment_id,player->last_send_time_id,  player->ts_cache_len, pos);
+  if (player->state == DVR_PLAYBACK_STATE_STOP) {
+    cache = 0;
+  }
+  if (cur > cache) {
+      cur_time = (int)(cur - cache);
+      *id =  player->cur_segment_id;
+  } else if (player->last_segment_tatol > 0) {
+      
+      cur_time = (int)(player->last_segment_tatol - (cache - cur));
+      *id = player->last_segment_id;
+      DVR_PB_DG(1, "get play cur time[%lld][%lld][%d]", player->last_segment_id, player->cur_segment_id, player->last_segment_tatol);
+  } else {
+      cur_time = 0;
+      *id =  player->cur_segment_id;
+  }
+
   return cur_time;
 }
 
@@ -2841,17 +2880,17 @@ static int _dvr_playback_replay(DVR_PlaybackHandle_t handle, DVR_Bool_t trick) {
     AmTsPlayer_startFast(player->handle, (float)player->cmd.speed.speed.speed/(float)100);
     player->speed = (float)player->cmd.speed.speed.speed/100.0f;
   } else {
-    if (VALID_PID(aparams.pid)) {
-      player->has_audio = DVR_TRUE;
-      DVR_PB_DG(1, "start audio");
-      AmTsPlayer_setAudioParams(player->handle, &aparams);
-      AmTsPlayer_startAudioDecoding(player->handle);
-    }
     if (VALID_PID(adparams.pid)) {
       player->has_ad_audio = DVR_TRUE;
       DVR_PB_DG(1, "start ad audio");
       AmTsPlayer_setADParams(player->handle,  &adparams);
       AmTsPlayer_enableADMix(player->handle);
+    }
+    if (VALID_PID(aparams.pid)) {
+      player->has_audio = DVR_TRUE;
+      DVR_PB_DG(1, "start audio");
+      AmTsPlayer_setAudioParams(player->handle, &aparams);
+      AmTsPlayer_startAudioDecoding(player->handle);
     }
 
     DVR_PB_DG(1, "stop fast");
@@ -3042,7 +3081,7 @@ static int _dvr_playback_get_status(DVR_PlaybackHandle_t handle,
   DVR_PlaybackStatus_t *p_status, DVR_Bool_t is_lock) {
 //
   DVR_Playback_t *player = (DVR_Playback_t *) handle;
-
+  uint64_t   segment_id = 0LL;
   if (player == NULL) {
     DVR_PB_DG(1, "player is NULL");
     return DVR_FAILURE;
@@ -3057,7 +3096,8 @@ static int _dvr_playback_get_status(DVR_PlaybackHandle_t handle,
   }
 
   p_status->time_end = _dvr_get_end_time(handle);
-  p_status->time_cur = _dvr_get_cur_time(handle);
+  
+  p_status->time_cur = _dvr_get_play_cur_time(handle, &segment_id);
   if (player->last_send_time_id == UINT64_MAX) {
     player->last_send_time_id = player->cur_segment_id;
     player->last_cur_time = p_status->time_cur;
@@ -3080,11 +3120,11 @@ static int _dvr_playback_get_status(DVR_PlaybackHandle_t handle,
         player->last_cur_time = p_status->time_cur;
       }
     }
-  } else {
+  } else { 
     player->last_cur_time = p_status->time_cur;
   }
-  player->last_send_time_id = player->cur_segment_id;
-  p_status->segment_id = player->cur_segment_id;
+  player->last_send_time_id = segment_id;
+  p_status->segment_id = segment_id;
 
   memcpy(&p_status->pids, &player->cur_segment.pids, sizeof(DVR_PlaybackPids_t));
   p_status->speed = player->cmd.speed.speed.speed;
@@ -3113,6 +3153,13 @@ int dvr_playback_get_status(DVR_PlaybackHandle_t handle,
 //
   DVR_Playback_t *player = (DVR_Playback_t *) handle;
 
+
+  char buf[10];
+  dvr_prop_read("vendor.tv.libdvr.con", buf, sizeof(buf));
+  if (atoi(buf) != 1) {
+  
+  }
+  DVR_PB_DG(1, "player get prop[%d][%s]", atoi(buf), buf);
   _dvr_playback_get_status(handle, p_status, DVR_TRUE);
 
   if (player == NULL) {

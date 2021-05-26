@@ -403,8 +403,11 @@ uint64_t segment_tell_position_time(Segment_Handle_t handle, loff_t position)
   Segment_Context_t *p_ctx;
   char buf[256];
   char value[256];
+  uint64_t ret = 0L;
   uint64_t pts = 0L;
+  uint64_t pts_p = 0L;
   loff_t offset = 0;
+  loff_t offset_p = 0;
   char *p1, *p2;
 
   p_ctx = (Segment_Context_t *)handle;
@@ -438,8 +441,12 @@ uint64_t segment_tell_position_time(Segment_Handle_t handle, loff_t position)
     memset(buf, 0, sizeof(buf));
     //DVR_DEBUG(1, "tell cur time=%llu, offset=%lld, position=%lld\n", pts, offset, position);
     if (position <= offset) {
-      return pts;
+      ret = pts_p + (pts - pts_p) * (position - offset_p) / (offset - offset_p);
+      DVR_DEBUG(1, "tell cur time=%llu, pts_p = %llu, offset=%lld, position=%lld offset_p+%lld\n", pts, pts_p, offset, position, offset_p);
+      return ret;
     }
+    offset_p = offset;
+    pts_p = pts;
   }
   //DVR_DEBUG(1, "tell cur time=%llu, offset=%lld, position=%lld\n", pts, offset, position);
   return pts;

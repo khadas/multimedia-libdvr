@@ -233,7 +233,7 @@ int dvr_prop_read(const char *name, char *buf, int len)
     return DVR_SUCCESS;
   }
   property_get(name, buf, "");
-  DVR_DEBUG(1, "dvr_prop_read: error readPropCb is NULL, used property_get");
+  DVR_DEBUG(1, "dvr_prop_read: error readPropCb is NULL, used property_get[%s][%d]", name ,buf);
   return DVR_FAILURE;
 }
 

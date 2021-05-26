@@ -183,7 +183,7 @@ void *record_thread(void *arg)
   #define DVR_STORE_INFO_TIME (400)
   DVR_SecureBuffer_t secure_buf;
   DVR_NewDmxSecureBuffer_t new_dmx_secure_buf;
-  p_ctx->index_type == DVR_INDEX_TYPE_INVALID;
+  p_ctx->index_type = DVR_INDEX_TYPE_LOCAL_CLOCK;
 
   buf = (uint8_t *)malloc(block_size);
   if (!buf) {
