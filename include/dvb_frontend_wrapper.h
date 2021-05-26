@@ -222,7 +222,8 @@ extern "C"
   typedef enum
   {
     DMD_DVBTYPE_DVBT,
-    DMD_DVBTYPE_DVBT2
+    DMD_DVBTYPE_DVBT2,
+    DMD_DVBTYPE_DTMB
   } dmd_terrestrial_dvbtype_t;
 
   typedef struct
@@ -250,10 +251,17 @@ extern "C"
 
   typedef struct
   {
+    uint_t frequency;
+    dmd_bandwidth_t bandwidth;
+  } dmd_terrestrial_dtmb_desc_t;
+
+  typedef struct
+  {
     dmd_terrestrial_dvbtype_t dvb_type;
     union {
       dmd_terrestrial_dvbt_desc_t dvbt;
       dmd_terrestrial_dvbt2_desc_t dvbt2;
+      dmd_terrestrial_dtmb_desc_t dtmb;
     } desc;
   } dmd_terrestrial_desc_t;
 

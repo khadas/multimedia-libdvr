@@ -179,16 +179,20 @@ DVB_RESULT AML_FE_TuneDVB_T(int frontend_fd, const dmd_terrestrial_desc_t *terr)
     p[cmd_num].cmd = DTV_DELIVERY_SYSTEM;
     if (terr->dvb_type == DMD_DVBTYPE_DVBT)
         p[cmd_num].u.data = SYS_DVBT;
-    else
+    else if (terr->dvb_type == DMD_DVBTYPE_DVBT2)
         p[cmd_num].u.data = SYS_DVBT2;
+    else
+        p[cmd_num].u.data = SYS_DTMB;
     cmd_num++;
 
     if (terr->dvb_type == DMD_DVBTYPE_DVBT)
         p[cmd_num].u.data = terr->desc.dvbt.frequency * 1000;
-    else
+    else if (terr->dvb_type == DMD_DVBTYPE_DVBT2)
         p[cmd_num].u.data = terr->desc.dvbt2.frequency * 1000;
+    else
+        p[cmd_num].u.data = terr->desc.dtmb.frequency * 1000;
     DVB_DEBUG(1, "%s, type:%s, freq:%d", __func__,
-             terr->dvb_type == DMD_DVBTYPE_DVBT ? "DVB-T" : "DVB-T2",
+             (terr->dvb_type == DMD_DVBTYPE_DVBT) ? "DVB-T" : ((terr->dvb_type == DMD_DVBTYPE_DVBT2) ? "DVB-T2" : "DTMB"),
              p[cmd_num].u.data);
 
     p[cmd_num].cmd = DTV_FREQUENCY;
@@ -196,8 +200,10 @@ DVB_RESULT AML_FE_TuneDVB_T(int frontend_fd, const dmd_terrestrial_desc_t *terr)
 
     if (terr->dvb_type == DMD_DVBTYPE_DVBT)
         tmp = terr->desc.dvbt.bandwidth;
-    else
+    else if (terr->dvb_type == DMD_DVBTYPE_DVBT2)
         tmp = terr->desc.dvbt2.bandwidth;
+    else
+        tmp = terr->desc.dtmb.bandwidth;
     p[cmd_num].cmd = DTV_BANDWIDTH_HZ;
     switch (tmp)
     {
@@ -222,6 +228,8 @@ DVB_RESULT AML_FE_TuneDVB_T(int frontend_fd, const dmd_terrestrial_desc_t *terr)
     }
     cmd_num++;
 
+    if (terr->dvb_type != DMD_DVBTYPE_DTMB)
+    {
     p[cmd_num].cmd = DTV_CODE_RATE_HP;
     p[cmd_num].u.data = FEC_AUTO;
     cmd_num++;
@@ -261,6 +269,7 @@ DVB_RESULT AML_FE_TuneDVB_T(int frontend_fd, const dmd_terrestrial_desc_t *terr)
         p[cmd_num].cmd = DTV_DVBT2_PLP_ID_LEGACY;
         p[cmd_num].u.data = terr->desc.dvbt2.plp_id;
         cmd_num++;
+    }
     }
 
     p[cmd_num].cmd = DTV_TUNE;

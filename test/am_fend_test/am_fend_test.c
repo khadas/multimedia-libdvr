@@ -8,6 +8,7 @@
   * \li lock DVB-T2
   * \li lock DVB-S
   * \li lock DVB-S2
+  * \li lock DTMB
   *
   * \section Usage
   *
@@ -32,6 +33,7 @@
   * \li 3: DVB-T2
   * \li 4: DVB-S
   * \li 5: DVB-S2
+  * \li 6: DTMB
   *
   * modulation
   * \li 0x0000: DMD_MOD_NONE
@@ -74,6 +76,10 @@
   * \code
   *   am_fend_test [fe=fontend_idx] [mode=5] [freq=frequency] [sym_rate=symbol_rate] [modul=modulation] [timer=check_tune_time]
   * \endcode
+  * Lock DTMB:
+  * \code
+  *   am_fend_test [fe=fontend_idx] [mode=6] [freq=frequency] [bw=bandwidth] [timer=check_tune_time]
+  * \endcode
   *
   * \endsection
   */
@@ -110,6 +116,7 @@
 #define TUNE_MODE_DVB_T2 3
 #define TUNE_MODE_DVB_S 4
 #define TUNE_MODE_DVB_S2 5
+#define TUNE_MODE_DTMB 6
 #define INVALID_FD -1
 
 
@@ -120,7 +127,8 @@ static char *help_mode =
     "\n 2: DVB-T"
     "\n 3: DVB-T2"
     "\n 4: DVB-S"
-    "\n 5: DVB-S2";
+    "\n 5: DVB-S2"
+    "\n 6: DTMB";
 static char *help_modulation =
     "\n 0x0000: DMD_MOD_NONE"
     "\n 0x0001: DMD_MOD_QPSK"
@@ -154,6 +162,7 @@ static void usage(int argc, char *argv[])
   printf("[Lock DVB-T2:]\n%s fe=fontend_idx mode=3 freq=frequency bw=bandwidth  tran_mode=transmission_mode  plp=plp_id timer=check_tune_time\n", argv[0]);
   printf("[Lock DVB-S:] \n%s fe=fontend_idx mode=4 freq=frequency sym_rate=symbol_rate modul=modulation timer=check_tune_time\n", argv[0]);
   printf("[Lock DVB-S2:]\n%s fe=fontend_idx mode=5 freq=frequency sym_rate=symbol_rate modul=modulation timer=check_tune_time\n", argv[0]);
+  printf("[Lock DTMB:]\n%s fe=fontend_idx mode=6 freq=frequency bw=bandwidth timer=check_tune_time\n", argv[0]);
 
   printf("\nfreq(MHZ) lo(MHz) timer(second)\n");
   printf("mode:%s\n", help_mode);
@@ -276,6 +285,13 @@ int main(int argc, char **argv)
     AML_FE_LnbVoltage(fontend_id, DMD_LNB_VOLTAGE_OFF);
     ret = AML_FE_TuneDVB_S(fontend_id, &satellite);
     printf("%s: lock to freq:%dMHz, modulation:%d symbol_rate:%d ret:%d\n", mode == TUNE_MODE_DVB_S2 ? "DVB-S2" : "DVB-S", frequency, modulation, symbol_rate, ret);
+    break;
+  case TUNE_MODE_DTMB:
+    terrestrial.dvb_type = DMD_DVBTYPE_DTMB;
+    terrestrial.desc.dtmb.frequency = frequency * 1000;
+    terrestrial.desc.dtmb.bandwidth = bandwidth;
+    ret = AML_FE_TuneDVB_T(fontend_id, &terrestrial);
+    printf("DTMB: lock to freq:%d, bandwidth:%d ret:%d \n", frequency, bandwidth, ret);
     break;
   case TUNE_MODE_UNKNOW:
   default:
