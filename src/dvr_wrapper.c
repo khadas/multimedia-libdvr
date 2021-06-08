@@ -745,6 +745,8 @@ static int wrapper_addRecordSegment(DVR_WrapperCtx_t *ctx, DVR_RecordSegmentInfo
       }
       pthread_mutex_unlock(&ctx_playback->lock);
     }
+  } else {
+    dvr_segment_link_op(ctx->record.param_open.location, 1, &seg_info->id, LSEG_OP_ADD);
   }
 
   return error;

@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include <pthread.h>
 #include "dvr_segment.h"
 #include <segment.h>
@@ -61,18 +62,15 @@ int dvr_segment_delete(const char *location, uint64_t segment_id)
 int dvr_segment_del_by_location(const char *location)
 {
   FILE *fp;
-  char fpath[DVR_MAX_LOCATION_SIZE];
   char cmd[DVR_MAX_LOCATION_SIZE + 64];
 
   DVR_RETURN_IF_FALSE(location);
 
   DVR_DEBUG(1, "%s location:%s", __func__, location);
-  memset(fpath, 0, sizeof(fpath));
-  sprintf(fpath, "%s.del", location);
   {
     /* del file */
     memset(cmd, 0, sizeof(cmd));
-    sprintf(cmd, "rm %s-*", location);
+    sprintf(cmd, "rm %s-*;rm %s.list", location, location);
     fp = popen(cmd, "r");
     DVR_RETURN_IF_FALSE(fp);
   }
@@ -119,6 +117,7 @@ int dvr_segment_get_list(const char *location, uint32_t *p_segment_nb, uint64_t 
     }
     *pp_segment_ids = p;
     fclose(fp);
+    DVR_DEBUG(1, "%s location:%s segments:%d",  __func__, location, i);
   } else {
     uint32_t id = 0;
     /*the list file does not exist*/
@@ -195,6 +194,11 @@ int dvr_segment_get_info(const char *location, uint64_t segment_id, DVR_RecordSe
 
 int dvr_segment_link(const char *location, uint32_t nb_segments, uint64_t *p_segment_ids)
 {
+  return dvr_segment_link_op(location, nb_segments, p_segment_ids, LSEG_OP_NEW);
+}
+
+int dvr_segment_link_op(const char *location, uint32_t nb_segments, uint64_t *p_segment_ids, int op)
+{
   FILE *fp;
   char fpath[DVR_MAX_LOCATION_SIZE];
   uint32_t i;
@@ -204,13 +208,17 @@ int dvr_segment_link(const char *location, uint32_t nb_segments, uint64_t *p_seg
   DVR_RETURN_IF_FALSE(p_segment_ids);
   DVR_RETURN_IF_FALSE(strlen((const char *)location) < DVR_MAX_LOCATION_SIZE);
 
-  DVR_DEBUG(1, "%s location:%s, nb_segments:%d", __func__, location, nb_segments);
+  DVR_DEBUG(1, "%s op[%d] location:%s, nb_segments:%d", __func__, op, location, nb_segments);
   memset(fpath, 0, sizeof(fpath));
   sprintf(fpath, "%s.list", location);
-  fp = fopen(fpath, "w+");
+  fp = fopen(fpath, (op == LSEG_OP_ADD) ? "a+" : "w+");
+  if (!fp) {
+    DVR_DEBUG(1, "failed to open list file, err:%d:%s", errno, strerror(errno));
+    return DVR_FAILURE;
+  }
   for (i = 0; i< nb_segments; i++) {
     memset(buf, 0, sizeof(buf));
-    sprintf(buf, "%lld", p_segment_ids[i]);
+    sprintf(buf, "%lld\n", p_segment_ids[i]);
     fwrite(buf, 1, strlen(buf), fp);
   }
 

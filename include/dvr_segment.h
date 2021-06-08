@@ -61,6 +61,11 @@ int dvr_segment_get_info(const char *location, uint64_t segment_id, DVR_RecordSe
  */
 int dvr_segment_link(const char *location, uint32_t nb_segments, uint64_t *p_segment_ids);
 
+
+#define LSEG_OP_NEW 0
+#define LSEG_OP_ADD 1
+int dvr_segment_link_op(const char *location, uint32_t nb_segments, uint64_t *p_segment_ids, int op);
+
 #ifdef __cplusplus
 }
 #endif
