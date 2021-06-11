@@ -1,5 +1,5 @@
-#include <stdio.h>
-#include "index_file.h"
+#include <dvr_types.h>
+#include <index_file.h>
 
 int index_file_open(Index_FileHandle_t *p_handle, Index_FileOpenParams_t *p_params)
 {

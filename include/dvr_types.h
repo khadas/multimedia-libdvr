@@ -15,10 +15,18 @@
 #ifndef _DVR_TYPES_H
 #define _DVR_TYPES_H
 
-#include <android/log.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <stdint.h>
+#include <inttypes.h>
 #include <assert.h>
-#include "pthread.h"
+#include <pthread.h>
+
+#include <android/log.h>
+
+#ifndef __ANDROID_API__
+#include <limits.h>
+#endif
 
 #ifdef __cplusplus
 extern "C"
@@ -42,12 +50,20 @@ extern "C"
 
 /**Log output*/
 #define dvr_log_print(...) __android_log_print(ANDROID_LOG_INFO, DVR_LOG_TAG, __VA_ARGS__)
+#define dvr_log_print_fl(tag, fmt, ...)\
+  __android_log_print(ANDROID_LOG_INFO, DVR_LOG_TAG, tag " %s %d: " fmt, __FUNCTION__, __LINE__, ##__VA_ARGS__)
 
 /**Output debug message.*/
 #define DVR_DEBUG(_level,_fmt...) \
   do {\
     if (_level <= DVR_DEBUG_LEVEL)\
       dvr_log_print(_fmt);\
+  } while (0)
+
+#define DVR_DEBUG_FL(_level, _tag, _fmt...) \
+  do {\
+    if (_level <= DVR_DEBUG_LEVEL)\
+      dvr_log_print_fl(_tag, _fmt);\
   } while (0)
 
 /**Abort the program if assertion is false.*/

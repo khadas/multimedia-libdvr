@@ -6,6 +6,7 @@
 #include "dvr_types.h"
 #include "dvr_record.h"
 #include "dvr_crypto.h"
+#include "dvb_utils.h"
 #include "record_device.h"
 #include "segment.h"
 #include <sys/time.h>
@@ -66,6 +67,8 @@ typedef struct {
   DVR_Bool_t                      is_new_dmx;                           /**< DVR is used new dmx driver */
   int                             index_type;                           /**< DVR is used pcr or local time */
 } DVR_RecordContext_t;
+
+extern ssize_t record_device_read_ext(Record_DeviceHandle_t handle, size_t *buf, size_t *len);
 
 static DVR_RecordContext_t record_ctx[MAX_DVR_RECORD_SESSION_COUNT] = {
   {
@@ -183,7 +186,7 @@ void *record_thread(void *arg)
   #define DVR_STORE_INFO_TIME (400)
   DVR_SecureBuffer_t secure_buf;
   DVR_NewDmxSecureBuffer_t new_dmx_secure_buf;
-  p_ctx->index_type = DVR_INDEX_TYPE_LOCAL_CLOCK;
+  p_ctx->index_type = DVR_INDEX_TYPE_INVALID;
 
   buf = (uint8_t *)malloc(block_size);
   if (!buf) {
@@ -221,7 +224,7 @@ void *record_thread(void *arg)
           memset(&new_dmx_secure_buf, 0, sizeof(new_dmx_secure_buf));
           len = record_device_read(p_ctx->dev_handle, &new_dmx_secure_buf, sizeof(new_dmx_secure_buf), 10);
 	  if (len == DVR_FAILURE) {
-	    DVR_DEBUG(1, "handle[%#x] ret:%d\n", p_ctx->dev_handle, ret);
+	    DVR_DEBUG(1, "handle[%p] ret:%d\n", p_ctx->dev_handle, ret);
 	    /*For the second recording, poll always failed which we should check
 	     * dvbcore further. For now, Just ignore the fack poll fail, I think
 	     * it won't influce anything. But we need adjust the poll timeout
