@@ -40,7 +40,7 @@
 static int write_success = 0;
 //
 static int _dvr_playback_fffb(DVR_PlaybackHandle_t handle);
-static int _do_check_pid_info(DVR_PlaybackHandle_t handle, DVR_StreamInfo_t  now_pid, DVR_StreamInfo_t set_pid, int type);
+static int _do_check_pid_info(DVR_PlaybackHandle_t handle, DVR_StreamInfo_t  now_pid, DVR_PlaybackPids_t pids, int type);
 static int _dvr_get_cur_time(DVR_PlaybackHandle_t handle);
 static int _dvr_get_end_time(DVR_PlaybackHandle_t handle);
 static int _dvr_playback_calculate_seekpos(DVR_PlaybackHandle_t handle);
@@ -818,14 +818,14 @@ static int _dvr_replay_changed_pid(DVR_PlaybackHandle_t handle) {
   //if (player->cmd.state == DVR_PLAYBACK_STATE_START)
   {
     //check video pids, stop or restart
-    _do_check_pid_info(handle, player->last_segment.pids.video, player->cur_segment.pids.video, 0);
+    _do_check_pid_info(handle, player->last_segment.pids.video, player->cur_segment.pids, 0);
     //check sub audio pids stop or restart
-    _do_check_pid_info(handle, player->last_segment.pids.ad, player->cur_segment.pids.ad, 2);
+    _do_check_pid_info(handle, player->last_segment.pids.ad, player->cur_segment.pids, 2);
     //check audio pids stop or restart
-    _do_check_pid_info(handle, player->last_segment.pids.audio, player->cur_segment.pids.audio, 1);
+    _do_check_pid_info(handle, player->last_segment.pids.audio, player->cur_segment.pids, 1);
     DVR_PB_DG(1, ":last apid: %d  set apid: %d", player->last_segment.pids.audio.pid,player->cur_segment.pids.audio.pid);
     //check pcr pids stop or restart
-    _do_check_pid_info(handle, player->last_segment.pids.pcr, player->cur_segment.pids.pcr, 3);
+    _do_check_pid_info(handle, player->last_segment.pids.pcr, player->cur_segment.pids, 3);
   }
   return DVR_SUCCESS;
 }
@@ -1707,8 +1707,20 @@ int dvr_playback_update_segment_flags(DVR_PlaybackHandle_t handle,
 }
 
 
-static int _do_check_pid_info(DVR_PlaybackHandle_t handle, DVR_StreamInfo_t  now_pid, DVR_StreamInfo_t set_pid, int type) {
+static int _do_check_pid_info(DVR_PlaybackHandle_t handle, DVR_StreamInfo_t  now_pid, DVR_PlaybackPids_t set_pids, int type) {
   DVR_Playback_t *player = (DVR_Playback_t *) handle;
+  DVR_StreamInfo_t set_pid;
+
+  if (type == 0) {
+    set_pid = set_pids.video;
+  } else if (type == 1) {
+    set_pid = set_pids.audio;
+  } else if (type == 2) {
+    set_pid = set_pids.ad;
+  } else {
+    set_pid = set_pids.pcr;
+  }
+
   if (player == NULL) {
     DVR_PB_DG(1, "player is NULL");
     return DVR_FAILURE;
@@ -1757,6 +1769,15 @@ static int _do_check_pid_info(DVR_PlaybackHandle_t handle, DVR_StreamInfo_t  now
       } else if (type == 1) {
         //start audio
         if (player->cmd.speed.speed.speed == PLAYBACK_SPEED_X1) {
+          if (VALID_PID(set_pids.ad.pid)) {
+            am_tsplayer_audio_params adparams;
+            adparams.pid = set_pids.ad.pid;
+            adparams.codectype= _dvr_convert_stream_fmt(set_pids.ad.format, DVR_TRUE);
+            DVR_PB_DG(1, "start ad audio pid[%d]fmt[%d]",adparams.pid, adparams.codectype);
+            AmTsPlayer_setADParams(player->handle,  &adparams);
+            AmTsPlayer_enableADMix(player->handle);
+          }
+
           am_tsplayer_audio_params aparams;
           aparams.pid = set_pid.pid;
           aparams.codectype= _dvr_convert_stream_fmt(set_pid.format, DVR_TRUE);
@@ -1827,13 +1848,13 @@ int dvr_playback_update_segment_pids(DVR_PlaybackHandle_t handle, uint64_t segme
         if (player->cmd.state == DVR_PLAYBACK_STATE_START) {
           pthread_mutex_unlock(&player->lock);
           //check video pids, stop or restart
-          _do_check_pid_info((DVR_PlaybackHandle_t)player, segment->pids.video, p_pids->video, 0);
+          _do_check_pid_info((DVR_PlaybackHandle_t)player, segment->pids.video, *p_pids, 0);
           //check sub audio pids stop or restart
-          _do_check_pid_info((DVR_PlaybackHandle_t)player, segment->pids.ad, p_pids->ad, 2);
+          _do_check_pid_info((DVR_PlaybackHandle_t)player, segment->pids.ad, *p_pids, 2);
           //check audio pids stop or restart
-          _do_check_pid_info((DVR_PlaybackHandle_t)player, segment->pids.audio, p_pids->audio, 1);
+          _do_check_pid_info((DVR_PlaybackHandle_t)player, segment->pids.audio, *p_pids, 1);
           //check pcr pids stop or restart
-          _do_check_pid_info((DVR_PlaybackHandle_t)player, segment->pids.pcr, p_pids->pcr, 3);
+          _do_check_pid_info((DVR_PlaybackHandle_t)player, segment->pids.pcr, *p_pids, 3);
           pthread_mutex_lock(&player->lock);
         } else if (player->cmd.state == DVR_PLAYBACK_STATE_PAUSE) {
           //if state is pause, we need process at resume api. we only record change info
