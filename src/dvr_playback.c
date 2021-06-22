@@ -20,6 +20,7 @@
 
 #define VALID_PID(_pid_) ((_pid_)>0 && (_pid_)<0x1fff)
 
+#define CONTROL_SPEED_ENABLE    0
 
 #define FF_SPEED (2.0f)
 #define FB_SPEED (-1.0f)
@@ -415,7 +416,8 @@ static int _dvr_playback_sent_playtime(DVR_PlaybackHandle_t handle, DVR_Bool_t i
   DVR_Playback_t *player = (DVR_Playback_t *) handle;
 
   if (player->openParams.is_notify_time == DVR_FALSE) {
-    return DVR_SUCCESS;
+    if (CONTROL_SPEED_ENABLE == 0)
+       return DVR_SUCCESS;
   }
   if (player == NULL) {
     DVR_PB_DG(1, "player is NULL");
@@ -423,11 +425,18 @@ static int _dvr_playback_sent_playtime(DVR_PlaybackHandle_t handle, DVR_Bool_t i
   }
 
   if (player->send_time ==0) {
-    player->send_time = _dvr_time_getClock() + 500;
+    if (CONTROL_SPEED_ENABLE == 0)
+      player->send_time = _dvr_time_getClock() + 500;
+    else
+      player->send_time = _dvr_time_getClock() + 20;
   } else if (player->send_time >= _dvr_time_getClock()) {
     return DVR_SUCCESS;
   }
-  player->send_time = _dvr_time_getClock() + 500;
+  if (CONTROL_SPEED_ENABLE == 0)
+    player->send_time = _dvr_time_getClock() + 500;
+  else
+    player->send_time = _dvr_time_getClock() + 20;
+
   DVR_Play_Notify_t notify;
   memset(&notify, 0 , sizeof(DVR_Play_Notify_t));
   notify.event = DVR_PLAYBACK_EVENT_NOTIFY_PLAYTIME;
@@ -541,7 +550,7 @@ static int _dvr_get_next_segmentId(DVR_PlaybackHandle_t handle) {
   DVR_Playback_t *player = (DVR_Playback_t *) handle;
   DVR_PlaybackSegmentInfo_t *segment;
   DVR_PlaybackSegmentInfo_t *pre_segment = NULL;
-  
+
   if (player == NULL) {
     DVR_PB_DG(1, "player is NULL");
     return DVR_FAILURE;
@@ -828,6 +837,35 @@ static int _dvr_replay_changed_pid(DVR_PlaybackHandle_t handle) {
     _do_check_pid_info(handle, player->last_segment.pids.pcr, player->cur_segment.pids, 3);
   }
   return DVR_SUCCESS;
+}
+
+static int _dvr_check_speed_con(DVR_PlaybackHandle_t handle)
+{
+  DVR_Playback_t *player = (DVR_Playback_t *) handle;
+  if (player == NULL) {
+    DVR_PB_DG(1, "player is NULL");
+    return DVR_TRUE;
+  }
+  char buf[10];
+  dvr_prop_read("vendor.tv.libdvr.con", buf, sizeof(buf));
+  DVR_PB_DG(1, "player get prop[%d][%s]", atoi(buf), buf);
+
+  if (atoi(buf) != 1) {
+    //return DVR_TRUE;
+  }
+
+  DVR_PB_DG(1, ":play speed: %f  \n ply dur: %d \n sys_dur: %d", player->speed,
+                    player->con_spe.ply_dur,
+                    player->con_spe.sys_dur);
+
+  if (player->speed != 1.0f)
+   return DVR_TRUE;
+
+  if (player->con_spe.ply_dur > 0
+      && 2*player->con_spe.ply_dur > 3 * player->con_spe.sys_dur)
+    return DVR_FALSE;
+
+  return DVR_TRUE;
 }
 
 static int _dvr_check_cur_segment_flag(DVR_PlaybackHandle_t handle)
@@ -1262,11 +1300,31 @@ rewrite:
       player->ts_cache_len = 0;
       real_read = 0;
       write_success++;
+      if (CONTROL_SPEED_ENABLE == 1) {
+check0:
+            if (_dvr_check_speed_con((DVR_PlaybackHandle_t)player) == DVR_FALSE){
+              pthread_mutex_lock(&player->lock);
+              _dvr_playback_timeoutwait((DVR_PlaybackHandle_t)player, 50);
+              pthread_mutex_unlock(&player->lock);
+              _dvr_playback_sent_playtime((DVR_PlaybackHandle_t)player, DVR_FALSE);
+              goto check0;
+            }
+      }
       //DVR_PB_DG(1, "write  write_success:%d wbufs.buf_size:%d", write_success, wbufs.buf_size);
       continue;
     } else {
       DVR_PB_DG(1, "write time out write_success:%d wbufs.buf_size:%d", write_success, wbufs.buf_size);
       write_success = 0;
+      if (CONTROL_SPEED_ENABLE == 1) {
+check1:
+        if (_dvr_check_speed_con((DVR_PlaybackHandle_t)player) == DVR_FALSE){
+          pthread_mutex_lock(&player->lock);
+          _dvr_playback_timeoutwait((DVR_PlaybackHandle_t)player, 50);
+          pthread_mutex_unlock(&player->lock);
+          _dvr_playback_sent_playtime((DVR_PlaybackHandle_t)player, DVR_FALSE);
+          goto check1;
+        }
+      }
       pthread_mutex_lock(&player->lock);
       _dvr_playback_timeoutwait((DVR_PlaybackHandle_t)player, timeout);
       pthread_mutex_unlock(&player->lock);
@@ -1411,6 +1469,14 @@ int dvr_playback_open(DVR_PlaybackHandle_t *p_handle, DVR_PlaybackOpenParams_t *
   player->last_send_time_id = UINT64_MAX;
   player->last_cur_time = 0;
   player->seek_pause = DVR_FALSE;
+
+  //speed con init
+  if (CONTROL_SPEED_ENABLE == 1) {
+    player->con_spe.ply_dur = 0;
+    player->con_spe.ply_sta = -1;
+    player->con_spe.sys_dur = 0;
+    player->con_spe.sys_sta = 0;
+  }
 
   *p_handle = player;
   return DVR_SUCCESS;
@@ -2649,7 +2715,6 @@ static int _dvr_get_play_cur_time(DVR_PlaybackHandle_t handle, uint64_t *id) {
       cur_time = (int)(cur - cache);
       *id =  player->cur_segment_id;
   } else if (player->last_segment_tatol > 0) {
-      
       cur_time = (int)(player->last_segment_tatol - (cache - cur));
       *id = player->last_segment_id;
       DVR_PB_DG(1, "get play cur time[%lld][%lld][%d]", player->last_segment_id, player->cur_segment_id, player->last_segment_tatol);
@@ -3116,8 +3181,26 @@ static int _dvr_playback_get_status(DVR_PlaybackHandle_t handle,
   }
 
   p_status->time_end = _dvr_get_end_time(handle);
-  
   p_status->time_cur = _dvr_get_play_cur_time(handle, &segment_id);
+
+  if (CONTROL_SPEED_ENABLE == 1) {
+    if (player->con_spe.ply_sta < 0) {
+          DVR_PB_DG(1, "player dur[%d] sta[%d] cur[%d] -----reinit", player->con_spe.ply_dur, player->con_spe.ply_sta,p_status->time_cur);
+          player->con_spe.ply_sta = p_status->time_cur;
+      } else if (player->speed == 1.0f && player->con_spe.ply_sta < p_status->time_cur) {
+        player->con_spe.ply_dur += (p_status->time_cur - player->con_spe.ply_sta);
+        DVR_PB_DG(1, "player dur[%d] sta[%d] cur[%d]", player->con_spe.ply_dur, player->con_spe.ply_sta,p_status->time_cur);
+        player->con_spe.ply_sta = p_status->time_cur;
+      }
+
+      if (player->con_spe.sys_sta == 0) {
+          player->con_spe.sys_sta = _dvr_time_getClock();
+      } else if (player->speed == 1.0f && player->con_spe.sys_sta > 0) {
+        player->con_spe.sys_dur += (_dvr_time_getClock() - player->con_spe.sys_sta);
+        player->con_spe.sys_sta = _dvr_time_getClock();
+      }
+  }
+
   if (player->last_send_time_id == UINT64_MAX) {
     player->last_send_time_id = player->cur_segment_id;
     player->last_cur_time = p_status->time_cur;
@@ -3140,7 +3223,7 @@ static int _dvr_playback_get_status(DVR_PlaybackHandle_t handle,
         player->last_cur_time = p_status->time_cur;
       }
     }
-  } else { 
+  } else {
     player->last_cur_time = p_status->time_cur;
   }
   player->last_send_time_id = segment_id;
@@ -3173,13 +3256,6 @@ int dvr_playback_get_status(DVR_PlaybackHandle_t handle,
 //
   DVR_Playback_t *player = (DVR_Playback_t *) handle;
 
-
-  char buf[10];
-  dvr_prop_read("vendor.tv.libdvr.con", buf, sizeof(buf));
-  if (atoi(buf) != 1) {
-  
-  }
-  DVR_PB_DG(1, "player get prop[%d][%s]", atoi(buf), buf);
   _dvr_playback_get_status(handle, p_status, DVR_TRUE);
 
   if (player == NULL) {

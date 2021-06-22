@@ -255,6 +255,16 @@ typedef struct
   int                       pos;        /**< seek pos at cur segment*/
 } DVR_PlaybackCmdInfo_t;
 
+/**\brief playback struct*/
+typedef struct
+{
+  int       sys_dur;     /**< system duration */
+  int       sys_sta;     /**< system start time */
+  int       ply_dur;     /**< play duration */
+  int       ply_sta;     /**< play start time */
+} DVR_PlaybackConSpe_t;
+
+
 /**\brief DVR playback decrypt function*/
 typedef DVR_Result_t (*DVR_PlaybackDecryptFunction_t) (uint8_t *p_in,
     uint32_t in_len,
@@ -316,6 +326,7 @@ typedef struct
   DVR_Bool_t                 seek_pause;
   int                        last_segment_tatol;        /**< last segment tatol time*/
 
+  DVR_PlaybackConSpe_t       con_spe;
 } DVR_Playback_t;
 /**\endcond*/
 
