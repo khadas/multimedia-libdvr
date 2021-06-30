@@ -313,6 +313,7 @@ void *record_thread(void *arg)
        if (p_ctx->event_notify_fn) {
          memset(&record_status, 0, sizeof(record_status));
          DVR_DEBUG(1, "%s：%d,send event write error", __func__,__LINE__);
+         record_status.info.id = p_ctx->segment_info.id;
          p_ctx->event_notify_fn(DVR_RECORD_EVENT_WRITE_ERROR, &record_status, p_ctx->event_userdata);
         }
         DVR_DEBUG(1, "%s,write error %d", __func__,__LINE__);
