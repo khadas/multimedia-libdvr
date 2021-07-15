@@ -1,0 +1,36 @@
+
+cc_binary {
+    name: "dvr_wrapper_test",
+    proprietary: true,
+    compile_multilib: "32",
+
+    arch: {
+        x86: {
+            enabled: false,
+        },
+        x86_64: {
+            enabled: false,
+        },
+    },
+
+    srcs: [
+        "dvr_wrapper_test.c"
+    ],
+
+    shared_libs: [
+        "libutils",
+        "libcutils",
+        "liblog",
+        "libdl",
+        "libc",
+        "libamdvr",
+        "libmediahal_tsplayer",
+    ],
+
+    include_dirs: [
+      "hardware/amlogic/media/amcodec/include",
+      "system/core/liblog/include",
+      "vendor/amlogic/common/mediahal_sdk/include",
+      "vendor/amlogic/common/libdvr/include",
+    ],
+}

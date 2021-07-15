@@ -13,6 +13,7 @@ typedef struct Record_DeviceOpenParams_t_s {
   int         fend_dev_id;  /**< frontend device id*/
   int         dmx_dev_id;   /**< demux device id*/
   uint32_t    buf_size;     /**< dvr record buffer size*/
+  uint32_t    ringbuf_size;     /**< dvr record ring buffer size*/
 } Record_DeviceOpenParams_t;
 
 /**\brief Open a DVR record device

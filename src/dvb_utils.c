@@ -104,6 +104,38 @@ int dvb_set_demux_source(int dmx_idx, DVB_DemuxSource_t src)
                 source = DMA_7;
                 input = INPUT_LOCAL;
                 break;
+            case DVB_DEMUX_SECSOURCE_DMA0:
+                source = DMA_0;
+                input = INPUT_LOCAL_SEC;
+                break;
+            case DVB_DEMUX_SECSOURCE_DMA1:
+                source = DMA_1;
+                input = INPUT_LOCAL_SEC;
+                break;
+            case DVB_DEMUX_SECSOURCE_DMA2:
+                source = DMA_2;
+                input = INPUT_LOCAL_SEC;
+                break;
+            case DVB_DEMUX_SECSOURCE_DMA3:
+                source = DMA_3;
+                input = INPUT_LOCAL_SEC;
+                break;
+            case DVB_DEMUX_SECSOURCE_DMA4:
+                source = DMA_4;
+                input = INPUT_LOCAL_SEC;
+                break;
+            case DVB_DEMUX_SECSOURCE_DMA5:
+                source = DMA_5;
+                input = INPUT_LOCAL_SEC;
+                break;
+            case DVB_DEMUX_SECSOURCE_DMA6:
+                source = DMA_6;
+                input = INPUT_LOCAL_SEC;
+                break;
+            case DVB_DEMUX_SECSOURCE_DMA7:
+                source = DMA_7;
+                input = INPUT_LOCAL_SEC;
+                break;
             default:
                 assert(0);
             }

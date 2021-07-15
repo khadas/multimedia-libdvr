@@ -576,6 +576,16 @@ static int get_dvr_info(char *location, int *apid, int *afmt, int *vpid, int *vf
 
     return 0;
 }
+static uint64_t dvr_time_getClock(void)
+{
+  struct timespec ts;
+  uint64_t ms;
+
+  clock_gettime(CLOCK_REALTIME, &ts);
+  ms = ts.tv_sec*1000+ts.tv_nsec/1000000;
+  INF("dvr_time_getClock:sec:%ld.\n", ts.tv_sec);
+  return ms;
+}
 
 static int start_playback(int apid, int afmt, int vpid, int vfmt)
 {
@@ -668,8 +678,10 @@ static int start_playback(int apid, int afmt, int vpid, int vfmt)
        DVR_PlaybackFlag_t play_flag = (pause)? DVR_PLAYBACK_STARTED_PAUSEDLIVE : 0;
 
        INF( "Starting playback\n");
-
-       error = dvr_wrapper_start_playback(player, play_flag, &play_pids);
+       int time = dvr_time_getClock();
+       INF( "Starting playback time:%d\n", time);
+	    //error = dvr_wrapper_setlimit_playback(player, time - 110*60*1000, 90*60*1000);
+        error = dvr_wrapper_start_playback(player, play_flag, &play_pids);
        if (error)
        {
           ERR( "Start play failed, error %d\n", error);

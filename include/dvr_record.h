@@ -22,6 +22,7 @@ typedef enum {
   DVR_RECORD_STATE_STARTED,       /**< Record state is started*/
   DVR_RECORD_STATE_STOPPED,       /**< Record state is stopped*/
   DVR_RECORD_STATE_CLOSED,        /**< Record state is closed*/
+  DVR_RECORD_STATE_PAUSE,        /**< Record state is pause*/
 } DVR_RecordState_t;
 
 /**\brief DVR record pid action*/
@@ -91,6 +92,7 @@ typedef struct {
   DVR_CryptoPeriod_t          crypto_period;      /**< DVR crypto period information*/
   DVR_CryptoFunction_t        crypto_fn;          /**< DVR crypto callback function*/
   void                        *crypto_userdata;   /**< DVR crypto userdata*/
+  int                         ringbuf_size;       /**< DVR record ring buf size*/
 } DVR_RecordOpenParams_t;
 
 /**\brief DVR record segment start parameters*/
@@ -134,6 +136,20 @@ int dvr_record_open(DVR_RecordHandle_t *p_handle, DVR_RecordOpenParams_t *params
  * \return error code on failure
  */
 int dvr_record_close(DVR_RecordHandle_t handle);
+
+/**\brief pause recording on a segment
+ * \param[in] handle DVR recording session handle
+ * \return DVR_SUCCESS on success
+ * \return error code on failure
+ */
+int dvr_record_pause(DVR_RecordHandle_t handle);
+
+/**\brief resume recording on a segment
+ * \param[in] handle DVR recording session handle
+ * \return DVR_SUCCESS on success
+ * \return error code on failure
+ */
+int dvr_record_resume(DVR_RecordHandle_t handle);
 
 /**\brief Start recording on a segment
  * \param[in] handle DVR recording session handle

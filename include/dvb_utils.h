@@ -58,7 +58,15 @@ typedef unsigned int uint_t;
     DVB_DEMUX_SOURCE_DMA4, /**< DMA input port 4.*/
     DVB_DEMUX_SOURCE_DMA5, /**< DMA input port 5.*/
     DVB_DEMUX_SOURCE_DMA6, /**< DMA input port 6.*/
-    DVB_DEMUX_SOURCE_DMA7  /**< DMA input port 7.*/
+    DVB_DEMUX_SOURCE_DMA7,  /**< DMA input port 7.*/
+    DVB_DEMUX_SECSOURCE_DMA0, /**< DMA secure port 0.*/
+    DVB_DEMUX_SECSOURCE_DMA1, /**< DMA secure port 1.*/
+    DVB_DEMUX_SECSOURCE_DMA2, /**< DMA secure port 2.*/
+    DVB_DEMUX_SECSOURCE_DMA3, /**< DMA secure port 3.*/
+    DVB_DEMUX_SECSOURCE_DMA4, /**< DMA secure port 4.*/
+    DVB_DEMUX_SECSOURCE_DMA5, /**< DMA secure port 5.*/
+    DVB_DEMUX_SECSOURCE_DMA6, /**< DMA secure port 6.*/
+    DVB_DEMUX_SECSOURCE_DMA7  /**< DMA secure port 7.*/
   } DVB_DemuxSource_t;
 
   /**

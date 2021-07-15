@@ -107,8 +107,8 @@ typedef uint8_t        DVR_Bool_t;
 #define DVR_FALSE       (0)
 #endif
 
-#ifndef UNUSED
-#define UNSED(x) (void)(x)
+#ifndef UNDVRUSED
+#define UNDVRUSED(x) (void)(x)
 #endif
 
 /**Funciton result*/

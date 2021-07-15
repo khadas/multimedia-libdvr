@@ -196,6 +196,17 @@ int record_device_open(Record_DeviceHandle_t *p_handle, Record_DeviceOpenParams_
     } else {
       DVR_DEBUG(1, "%s set dvr buf size success \"%s\" buf_size:%d", __func__, dev_name, buf_size);
     }
+  } else {
+      //set del buf size is 10 * 188 *1024
+      int buf_size = params->ringbuf_size;
+      if (buf_size > 0) {
+          ret = ioctl(p_ctx->fd, DMX_SET_BUFFER_SIZE, buf_size);
+          if (ret == -1) {
+            DVR_DEBUG(1, "%s set dvr ringbuf size failed\"%s\" (%s) buf_size:%d", __func__, dev_name, strerror(errno), buf_size);
+          } else {
+            DVR_DEBUG(1, "%s set dvr ringbuf size success \"%s\" buf_size:%d", __func__, dev_name, buf_size);
+          }
+      }
   }
   memset(buf, 0, sizeof(buf));
   snprintf(buf, sizeof(buf), "/sys/class/stb/asyncfifo%d_flush_size", dev_no);
@@ -636,7 +647,7 @@ int record_device_set_secure_buffer(Record_DeviceHandle_t handle, uint8_t *sec_b
     int fd;
     char node[32] = {0};
     memset(node, 0, sizeof(node));
-    snprintf(node, sizeof(node), "/dev/dvb0.demux%d", i);
+    snprintf(node, sizeof(node), "/dev/dvb0.demux%d", p_ctx->dmx_dev_id);
     fd = open(node, O_RDONLY);
     if (SECDMX_AllocateDVRBuffer_Ptr != NULL) {
 	for (i = 0; i < MAX_RECORD_DEVICE_COUNT; i++) {

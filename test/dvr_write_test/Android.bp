@@ -1,0 +1,29 @@
+
+cc_binary {
+    name: "dvr_write_test",
+    proprietary: true,
+    compile_multilib: "32",
+
+    arch: {
+        x86: {
+            enabled: false,
+        },
+        x86_64: {
+            enabled: false,
+        },
+    },
+
+    srcs: [
+        "dvr_write_test.c"
+    ],
+
+    shared_libs: [
+        "libutils",
+        "libcutils",
+        "liblog"
+    ],
+
+    include_dirs: [
+    ],
+
+}

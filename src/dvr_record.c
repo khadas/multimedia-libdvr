@@ -219,7 +219,14 @@ void *record_thread(void *arg)
   clock_gettime(CLOCK_MONOTONIC, &start_ts);
 
   struct timeval t1, t2, t3, t4, t5, t6, t7;
-  while (p_ctx->state == DVR_RECORD_STATE_STARTED) {
+  while (p_ctx->state == DVR_RECORD_STATE_STARTED ||
+    p_ctx->state == DVR_RECORD_STATE_PAUSE) {
+
+    if (p_ctx->state == DVR_RECORD_STATE_PAUSE) {
+      //wait resume record
+      usleep(20*1000);
+      continue;
+    }
     gettimeofday(&t1, NULL);
 
     /* data from dmx, normal dvr case */
@@ -433,6 +440,7 @@ int dvr_record_open(DVR_RecordHandle_t *p_handle, DVR_RecordOpenParams_t *params
     /* data from dmx, normal dvr case */
     dev_open_params.dmx_dev_id = params->dmx_dev_id;
     dev_open_params.buf_size = (params->flush_size > 0 ? params->flush_size : RECORD_BLOCK_SIZE);
+    dev_open_params.ringbuf_size = params->ringbuf_size;
     if (p_ctx->is_new_dmx)
       dev_open_params.buf_size = NEW_DEVICE_RECORD_BLOCK_SIZE * 30;
     ret = record_device_open(&p_ctx->dev_handle, &dev_open_params);
@@ -480,6 +488,54 @@ int dvr_record_close(DVR_RecordHandle_t handle)
   }
 
   p_ctx->state = DVR_RECORD_STATE_CLOSED;
+  return ret;
+}
+
+int dvr_record_pause(DVR_RecordHandle_t handle)
+{
+  DVR_RecordContext_t *p_ctx;
+  int ret;
+  uint32_t i;
+
+  p_ctx = (DVR_RecordContext_t *)handle;
+  for (i = 0; i < MAX_DVR_RECORD_SESSION_COUNT; i++) {
+    if (p_ctx == &record_ctx[i])
+      break;
+  }
+  DVR_RETURN_IF_FALSE(p_ctx == &record_ctx[i]);
+
+  DVR_DEBUG(1, "%s , current state:%d", __func__, p_ctx->state);
+  DVR_RETURN_IF_FALSE(p_ctx->state != DVR_RECORD_STATE_CLOSED);
+
+  if (p_ctx->is_vod) {
+    ret = DVR_SUCCESS;
+  }
+  //set pause state,will not store ts into segment
+  p_ctx->state = DVR_RECORD_STATE_PAUSE;
+  return ret;
+}
+
+int dvr_record_resume(DVR_RecordHandle_t handle)
+{
+  DVR_RecordContext_t *p_ctx;
+  int ret;
+  uint32_t i;
+
+  p_ctx = (DVR_RecordContext_t *)handle;
+  for (i = 0; i < MAX_DVR_RECORD_SESSION_COUNT; i++) {
+    if (p_ctx == &record_ctx[i])
+      break;
+  }
+  DVR_RETURN_IF_FALSE(p_ctx == &record_ctx[i]);
+
+  DVR_DEBUG(1, "%s , current state:%d", __func__, p_ctx->state);
+  DVR_RETURN_IF_FALSE(p_ctx->state != DVR_RECORD_STATE_CLOSED);
+
+  if (p_ctx->is_vod) {
+    ret = DVR_SUCCESS;
+  }
+  //set stated state,will resume store ts into segment
+  p_ctx->state = DVR_RECORD_STATE_STARTED;
   return ret;
 }
 
