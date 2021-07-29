@@ -1529,6 +1529,9 @@ int dvr_playback_start(DVR_PlaybackHandle_t handle, DVR_PlaybackFlag_t flag) {
   am_tsplayer_audio_params    aparams;
   am_tsplayer_audio_params    adparams;
 
+  memset(&vparams, 0, sizeof(vparams));
+  memset(&aparams, 0, sizeof(aparams));
+
   if (player == NULL) {
     DVR_PB_DG(1, "player is NULL");
     return DVR_FAILURE;
@@ -1845,6 +1848,9 @@ static int _do_check_pid_info(DVR_PlaybackHandle_t handle, DVR_StreamInfo_t  now
           }
 
           am_tsplayer_audio_params aparams;
+
+          memset(&aparams, 0, sizeof(aparams));
+
           aparams.pid = set_pid.pid;
           aparams.codectype= _dvr_convert_stream_fmt(set_pid.format, DVR_TRUE);
           player->has_audio = DVR_TRUE;
@@ -1856,6 +1862,8 @@ static int _do_check_pid_info(DVR_PlaybackHandle_t handle, DVR_StreamInfo_t  now
       } else if (type == 2) {
         if (player->cmd.speed.speed.speed == PLAYBACK_SPEED_X1) {
           am_tsplayer_audio_params aparams;
+
+          memset(&aparams, 0, sizeof(aparams));
           aparams.pid = set_pid.pid;
           aparams.codectype= _dvr_convert_stream_fmt(set_pid.format, DVR_TRUE);
           player->has_audio = DVR_TRUE;
@@ -2299,6 +2307,9 @@ static int _dvr_cmd(DVR_PlaybackHandle_t handle, int cmd)
   am_tsplayer_audio_params adparams;
   uint64_t segmentid = player->cur_segment_id;
 
+  memset(&vparams, 0, sizeof(vparams));
+  memset(&aparams, 0, sizeof(aparams));
+
   _dvr_playback_get_playinfo(handle, segmentid, &vparams, &aparams, &adparams);
   DVR_PB_DG(1, "unlock cmd: %d", cmd);
   pthread_mutex_unlock(&player->lock);
@@ -2400,6 +2411,9 @@ int dvr_playback_resume(DVR_PlaybackHandle_t handle) {
     am_tsplayer_audio_params aparams;
     am_tsplayer_audio_params adparams;
     uint64_t segmentid = player->cur_segment_id;
+
+    memset(&vparams, 0, sizeof(vparams));
+    memset(&aparams, 0, sizeof(aparams));
     _dvr_playback_get_playinfo(handle, segmentid, &vparams, &aparams, &adparams);
     //valid audio pid, start audio
     if (player->has_ad_audio == DVR_FALSE && VALID_PID(adparams.pid) && (player->cmd.speed.speed.speed == PLAYBACK_SPEED_X1)) {
@@ -2591,6 +2605,9 @@ int dvr_playback_seek(DVR_PlaybackHandle_t handle, uint64_t segment_id, uint32_t
   am_tsplayer_video_params    vparams;
   am_tsplayer_audio_params    aparams;
   am_tsplayer_audio_params    adparams;
+
+  memset(&vparams, 0, sizeof(vparams));
+  memset(&aparams, 0, sizeof(aparams));
 
   player->cur_segment_id = segment_id;
 
@@ -2830,6 +2847,10 @@ static int _dvr_playback_fffb_replay(DVR_PlaybackHandle_t handle) {
   am_tsplayer_video_params    vparams;
   am_tsplayer_audio_params    aparams;
   am_tsplayer_audio_params    adparams;
+
+  memset(&vparams, 0, sizeof(vparams));
+  memset(&aparams, 0, sizeof(aparams));
+
   uint64_t segment_id = player->cur_segment_id;
 
   //get segment info and audio video pid fmt ;
@@ -2936,6 +2957,9 @@ static int _dvr_playback_replay(DVR_PlaybackHandle_t handle, DVR_Bool_t trick) {
   am_tsplayer_audio_params    aparams;
   am_tsplayer_audio_params    adparams;
   uint64_t segment_id = player->cur_segment_id;
+
+  memset(&vparams, 0, sizeof(vparams));
+  memset(&aparams, 0, sizeof(aparams));
 
   //get segment info and audio video pid fmt ;
   DVR_PB_DG(1, "into");
