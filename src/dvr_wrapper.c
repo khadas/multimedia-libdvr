@@ -4,6 +4,8 @@
 #include <string.h>
 #include <time.h>
 #include <errno.h>
+#include <sys/time.h>
+#include <time.h>
 
 #include "dvr_types.h"
 #include "dvr_record.h"
@@ -203,6 +205,29 @@ static DVR_Result_t wrapper_playback_event_handler(DVR_PlaybackEvent_t event, vo
 static int process_generateRecordStatus(DVR_WrapperCtx_t *ctx, DVR_WrapperRecordStatus_t *status);
 static int process_generatePlaybackStatus(DVR_WrapperCtx_t *ctx, DVR_WrapperPlaybackStatus_t *status);
 
+static int get_timespec_timeout(int timeout, struct timespec *ts)
+{
+  struct timespec ots;
+  int left, diff;
+
+  clock_gettime(CLOCK_MONOTONIC, &ots);
+
+  ts->tv_sec  = ots.tv_sec + timeout / 1000;
+  ts->tv_nsec = ots.tv_nsec;
+
+  left = timeout % 1000;
+  left *= 1000000;
+  diff = 1000000000 - ots.tv_nsec;
+
+  if (diff <= left) {
+    ts->tv_sec++;
+    ts->tv_nsec = left-diff;
+  } else {
+    ts->tv_nsec += left;
+  }
+
+  return 0;
+}
 
 static DVR_WrapperEventCtx_t *ctx_getEvent(struct list_head *list, pthread_mutex_t *list_lock)
 {
@@ -393,7 +418,9 @@ static inline void wrapper_threadSignal(DVR_WrapperThreadCtx_t *thread_ctx)
 
 static inline int wrapper_threadWait(DVR_WrapperThreadCtx_t *thread_ctx)
 {
-  pthread_cond_wait(&thread_ctx->cond, &thread_ctx->lock);
+  struct timespec rt;
+  get_timespec_timeout(200, &rt);
+  pthread_cond_timedwait(&thread_ctx->cond, &thread_ctx->lock, &rt);
   return 0;
 }
 
@@ -469,17 +496,19 @@ static void *wrapper_task(void *arg)
     {
       int ret;
 
-      ret = wrapper_threadWait(tctx);
+      evt = (tctx->type == W_REC)? ctx_getRecordEvent() : ctx_getPlaybackEvent();
+      if (!evt)
+        ret = wrapper_threadWait(tctx);
     }
 
-    while ((evt = ((tctx->type == W_REC)? ctx_getRecordEvent() : ctx_getPlaybackEvent()))) {
+    while (evt) {
       DVR_WrapperCtx_t *ctx = (evt->type == W_REC)?
         ctx_getRecord(evt->sn) : ctx_getPlayback(evt->sn);
       if (ctx == NULL) {
         DVR_WRAPPER_DEBUG(1, "warp not get ctx.free event..\n");
         goto processed;
       }
-      DVR_WRAPPER_DEBUG(1, "start name(%s) sn(%d) runing(%d) type(%d)event end...\n", tctx->name, (int)ctx->sn, tctx->running, tctx->type);
+      DVR_WRAPPER_DEBUG(1, "start name(%s) sn(%d) running(%d) type(%d)\n", tctx->name, (int)ctx->sn, tctx->running, tctx->type);
       if (tctx->running) {
         /*
           continue not break,
@@ -498,26 +527,32 @@ static void *wrapper_task(void *arg)
 
 processed:
       ctx_freeEvent(evt);
+
+      evt = (tctx->type == W_REC)? ctx_getRecordEvent() : ctx_getPlaybackEvent();
     }
-    DVR_WRAPPER_DEBUG(1, "start name(%s) runing(%d) type(%d)event con...\n", tctx->name, tctx->running, tctx->type);
+    DVR_WRAPPER_DEBUG(1, "start name(%s) running(%d) type(%d) con...\n", tctx->name, tctx->running, tctx->type);
   }
 
   pthread_mutex_unlock(&tctx->lock);
-  DVR_WRAPPER_DEBUG(1, "end name(%s) runing(%d) type(%d)event end...\n", tctx->name, tctx->running, tctx->type);
+  DVR_WRAPPER_DEBUG(1, "end name(%s) running(%d) type(%d) end...\n", tctx->name, tctx->running, tctx->type);
   return NULL;
 }
 
 static inline int ctx_addRecordEvent(DVR_WrapperEventCtx_t *evt)
 {
+  pthread_mutex_lock(&WRAPPER_THREAD_RECORD->lock);
   if (ctx_addEvent(&record_evt_list, &record_evt_list_lock, evt) == 0)
     wrapper_threadSignalForType(evt->type);
+  pthread_mutex_unlock(&WRAPPER_THREAD_RECORD->lock);
   return 0;
 }
 
 static inline int ctx_addPlaybackEvent(DVR_WrapperEventCtx_t *evt)
 {
+  pthread_mutex_lock(&WRAPPER_THREAD_PLAYBACK->lock);
   if (ctx_addEvent(&playback_evt_list, &playback_evt_list_lock, evt) == 0)
       wrapper_threadSignalForType(evt->type);
+  pthread_mutex_unlock(&WRAPPER_THREAD_PLAYBACK->lock);
   return 0;
 }
 
