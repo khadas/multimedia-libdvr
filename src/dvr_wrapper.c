@@ -579,7 +579,9 @@ static inline void _updatePlaybackSegment(DVR_WrapperPlaybackSegmentInfo_t *pseg
     pseg->seg_info.size = seg_info->size;
     pseg->seg_info.nb_packets = seg_info->nb_packets;
   }
-
+  //update current segment duration on timeshift mode
+  if (ctx->playback.param_open.is_timeshift)
+    dvr_playback_update_duration(ctx->playback.player,pseg->seg_info.id,pseg->seg_info.duration);
   /*no changes
   DVR_PlaybackSegmentFlag_t flags;
   pseg->playback_info.segment_id = pseg->seg_info.id;
@@ -735,6 +737,7 @@ static int wrapper_addPlaybackSegment(DVR_WrapperCtx_t *ctx,
   pseg->playback_info.pids = *p_pids;
   pseg->playback_info.flags = flags;
   list_add(&pseg->head, &ctx->segments);
+  pseg->playback_info.duration = pseg->seg_info.duration;
 
   error = dvr_playback_add_segment(ctx->playback.player, &pseg->playback_info);
   if (error) {
@@ -761,8 +764,9 @@ static int wrapper_addRecordSegment(DVR_WrapperCtx_t *ctx, DVR_RecordSegmentInfo
   }
   pseg->info = *seg_info;
   list_add(&pseg->head, &ctx->segments);
-
-  if (ctx->record.param_open.is_timeshift) {
+  
+  if (ctx->record.param_open.is_timeshift
+    || !strcmp(ctx->record.param_open.location, ctx->playback.param_open.location)) {
     DVR_WrapperCtx_t *ctx_playback = ctx_getPlayback(sn_timeshift_playback);
 
     if (ctx_playback) {
@@ -836,7 +840,7 @@ static int wrapper_removePlaybackSegment(DVR_WrapperCtx_t *ctx, DVR_RecordSegmen
       ctx->playback.obsolete.time += pseg->seg_info.duration;
       ctx->playback.obsolete.size += pseg->seg_info.size;
       ctx->playback.obsolete.pkts += pseg->seg_info.nb_packets;
-
+      dvr_playback_set_obsolete(ctx->playback.player, ctx->playback.obsolete.time);
       free(pseg);
       break;
     }
@@ -927,6 +931,7 @@ int dvr_wrapper_open_record (DVR_WrapperRecord_t *rec, DVR_WrapperRecordOpenPara
   open_param.flags = params->flags;
   open_param.notification_size = 500*1024;
   open_param.flush_size = params->flush_size;
+  open_param.ringbuf_size = params->ringbuf_size;
   open_param.event_fn = wrapper_record_event_handler;
   open_param.event_userdata = (void*)ctx->sn;
 
@@ -1058,6 +1063,50 @@ int dvr_wrapper_stop_record (DVR_WrapperRecord_t rec)
   wrapper_updateRecordSegment(ctx, &seg_info, U_ALL);
 
   DVR_WRAPPER_DEBUG(1, "record(sn:%ld) stopped = (%d)\n", ctx->sn, error);
+  pthread_mutex_unlock(&ctx->lock);
+
+  return error;
+}
+
+int dvr_wrapper_pause_record (DVR_WrapperRecord_t rec)
+{
+  DVR_WrapperCtx_t *ctx;
+  int error;
+
+  DVR_RETURN_IF_FALSE(rec);
+
+  ctx = ctx_getRecord((unsigned long)rec);
+  DVR_RETURN_IF_FALSE(ctx);
+
+  pthread_mutex_lock(&ctx->lock);
+  DVR_WRAPPER_DEBUG(1, "pause record(sn:%ld) ...\n", ctx->sn);
+  DVR_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->lock);
+
+  error = dvr_record_pause(ctx->record.recorder);
+
+  DVR_WRAPPER_DEBUG(1, "record(sn:%ld) pauseed = (%d)\n", ctx->sn, error);
+  pthread_mutex_unlock(&ctx->lock);
+
+  return error;
+}
+
+int dvr_wrapper_resume_record (DVR_WrapperRecord_t rec)
+{
+  DVR_WrapperCtx_t *ctx;
+  int error;
+
+  DVR_RETURN_IF_FALSE(rec);
+
+  ctx = ctx_getRecord((unsigned long)rec);
+  DVR_RETURN_IF_FALSE(ctx);
+
+  pthread_mutex_lock(&ctx->lock);
+  DVR_WRAPPER_DEBUG(1, "resume record(sn:%ld) ...\n", ctx->sn);
+  DVR_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->lock);
+
+  error = dvr_record_resume(ctx->record.recorder);
+
+  DVR_WRAPPER_DEBUG(1, "record(sn:%ld) resumed = (%d)\n", ctx->sn, error);
   pthread_mutex_unlock(&ctx->lock);
 
   return error;
@@ -1432,13 +1481,18 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
         ctx->playback.speed = 100.0f;
 
       ctx->playback.pids_req = *p_pids;
-
-      error = dvr_playback_seek(ctx->playback.player, seg_info_1st.id, 0);
-      DVR_WRAPPER_DEBUG(1, "playback(sn:%ld) seek(seg:%llu 0) for start (%d)\n",
-        ctx->sn, seg_info_1st.id, error);
-
-      error = dvr_playback_start(ctx->playback.player, flags);
-
+      //calualte segment id and pos
+      if (dvr_playback_check_limit(ctx->playback.player)) {
+        pthread_mutex_unlock(&ctx->lock);
+        dvr_wrapper_seek_playback(playback, 0);
+        pthread_mutex_lock(&ctx->lock);
+        error = dvr_playback_start(ctx->playback.player, flags);
+      } else {
+        error = dvr_playback_seek(ctx->playback.player, seg_info_1st.id, 0);
+        error = dvr_playback_start(ctx->playback.player, flags);
+        DVR_WRAPPER_DEBUG(1, "playback(sn:%ld) seek(seg:%llu 0) for start (%d)\n",
+          ctx->sn, seg_info_1st.id, error);
+      }
       DVR_WRAPPER_DEBUG(1, "playback(sn:%ld) started (%d)\n", ctx->sn, error);
     }
   }
@@ -1451,8 +1505,6 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
           ctx->sn, ctx_record->sn);
     }
   }
-
-
   pthread_mutex_unlock(&ctx->lock);
 
   return error;
@@ -1528,13 +1580,22 @@ int dvr_wrapper_resume_playback (DVR_WrapperPlayback_t playback)
 
   ctx = ctx_getPlayback((unsigned long)playback);
   DVR_RETURN_IF_FALSE(ctx);
-
+  //if set limit.we need check if seek to valid data when resume
+  uint32_t time_offset = ctx->playback.status.info_cur.time + ctx->playback.status.info_obsolete.time;
+  if (dvr_playback_check_limit(ctx->playback.player)) {
+    int expired = dvr_playback_calculate_expiredlen(ctx->playback.player);
+    if (expired > time_offset) {
+      DVR_WRAPPER_DEBUG(1, "seek before resume reset offset playback(sn:%ld) (off:%d expired:%d)\n",
+        ctx->sn, time_offset, expired);
+      time_offset = expired;
+      dvr_wrapper_seek_playback(playback, time_offset);
+    }
+  }
   pthread_mutex_lock(&ctx->lock);
   DVR_WRAPPER_DEBUG(1, "resume playback(sn:%ld) ...\n", ctx->sn);
   DVR_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->lock);
 
   error = dvr_playback_resume(ctx->playback.player);
-
   ctx->playback.speed = 100.0f;
 
   DVR_WRAPPER_DEBUG(1, "playback(sn:%ld) resumed (%d)\n", ctx->sn, error);
@@ -1585,6 +1646,29 @@ int dvr_wrapper_set_playback_speed (DVR_WrapperPlayback_t playback, float speed)
   return error;
 }
 
+int dvr_wrapper_setlimit_playback (DVR_WrapperPlayback_t playback, uint64_t time, int32_t limit)
+{
+  DVR_WrapperCtx_t *ctx;
+  int error;
+
+  DVR_RETURN_IF_FALSE(playback);
+
+  ctx = ctx_getPlayback((unsigned long)playback);
+  DVR_RETURN_IF_FALSE(ctx);
+
+  pthread_mutex_lock(&ctx->lock);
+
+  DVR_WRAPPER_DEBUG(1, "setlimit playback(sn:%ld) (time:%lld limit:%d) ...\n", ctx->sn, time, limit);
+  DVR_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->lock);
+
+  error = dvr_playback_setlimit(ctx->playback.player, time, limit);
+  DVR_WRAPPER_DEBUG(1, "playback(sn:%ld) setlimit(time:%lld limit:%d) ...\n", ctx->sn, time, limit);
+
+  pthread_mutex_unlock(&ctx->lock);
+
+  return error;
+}
+
 int dvr_wrapper_seek_playback (DVR_WrapperPlayback_t playback, uint32_t time_offset)
 {
   DVR_WrapperCtx_t *ctx;
@@ -1609,6 +1693,17 @@ int dvr_wrapper_seek_playback (DVR_WrapperPlayback_t playback, uint32_t time_off
   segment_id = 0;
   pre_off = 0;
   last_segment_id = 0;
+
+  //if set limit info we need check ts data is
+  //expired when seek
+  if (dvr_playback_check_limit(ctx->playback.player)) {
+    int expired = dvr_playback_calculate_expiredlen(ctx->playback.player);
+    if (expired > time_offset) {
+      DVR_WRAPPER_DEBUG(1, "seek reset offset playback(sn:%ld) (off:%d expired:%d)\n",
+        ctx->sn, time_offset, expired);
+      time_offset = expired;
+    }
+  }
 
   list_for_each_entry_reverse(pseg, &ctx->segments, head) {
     segment_id = pseg->seg_info.id;

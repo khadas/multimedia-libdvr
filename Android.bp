@@ -139,3 +139,6 @@ cc_library_shared {
 
 }
 
+subdirs=[
+	"test"
+]

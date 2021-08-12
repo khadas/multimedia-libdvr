@@ -51,6 +51,7 @@ typedef struct
   DVR_PlaybackPids_t  pids;       /**< Streams' PIDs.*/
   DVR_PlaybackSegmentFlag_t flags; /**< Segment's flag */
   int key_data_id;                /**< ??? */
+  int duration;                        /**< Segment dur time ms*/
 } DVR_PlaybackSegmentInfo_t;
 
 /**\brief play flag, if set this flag, player need pause when decode first frame */
@@ -258,10 +259,10 @@ typedef struct
 /**\brief playback struct*/
 typedef struct
 {
-  int       sys_dur;     /**< system duration */
-  int       sys_sta;     /**< system start time */
-  int       ply_dur;     /**< play duration */
-  int       ply_sta;     /**< play start time */
+  uint64_t       sys_dur;     /**< system duration */
+  uint64_t       sys_sta;     /**< system start time */
+  uint64_t       ply_dur;     /**< play duration */
+  uint64_t       ply_sta;     /**< play start time */
 } DVR_PlaybackConSpe_t;
 
 
@@ -301,14 +302,14 @@ typedef struct
   DVR_Bool_t                 has_audio;    /**< has audio playing*/
   DVR_Bool_t                 has_ad_audio;    /**< has ad audio playing*/
   DVR_Bool_t                 has_pids;     /**< has video audo pid fmt info*/
-  int                        fffb_start;    /**< fffb start time ms*/
-  int                        fffb_current;  /**< fffb current time*/
+  uint64_t                   fffb_start;    /**< fffb start time ms*/
+  uint64_t                   fffb_current;  /**< fffb current time*/
   int                        fffb_start_pcr;     /**< fffb start pcr time*/
-  int                        next_fffb_time;/**< fffb start pcr time*/
+  uint64_t                   next_fffb_time;/**< fffb start pcr time*/
   int                        seek_time;/**< fffb start pcr time*/
   event_callback             player_callback_func;/**< tsplayer cb*/
   void                       *player_callback_userdata;/**< tsplayer cb data*/
-  int                        send_time;/**< send event time*/
+  uint64_t                   send_time;/**< send event time*/
   int                        first_frame;/**< show first frame*/
   DVR_CryptoFunction_t       dec_func;                             /**< Decrypt function*/
   void                       *dec_userdata;                        /**< Decrypt userdata*/
@@ -326,7 +327,12 @@ typedef struct
   DVR_Bool_t                 seek_pause;
   int                        last_segment_tatol;        /**< last segment tatol time*/
 
-  DVR_PlaybackConSpe_t       con_spe;
+  DVR_PlaybackConSpe_t       con_spe;   /**< inject data speed info*/
+
+  //limit info
+  int                        obsolete;         /**< rec obsolete time in ms*/
+  uint64_t                   rec_start;        /**< rec start time in ms*/
+  int                        limit;            /**< rec data limit time in ms*/
 } DVR_Playback_t;
 /**\endcond*/
 
@@ -448,6 +454,15 @@ int dvr_playback_pause(DVR_PlaybackHandle_t handle, DVR_Bool_t flush);
  */
 int dvr_playback_resume(DVR_PlaybackHandle_t handle);
 
+/**\brief set limit
+ * \param[in] handle playback handle
+ * \param[in] rec start time ms
+ * \param[in] rec limit time ms
+ * \retval DVR_SUCCESS On success
+ * \return Error code
+ */
+int dvr_playback_setlimit(DVR_PlaybackHandle_t handle, uint64_t time, int32_t limit);
+
 /**\brief Seek the playing position
  * \param[in] handle playback handle
  * \param[in] segment_id the segment's index
@@ -505,6 +520,37 @@ int dvr_playback_set_decrypt_callback(DVR_PlaybackHandle_t handle, DVR_CryptoFun
  * \return error code on failure
  */
 int dvr_playback_set_secure_buffer(DVR_PlaybackHandle_t handle, uint8_t *p_secure_buf, uint32_t len);
+
+/**\brief set DVR playback calculate expired time len
+ * \param[in] handle, DVR playback session handle
+ * \return DVR_SUCCESS on success
+ * \return error code on failure
+ */
+int dvr_playback_calculate_expiredlen(DVR_PlaybackHandle_t handle);
+
+/**\brief set DVR playback obsolete time
+ * \param[in] handle, DVR playback session handle
+ * \param[in] obsolete, obsolete len
+ * \return DVR_SUCCESS on success
+ * \return error code on failure
+ */
+int dvr_playback_set_obsolete(DVR_PlaybackHandle_t handle, int obsolete);
+
+/**\brief update DVR playback newest segment duration
+ * \param[in] handle, DVR playback session handle
+ * \param[in] segmentid, newest segment id
+ * \param[in] dur dur time ms
+ * \return DVR_SUCCESS on success
+ * \return error code on failure
+ */
+int dvr_playback_update_duration(DVR_PlaybackHandle_t handle,
+uint64_t segmentid, int dur);
+
+/**\brief check DVR playback is set limit info
+ * \param[in] handle, DVR playback session handle
+ * \return DVR_FALSE or DVR_TRUE
+ */
+DVR_Bool_t dvr_playback_check_limit(DVR_PlaybackHandle_t handle);
 
 #ifdef __cplusplus
 }

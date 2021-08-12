@@ -83,6 +83,7 @@ typedef struct {
   DVR_RecordEventFunction_t   event_fn;                  /**< DVR record event callback function*/
   void                        *event_userdata;           /**< DVR event userdata*/
   int                   flush_size;                      /**< DVR flush size*/
+  int                   ringbuf_size;                      /**< DVR ringbuf size*/
 } DVR_WrapperRecordOpenParams_t;
 
 typedef struct {
@@ -143,6 +144,22 @@ int dvr_wrapper_start_record (DVR_WrapperRecord_t rec, DVR_WrapperRecordStartPar
  * \return Error code.
  */
 int dvr_wrapper_stop_record (DVR_WrapperRecord_t rec);
+
+/**
+ * Pause recording..
+ * \param rec The record handle.
+ * \retval DVR_SUCCESS On success.
+ * \return Error code.
+ */
+int dvr_wrapper_pause_record (DVR_WrapperRecord_t rec);
+
+/**
+ * Resume recording..
+ * \param rec The record handle.
+ * \retval DVR_SUCCESS On success.
+ * \return Error code.
+ */
+int dvr_wrapper_resume_record (DVR_WrapperRecord_t rec);
 
 /**
  * Update the recording PIDs.
@@ -248,6 +265,16 @@ int dvr_wrapper_resume_playback (DVR_WrapperPlayback_t playback);
  * \return Error code.
  */
 int dvr_wrapper_set_playback_speed (DVR_WrapperPlayback_t playback, float speed);
+
+/**
+ * set the current playback limit info.
+ * \param playback The playback handle.
+ * \param time The rec time in milliseconds.
+ * \param limit The rec limit time in milliseconds.
+ * \retval DVR_SUCCESS On success.
+ * \return Error code.
+ */
+int dvr_wrapper_setlimit_playback (DVR_WrapperPlayback_t playback, uint64_t time, int32_t limit);
 
 /**
  * Seek the current playback position.

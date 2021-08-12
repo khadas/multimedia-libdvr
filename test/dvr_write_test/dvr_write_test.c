@@ -48,7 +48,7 @@ int main(int argc, char **argv)
 		fsync(ts_fd);
 		gettimeofday(& t2, NULL);
 		if (ret != 0) {
-			printf("%d: write %d data cost : %dms\n", i, ret,get_diff_time(t1,t2));
+			printf("%d: write %d data cost : %dms Bitrate: %d m bps\n", i, ret,get_diff_time(t1,t2), ONCE_WRITE_SIZE*(8*1000)/1024/1024/get_diff_time(t1,t2));
 		};
 	}
 	gettimeofday(& endTime, NULL);
