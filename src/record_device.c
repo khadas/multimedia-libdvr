@@ -329,6 +329,7 @@ int record_device_add_pid(Record_DeviceHandle_t handle, int pid)
   if (p_ctx->state == RECORD_DEVICE_STATE_STARTED) {
     //need start pid filter
     fcntl(fd, F_SETFL, O_NONBLOCK);
+    memset(&params, 0, sizeof(params));
     params.pid = p_ctx->streams[i].pid;
     params.input = DMX_IN_FRONTEND;
     params.output = DMX_OUT_TS_TAP;
@@ -434,6 +435,7 @@ int record_device_start(Record_DeviceHandle_t handle)
       //need start pid filter
       fd = p_ctx->streams[i].fid;
       fcntl(fd, F_SETFL, O_NONBLOCK);
+      memset(&params, 0, sizeof(params));
       params.pid = p_ctx->streams[i].pid;
       params.input = DMX_IN_FRONTEND;
       params.output = DMX_OUT_TS_TAP;
