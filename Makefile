@@ -1,4 +1,4 @@
-OUTPUT_FILES := libamdvr.so am_fend_test am_dmx_test dvr_wrapper_test
+OUTPUT_FILES := libamdvr.so am_fend_test am_dmx_test am_smc_test dvr_wrapper_test
 
 CFLAGS  := -Wall -O2 -fPIC -Iinclude
 LDFLAGS := -L$(TARGET_DIR)/usr/lib -lmediahal_tsplayer -laudio_client -llog -lpthread -ldl
@@ -26,6 +26,14 @@ AM_DMX_TEST_SRCS := \
 	test/am_dmx_test/am_dmx_test.c
 AM_DMX_TEST_OBJS := $(patsubst %.c,%.o,$(AM_DMX_TEST_SRCS))
 
+AM_SMC_TEST_SRCS := \
+	test/am_smc_test/am_sc2_smc_test.c \
+	test/am_smc_test/am_smc.c \
+	test/am_smc_test/aml.c \
+	test/am_smc_test/am_time.c \
+	test/am_smc_test/am_evt.c \
+	test/am_smc_test/am_thread.c
+AM_SMC_TEST_OBJS := $(patsubst %.c,%.o,$(AM_SMC_TEST_SRCS))
 
 DVR_WRAPPER_TEST_SRCS := \
 	test/dvr_wrapper_test/dvr_wrapper_test.c
@@ -46,6 +54,9 @@ am_fend_test: $(AM_FEND_TEST_OBJS) libamdvr.so
 am_dmx_test: $(AM_DMX_TEST_OBJS) libamdvr.so
 	$(CC) -o $@ $(AM_DMX_TEST_OBJS) -L. -lamdvr $(LDFLAGS)
 
+am_smc_test: $(AM_SMC_TEST_OBJS) libamdvr.so
+	$(CC) -o $@ $(AM_SMC_TEST_OBJS) -L. -lamdvr $(LDFLAGS)
+
 dvr_wrapper_test: $(DVR_WRAPPER_TEST_OBJS) libamdvr.so
 	$(CC) -o $@ $(DVR_WRAPPER_TEST_OBJS) -L. -lamdvr $(LDFLAGS)
 
@@ -56,6 +67,7 @@ install: $(OUTPUT_FILES)
 	install -m 0644 ./include/* $(STAGING_DIR)/usr/include/libdvr
 	install -m 0755 am_fend_test $(STAGING_DIR)/usr/bin
 	install -m 0755 am_dmx_test $(STAGING_DIR)/usr/bin
+	install -m 0755 am_smc_test $(STAGING_DIR)/usr/bin
 	install -m 0755 dvr_wrapper_test $(STAGING_DIR)/usr/bin
 
 clean:

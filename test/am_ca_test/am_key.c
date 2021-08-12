@@ -91,7 +91,7 @@ int key_alloc(int fd, int is_iv)
 	}
 }
 
-int key_config(int fd, int key_index, int key_userid, int key_algo)
+int key_config(int fd, int key_index, int key_userid, int key_algo, unsigned int ext_value)
 {
 	int ret = 0;
 	struct key_config config;
@@ -103,6 +103,7 @@ int key_config(int fd, int key_index, int key_userid, int key_algo)
 	config.key_userid = key_userid;
 	config.key_algo   = key_algo;
 	config.key_index  = key_index;
+	config.ext_value  = ext_value;
 
 	ret = ioctl(fd, KEY_CONFIG, &config);
 	if (ret == 0) {

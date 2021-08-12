@@ -11,7 +11,7 @@
 #ifndef _AM_SMC_INTERNAL_H
 #define _AM_SMC_INTERNAL_H
 
-#include <am_smc.h>
+#include "am_smc.h"
 //#include <am_thread.h>
 
 #ifdef __cplusplus

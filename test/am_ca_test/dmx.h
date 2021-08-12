@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-note */
 /*
  * dmx.h
  *
@@ -28,7 +29,6 @@
 #ifndef __KERNEL__
 #include <time.h>
 #endif
-
 #define CONFIG_AMLOGIC_DVB_COMPAT
 
 #define DMX_FILTER_SIZE 16

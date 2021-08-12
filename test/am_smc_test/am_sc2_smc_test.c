@@ -11,9 +11,10 @@
 #define AM_DEBUG_LEVEL 0
 
 //#include <am_debug.h>
-#include <am_smc.h>
+#include "am_smc.h"
 #include <string.h>
 #include <unistd.h>
+#include <stdio.h>
 #include "am_util.h"
 
 #define SMC_DEV_NO (0)
@@ -37,7 +38,7 @@ static int smc_test(AM_Bool_t sync)
 	int i, len;
 	AM_SMC_CardStatus_t status;
 //	uint8_t sbuf[5]={0x80, 0x44, 0x00, 0x00, 0x08};
-	uint8_t sbuf[5]={0xD0, 0x58, 0x00, 0x00, 0x4A};
+	uint8_t sbuf[5]={0xD0, 0x58, 0x00, 0x00, 0x4A};
 	uint8_t rbuf[256];
 	int rlen = sizeof(rbuf);
 	

@@ -13,11 +13,12 @@
 #define _GNU_SOURCE
 
 //#include <am_debug.h>
-#include <am_evt.h>
-#include <am_mem.h>
-#include <am_thread.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include "am_evt.h"
+#include "am_mem.h"
+#include "am_thread.h"
 
 /****************************************************************************
  * Macro definitions

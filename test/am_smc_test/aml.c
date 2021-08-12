@@ -20,6 +20,7 @@
 #include <poll.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdio.h>
 #include "am_smc_internal.h"
 #include <sys/ioctl.h>
 #include "amsmc.h"
