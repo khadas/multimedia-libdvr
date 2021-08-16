@@ -1086,8 +1086,16 @@ static void* _dvr_playback_thread(void *arg)
             _dvr_playback_fffb((DVR_PlaybackHandle_t)player);
             player->fffb_play = DVR_FALSE;
             pthread_mutex_lock(&player->lock);
+        } else if(player->state == DVR_PLAYBACK_STATE_PAUSE) {
+            //on pause state,user seek to new pos,we need pause and wait
+            //user to resume
+            DVR_PB_DG(1, "pause, when got first frame event when user seek end");
+            player->first_frame = 0;
+            AmTsPlayer_setTrickMode(player->handle, AV_VIDEO_TRICK_MODE_NONE);
+            AmTsPlayer_pauseVideoDecoding(player->handle);
+            AmTsPlayer_pauseAudioDecoding(player->handle);
         }
-      }else if (player->fffb_play == DVR_TRUE){
+      } else if (player->fffb_play == DVR_TRUE){
         //for first into fffb when reset speed
         if (player->state == DVR_PLAYBACK_STATE_PAUSE ||
           _dvr_time_getClock() < player->next_fffb_time) {
@@ -2469,6 +2477,12 @@ int dvr_playback_resume(DVR_PlaybackHandle_t handle) {
   if (player->cmd.cur_cmd == DVR_PLAYBACK_CMD_PAUSE) {
     DVR_PB_DG(1, "lock");
     pthread_mutex_lock(&player->lock);
+    player->first_frame = 0;
+    if (player->has_video)
+          AmTsPlayer_pauseVideoDecoding(player->handle);
+    if (player->has_audio)
+          AmTsPlayer_pauseAudioDecoding(player->handle);
+
     if (player->has_video) {
       DVR_PB_DG(1, "dvr_playback_resume set trick mode none");
       AmTsPlayer_setTrickMode(player->handle, AV_VIDEO_TRICK_MODE_NONE);
@@ -2518,6 +2532,12 @@ int dvr_playback_resume(DVR_PlaybackHandle_t handle) {
     DVR_PB_DG(1, "unlock");
     pthread_mutex_unlock(&player->lock);
   } else if (player->state == DVR_PLAYBACK_STATE_PAUSE){
+    player->first_frame = 0;
+    if (player->has_video)
+          AmTsPlayer_pauseVideoDecoding(player->handle);
+    if (player->has_audio)
+          AmTsPlayer_pauseAudioDecoding(player->handle);
+
     if (player->has_video) {
       DVR_PB_DG(1, "dvr_playback_resume set trick mode none 1");
       AmTsPlayer_setTrickMode(player->handle, AV_VIDEO_TRICK_MODE_NONE);
@@ -2534,6 +2554,11 @@ int dvr_playback_resume(DVR_PlaybackHandle_t handle) {
     if ((player->play_flag&DVR_PLAYBACK_STARTED_PAUSEDLIVE) == DVR_PLAYBACK_STARTED_PAUSEDLIVE)
     {
       pthread_mutex_lock(&player->lock);
+      player->first_frame = 0;
+      if (player->has_video)
+          AmTsPlayer_pauseVideoDecoding(player->handle);
+      if (player->has_audio)
+          AmTsPlayer_pauseAudioDecoding(player->handle);
       //clear flag
       DVR_PB_DG(1, "clear pause live flag cur cmd[%d]", player->cmd.cur_cmd);
       player->play_flag = player->play_flag & (~DVR_PLAYBACK_STARTED_PAUSEDLIVE);
@@ -2690,6 +2715,7 @@ int dvr_playback_seek(DVR_PlaybackHandle_t handle, uint64_t segment_id, uint32_t
   //stop play
   DVR_PB_DG(0, "seek stop play, not inject data has video[%d]audio[%d]",
   player->has_video, player->has_audio);
+
   if (player->has_video) {
     player->has_video = DVR_FALSE;
     AmTsPlayer_stopVideoDecoding(player->handle);
@@ -2759,11 +2785,7 @@ int dvr_playback_seek(DVR_PlaybackHandle_t handle, uint64_t segment_id, uint32_t
       player->has_audio = DVR_TRUE;
     }
   }
-  if (player->state == DVR_PLAYBACK_STATE_PAUSE /*&&
-    ((player->cmd.cur_cmd == DVR_PLAYBACK_CMD_FF ||
-     player->cmd.cur_cmd == DVR_PLAYBACK_CMD_FB) ||
-    (player->cmd.last_cmd == DVR_PLAYBACK_CMD_FF ||
-     player->cmd.last_cmd == DVR_PLAYBACK_CMD_FB))*/) {
+  if (player->state == DVR_PLAYBACK_STATE_PAUSE) {
     player->cmd.state = DVR_PLAYBACK_STATE_PAUSE;
     player->state = DVR_PLAYBACK_STATE_PAUSE;
     player->seek_pause = DVR_TRUE;
