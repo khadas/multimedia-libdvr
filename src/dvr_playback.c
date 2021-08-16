@@ -2454,15 +2454,18 @@ int dvr_playback_resume(DVR_PlaybackHandle_t handle) {
     return DVR_FAILURE;
   }
 
-  //get id and pos to check if we can seek to this pos
-  dvr_playback_calculate_last_valid_segment(handle, &segmentid, &pos);
-  if (segmentid != player->cur_segment_id ||
-      (segmentid == player->cur_segment_id &&
-       pos > _dvr_get_cur_time(handle))) {
-      //first to seek new pos and to resume
-      DVR_PB_DG(1, "seek new pos and to resume");
-      dvr_playback_seek(handle, segmentid, pos);
+  if (dvr_playback_check_limit(handle)) {
+    //get id and pos to check if we can seek to this pos
+    dvr_playback_calculate_last_valid_segment(handle, &segmentid, &pos);
+    if (segmentid != player->cur_segment_id ||
+        (segmentid == player->cur_segment_id &&
+        pos > _dvr_get_cur_time(handle))) {
+        //first to seek new pos and to resume
+        DVR_PB_DG(1, "seek new pos and to resume");
+        dvr_playback_seek(handle, segmentid, pos);
+    }
   }
+
   if (player->cmd.cur_cmd == DVR_PLAYBACK_CMD_PAUSE) {
     DVR_PB_DG(1, "lock");
     pthread_mutex_lock(&player->lock);
