@@ -318,6 +318,44 @@ static inline void ctx_cleanOutdatedPlaybackEvents()
   ctx_cleanOutdatedEvents(&playback_evt_list, &playback_evt_list_lock, playback_list);
 }
 
+//check this play is recording file
+//return 0 if not the recording
+//else return record id
+static inline int ctx_isPlay_recording(char *play_location)
+{
+  int i;
+  DVR_WrapperCtx_t *cnt;
+
+  for (i = 0; i < DVR_WRAPPER_MAX; i++) {
+    cnt = &record_list[i];
+    //DVR_WRAPPER_DEBUG(1, "[%d]sn[%d]R:[%s]P:[%s] ...\n", i, cnt->sn, cnt->record.param_open.location, play_location);
+    if (!strcmp(cnt->record.param_open.location, play_location)) {
+      DVR_WRAPPER_DEBUG(1, "[%d]sn[%d]R:[%s]P:[%s] .found..\n", i, cnt->sn, cnt->record.param_open.location, play_location);
+      return cnt->sn;
+    }
+  }
+  DVR_WRAPPER_DEBUG(1, " not found play is recing [%d]", DVR_WRAPPER_MAX);
+  return 0;
+}
+//check this record is playing file
+//return 0 if not the playing
+//else return playback id
+static inline int ctx_isRecord_playing(char *rec_location)
+{
+    int i;
+    DVR_WrapperCtx_t *cnt;
+    for (i = 0; i < DVR_WRAPPER_MAX; i++) {
+      cnt = &playback_list[i];
+      //DVR_WRAPPER_DEBUG(1, "[%d]sn[%d]P[%s]R[%s] ...\n", i, cnt->sn, cnt->playback.param_open.location, rec_location);
+      if (!strcmp(cnt->playback.param_open.location, rec_location)) {
+        DVR_WRAPPER_DEBUG(1, "[%d]sn[%d]P[%s]R[%s] ..found.\n",i, cnt->sn, cnt->playback.param_open.location, rec_location);
+        return cnt->sn;
+      }
+    }
+    DVR_WRAPPER_DEBUG(1, " not found rec is playing [%d]", DVR_WRAPPER_MAX);
+    return 0;
+}
+
 static inline DVR_WrapperCtx_t *ctx_get(unsigned long sn, DVR_WrapperCtx_t *list)
 {
   int i;
@@ -580,7 +618,8 @@ static inline void _updatePlaybackSegment(DVR_WrapperPlaybackSegmentInfo_t *pseg
     pseg->seg_info.nb_packets = seg_info->nb_packets;
   }
   //update current segment duration on timeshift mode
-  if (ctx->playback.param_open.is_timeshift)
+  if (ctx->playback.param_open.is_timeshift
+      || ctx_isPlay_recording(ctx->playback.param_open.location))
     dvr_playback_update_duration(ctx->playback.player,pseg->seg_info.id,pseg->seg_info.duration);
   /*no changes
   DVR_PlaybackSegmentFlag_t flags;
@@ -622,7 +661,8 @@ static int wrapper_updatePlaybackSegment(DVR_WrapperCtx_t *ctx, DVR_RecordSegmen
   }
 
   /*need to notify the dvr_playback*/
-  if (ctx->playback.param_open.is_timeshift/*should must be timeshift*/
+  if ((ctx->playback.param_open.is_timeshift/*should must be timeshift*/
+      || ctx_isPlay_recording(ctx->playback.param_open.location))
     && ctx->playback.last_event == DVR_PLAYBACK_EVENT_REACHED_END
     && ctx->playback.seg_status.state == DVR_PLAYBACK_STATE_PAUSE) {
     if (
@@ -696,14 +736,20 @@ static int wrapper_updateRecordSegment(DVR_WrapperCtx_t *ctx, DVR_RecordSegmentI
     the playback paused if no data been checked from recording,
          should resume the player later when there's more data
   */
-
-  if (ctx->record.param_open.is_timeshift) {
-    DVR_WrapperCtx_t *ctx_playback = ctx_getPlayback(sn_timeshift_playback);
+  int sn = 0;
+  if (ctx->record.param_open.is_timeshift ||
+    (sn = ctx_isRecord_playing(ctx->record.param_open.location))) {
+    DVR_WrapperCtx_t *ctx_playback;
+    if (ctx->record.param_open.is_timeshift)
+      ctx_playback = ctx_getPlayback(sn_timeshift_playback);
+    else
+      ctx_playback = ctx_getPlayback(sn);
 
     if (ctx_playback) {
       pthread_mutex_lock(&ctx_playback->lock);
       if (ctx_valid(ctx_playback)
-          && ctx_playback->sn == sn_timeshift_playback) {
+          && (ctx_playback->sn == sn_timeshift_playback ||
+              ctx_playback->sn == sn)) {
           wrapper_updatePlaybackSegment(ctx_playback, seg_info, update_flags);
       }
       pthread_mutex_unlock(&ctx_playback->lock);
@@ -765,9 +811,16 @@ static int wrapper_addRecordSegment(DVR_WrapperCtx_t *ctx, DVR_RecordSegmentInfo
   pseg->info = *seg_info;
   list_add(&pseg->head, &ctx->segments);
   
-  if (ctx->record.param_open.is_timeshift
-    || !strcmp(ctx->record.param_open.location, ctx->playback.param_open.location)) {
-    DVR_WrapperCtx_t *ctx_playback = ctx_getPlayback(sn_timeshift_playback);
+  if (ctx->record.param_open.is_timeshift ||
+      (sn = ctx_isRecord_playing(ctx->record.param_open.location))) {
+
+    DVR_WrapperCtx_t *ctx_playback;
+    if (ctx->record.param_open.is_timeshift)
+      ctx_playback = ctx_getPlayback(sn_timeshift_playback);
+    else
+      ctx_playback = ctx_getPlayback(sn);
+
+    DVR_WRAPPER_DEBUG(1, "ctx_playback ---- add segment\n");
 
     if (ctx_playback) {
       pthread_mutex_lock(&ctx_playback->lock);
@@ -781,10 +834,13 @@ static int wrapper_addRecordSegment(DVR_WrapperCtx_t *ctx, DVR_RecordSegmentInfo
             flags |= DVR_PLAYBACK_SEGMENT_ENCRYPTED;
           wrapper_addPlaybackSegment(ctx_playback, seg_info, &ctx_playback->playback.pids_req, flags);
         }
+      } else {
+            DVR_WRAPPER_DEBUG(1, "ctx_playback ---- not valid\n");
       }
       pthread_mutex_unlock(&ctx_playback->lock);
     }
   } else {
+    DVR_WRAPPER_DEBUG(1, "ctx_playback -sn[%d]-\n", sn);
     dvr_segment_link_op(ctx->record.param_open.location, 1, &seg_info->id, LSEG_OP_ADD);
   }
 
@@ -1412,6 +1468,7 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
   error = dvr_segment_get_list(ctx->playback.param_open.location, &segment_nb, &p_segment_ids);
   if (!error) {
     got_1st_seg = 0;
+    DVR_WRAPPER_DEBUG(1, "get list segment_nb::%d",segment_nb);
     for (i = 0; i < segment_nb; i++) {
       DVR_RecordSegmentInfo_t seg_info;
       DVR_PlaybackSegmentFlag_t flags;
@@ -2190,7 +2247,9 @@ static int process_handlePlaybackEvent(DVR_WrapperEventCtx_t *evt, DVR_WrapperCt
       process_generatePlaybackStatus(ctx, &status);
 
       if (evt->playback.event == DVR_PLAYBACK_EVENT_REACHED_END) {
-        if (ctx->playback.param_open.is_timeshift) {
+        DVR_WRAPPER_DEBUG(1, "playback(sn:%ld) error event:0x%x\n", evt->sn, evt->playback.event);
+        if (ctx->playback.param_open.is_timeshift
+          || ctx_isPlay_recording(ctx->playback.param_open.location)) {
           /*wait for more data in recording*/
         } else if ((status.info_cur.time + DVR_PLAYBACK_END_GAP) >= ctx->playback.status.info_full.time) {
           process_notifyPlayback(ctx, evt->playback.event, &status);
