@@ -3501,7 +3501,7 @@ static int _dvr_playback_get_status(DVR_PlaybackHandle_t handle,
   p_status->time_cur = _dvr_get_play_cur_time(handle, &segment_id);
 
   if (CONTROL_SPEED_ENABLE == 1) {
-    if (player->con_spe.ply_sta < 0) {
+    if (player->con_spe.ply_sta == -1) {
           DVR_PB_DG(1, "player dur[%lld] sta[%lld] cur[%d] -----reinit",
                         player->con_spe.ply_dur,
                         player->con_spe.ply_sta,
