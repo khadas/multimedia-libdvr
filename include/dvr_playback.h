@@ -333,6 +333,9 @@ typedef struct
   int                        obsolete;         /**< rec obsolete time in ms*/
   uint64_t                   rec_start;        /**< rec start time in ms*/
   int                        limit;            /**< rec data limit time in ms*/
+  //first play need seek to start time
+  uint64_t                   first_start_time;
+  DVR_Bool_t                 need_seek_start;
 } DVR_Playback_t;
 /**\endcond*/
 

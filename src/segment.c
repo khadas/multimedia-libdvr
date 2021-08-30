@@ -325,6 +325,8 @@ loff_t segment_seek(Segment_Handle_t handle, uint64_t time, int block_size)
   loff_t offset = 0;
   char *p1, *p2;
 
+  DVR_DEBUG(1, "into seek time=%llu, offset=%lld time--%llu\n", pts, offset, time);
+
   p_ctx = (Segment_Context_t *)handle;
   DVR_RETURN_IF_FALSE(p_ctx);
   DVR_RETURN_IF_FALSE(p_ctx->index_fp);
