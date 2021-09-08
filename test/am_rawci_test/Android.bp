@@ -1,0 +1,30 @@
+
+cc_binary {
+    name: "am_rawci_test",
+    proprietary: true,
+    compile_multilib: "32",
+
+    arch: {
+        x86: {
+            enabled: false,
+        },
+        x86_64: {
+            enabled: false,
+        },
+    },
+
+    srcs: [
+        "am_rawci_test.c"
+    ],
+
+    shared_libs: [
+        "libutils",
+        "libcutils",
+        "liblog"
+    ],
+
+    include_dirs: [
+      "vendor/amlogic/common/libdvr/include",
+    ],
+
+}
