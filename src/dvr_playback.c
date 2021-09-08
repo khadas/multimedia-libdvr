@@ -948,6 +948,13 @@ static void* _dvr_playback_thread(void *arg)
   int dec_buf_size = buf_len + 188;
   int real_read = 0;
   DVR_Bool_t goto_rewrite = DVR_FALSE;
+  char prop_buf[10];
+
+  memset(prop_buf, 0 ,sizeof(prop_buf));
+  dvr_prop_read("vendor.tv.libdvr.writetm", prop_buf, sizeof(prop_buf));
+  DVR_PB_DG(1, "vendor.tv.libdvr.writetm get prop[%d][%s]", atoi(prop_buf), prop_buf);
+  if (atoi(prop_buf) > 0)
+    write_timeout_ms = atoi(prop_buf);
 
   if (player->is_secure_mode) {
     if (dec_buf_size > player->secure_buffer_size) {
