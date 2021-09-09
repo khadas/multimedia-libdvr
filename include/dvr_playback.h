@@ -259,10 +259,10 @@ typedef struct
 /**\brief playback struct*/
 typedef struct
 {
-  uint64_t       sys_dur;     /**< system duration */
-  uint64_t       sys_sta;     /**< system start time */
-  uint64_t       ply_dur;     /**< play duration */
-  uint64_t       ply_sta;     /**< play start time */
+  uint32_t       sys_dur;     /**< system duration */
+  uint32_t       sys_sta;     /**< system start time */
+  uint32_t       ply_dur;     /**< play duration */
+  uint32_t       ply_sta;     /**< play start time */
 } DVR_PlaybackConSpe_t;
 
 
@@ -302,14 +302,14 @@ typedef struct
   DVR_Bool_t                 has_audio;    /**< has audio playing*/
   DVR_Bool_t                 has_ad_audio;    /**< has ad audio playing*/
   DVR_Bool_t                 has_pids;     /**< has video audo pid fmt info*/
-  uint64_t                   fffb_start;    /**< fffb start time ms*/
-  uint64_t                   fffb_current;  /**< fffb current time*/
+  uint32_t                   fffb_start;    /**< fffb start time ms*/
+  uint32_t                   fffb_current;  /**< fffb current time*/
   int                        fffb_start_pcr;     /**< fffb start pcr time*/
-  uint64_t                   next_fffb_time;/**< fffb start pcr time*/
+  uint32_t                   next_fffb_time;/**< fffb start pcr time*/
   int                        seek_time;/**< fffb start pcr time*/
   event_callback             player_callback_func;/**< tsplayer cb*/
   void                       *player_callback_userdata;/**< tsplayer cb data*/
-  uint64_t                   send_time;/**< send event time*/
+  uint32_t                   send_time;/**< send event time*/
   int                        first_frame;/**< show first frame*/
   DVR_CryptoFunction_t       dec_func;                             /**< Decrypt function*/
   void                       *dec_userdata;                        /**< Decrypt userdata*/
@@ -331,10 +331,10 @@ typedef struct
 
   //limit info
   int                        obsolete;         /**< rec obsolete time in ms*/
-  uint64_t                   rec_start;        /**< rec start time in ms*/
-  int                        limit;            /**< rec data limit time in ms*/
+  uint32_t                   rec_start;        /**< rec start time in ms*/
+  uint32_t                       limit;            /**< rec data limit time in ms*/
   //first play need seek to start time
-  uint64_t                   first_start_time;
+  uint32_t                   first_start_time;
   DVR_Bool_t                 need_seek_start;
 } DVR_Playback_t;
 /**\endcond*/
@@ -464,7 +464,7 @@ int dvr_playback_resume(DVR_PlaybackHandle_t handle);
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int dvr_playback_setlimit(DVR_PlaybackHandle_t handle, uint64_t time, int32_t limit);
+int dvr_playback_setlimit(DVR_PlaybackHandle_t handle, uint32_t time, uint32_t limit);
 
 /**\brief Seek the playing position
  * \param[in] handle playback handle
@@ -529,7 +529,7 @@ int dvr_playback_set_secure_buffer(DVR_PlaybackHandle_t handle, uint8_t *p_secur
  * \return DVR_SUCCESS on success
  * \return error code on failure
  */
-int dvr_playback_calculate_expiredlen(DVR_PlaybackHandle_t handle);
+uint32_t dvr_playback_calculate_expiredlen(DVR_PlaybackHandle_t handle);
 
 /**\brief set DVR playback obsolete time
  * \param[in] handle, DVR playback session handle
