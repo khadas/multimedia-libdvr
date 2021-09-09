@@ -373,7 +373,8 @@ void *record_thread(void *arg)
         p_ctx->event_notify_fn &&
         /*!(p_ctx->segment_info.size % p_ctx->notification_size)*/
     (p_ctx->segment_info.size -p_ctx->last_send_size) >= p_ctx->notification_size&&
-        p_ctx->segment_info.duration > 0) {
+        p_ctx->segment_info.duration > 0  &&
+        p_ctx->state == DVR_RECORD_STATE_STARTED) {
       memset(&record_status, 0, sizeof(record_status));
       //clock_gettime(CLOCK_MONOTONIC, &end_ts);
       p_ctx->last_send_size = p_ctx->segment_info.size;
