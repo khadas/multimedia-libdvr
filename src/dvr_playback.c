@@ -2756,7 +2756,7 @@ int dvr_playback_seek(DVR_PlaybackHandle_t handle, uint64_t segment_id, uint32_t
   player->has_video, player->has_audio);
 
   if (player->has_video) {
-    player->has_video = DVR_FALSE;
+    //player->has_video = DVR_FALSE;
     AmTsPlayer_stopVideoDecoding(player->handle);
   }
 
@@ -2810,6 +2810,8 @@ int dvr_playback_seek(DVR_PlaybackHandle_t handle, uint64_t segment_id, uint32_t
         AmTsPlayer_stopFast(player->handle);
       }
       player->has_video = DVR_TRUE;
+    } else {
+      player->has_video = DVR_FALSE;
     }
     if (VALID_PID(adparams.pid) && player->speed == 1.0) {
       player->has_ad_audio = DVR_TRUE;
@@ -3047,6 +3049,11 @@ static uint32_t dvr_playback_calculate_last_valid_segment(
     return DVR_FAILURE;
   }
   expired = dvr_playback_calculate_expiredlen(handle);
+  if (expired == 0) {
+    *segmentid = player->cur_segment_id;
+    *pos       = 0;
+    return DVR_SUCCESS;
+  }
   DVR_PlaybackSegmentInfo_t *pseg;
   list_for_each_entry_reverse(pseg, &player->segment_list, head) {
     segment_id = pseg->segment_id;
