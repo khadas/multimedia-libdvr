@@ -135,14 +135,13 @@ static pthread_mutex_t sn_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static inline unsigned long get_sn()
 {
-  unsigned long no;
+  unsigned long no = 0;
 
   pthread_mutex_lock(&sn_lock);
   no = sn++;
   if (!no)
     no = sn++;
   pthread_mutex_unlock(&sn_lock);
-
   return no;
 }
 
@@ -801,6 +800,7 @@ static int wrapper_addRecordSegment(DVR_WrapperCtx_t *ctx, DVR_RecordSegmentInfo
 {
   DVR_WrapperRecordSegmentInfo_t *pseg;
   int error;
+  int sn = 0;
 
   error = 0;
   pseg = (DVR_WrapperRecordSegmentInfo_t *)calloc(1, sizeof(DVR_WrapperRecordSegmentInfo_t));
@@ -810,7 +810,7 @@ static int wrapper_addRecordSegment(DVR_WrapperCtx_t *ctx, DVR_RecordSegmentInfo
   }
   pseg->info = *seg_info;
   list_add(&pseg->head, &ctx->segments);
-  
+
   if (ctx->record.param_open.is_timeshift ||
       (sn = ctx_isRecord_playing(ctx->record.param_open.location))) {
 
