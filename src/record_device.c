@@ -211,7 +211,7 @@ int record_device_open(Record_DeviceHandle_t *p_handle, Record_DeviceOpenParams_
   memset(buf, 0, sizeof(buf));
   snprintf(buf, sizeof(buf), "/sys/class/stb/asyncfifo%d_flush_size", dev_no);
   memset(cmd, 0, sizeof(cmd));
-  snprintf(cmd, sizeof(cmd), "%d", params->buf_size);
+  snprintf(cmd, sizeof(cmd), "%d", 64*1024);
   dvr_file_echo(buf, cmd);
 
   /*Configure source*/

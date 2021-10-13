@@ -1228,8 +1228,15 @@ static void* _dvr_playback_thread(void *arg)
 
       int delay = _dvr_playback_get_delaytime((DVR_PlaybackHandle_t)player);
       if (ret != DVR_SUCCESS) {
-        player->noData++;
-        DVR_PB_DG(1, "playback is sleep:[%d]ms nodata[%d]", timeout, player->noData);
+        if (player->vendor == DVR_PLAYBACK_VENDOR_AMAZON) {
+          if (delay > 700) {
+              DVR_PB_DG(1, "delay time [%d] > 700, not send nodata event", delay);
+          } else {
+              player->noData++;
+          }
+        } else {
+          player->noData++;
+        }
         if (player->noData == 4) {
             DVR_PB_DG(1, "playback send nodata event nodata[%d]", player->noData);
                   //send event here and pause
