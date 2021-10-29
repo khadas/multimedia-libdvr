@@ -1173,6 +1173,8 @@ static void* _dvr_playback_thread(void *arg)
     pthread_mutex_lock(&player->segment_lock);
     //DVR_PB_DG(1, "start read");
     int read = segment_read(player->r_handle, buf + real_read, buf_len - real_read);
+    real_read = real_read + read;
+    player->ts_cache_len = real_read;
     //DVR_PB_DG(1, "start read end [%d]", read);
     pthread_mutex_unlock(&player->segment_lock);
     pthread_mutex_unlock(&player->lock);
@@ -1290,7 +1292,12 @@ static void* _dvr_playback_thread(void *arg)
       DVR_PB_DG(1, "_dvr_replay_changed_pid:start");
       _dvr_replay_changed_pid((DVR_PlaybackHandle_t)player);
       _dvr_check_cur_segment_flag((DVR_PlaybackHandle_t)player);
+      pthread_mutex_lock(&player->segment_lock);
       read = segment_read(player->r_handle, buf + real_read, buf_len - real_read);
+      real_read = real_read + read;
+      player->ts_cache_len = real_read;
+      pthread_mutex_unlock(&player->segment_lock);
+
       pthread_mutex_unlock(&player->lock);
     }//read len 0 check end
     if (player->noData > 0) {
@@ -1305,7 +1312,7 @@ static void* _dvr_playback_thread(void *arg)
       _dvr_playback_sent_event((DVR_PlaybackHandle_t)player, DVR_PLAYBACK_EVENT_DATARESUME, &notify, DVR_FALSE);
     }
     reach_end_timeout = 0;
-    real_read = real_read + read;
+    //real_read = real_read + read;
     wbufs.buf_size = real_read;
     wbufs.buf_data = buf;
 
@@ -1375,10 +1382,13 @@ rewrite:
       player->drop_ts = DVR_FALSE;
       continue;
     }
+
+    pthread_mutex_lock(&player->segment_lock);
     player->ts_cache_len = real_read;
     ret = AmTsPlayer_writeData(player->handle, &wbufs, write_timeout_ms);
     if (ret == AM_TSPLAYER_OK) {
       player->ts_cache_len = 0;
+      pthread_mutex_unlock(&player->segment_lock);
       real_read = 0;
       write_success++;
       if (CONTROL_SPEED_ENABLE == 1) {
@@ -1394,6 +1404,7 @@ check0:
       //DVR_PB_DG(1, "write  write_success:%d wbufs.buf_size:%d", write_success, wbufs.buf_size);
       continue;
     } else {
+        pthread_mutex_unlock(&player->segment_lock);
       DVR_PB_DG(1, "write time out write_success:%d wbufs.buf_size:%d systime:%u",
                     write_success,
                     wbufs.buf_size,
@@ -1688,6 +1699,7 @@ int dvr_playback_start(DVR_PlaybackHandle_t handle, DVR_PlaybackFlag_t flag) {
       }
       AmTsPlayer_showVideo(player->handle);
       AmTsPlayer_setVideoParams(player->handle,  &vparams);
+      AmTsPlayer_setVideoBlackOut(player->handle, 1);
       AmTsPlayer_startVideoDecoding(player->handle);
     }
 
@@ -2302,6 +2314,7 @@ int dvr_playback_video_start(DVR_PlaybackHandle_t handle, am_tsplayer_video_para
   pthread_mutex_lock(&player->lock);
   player->has_video = DVR_TRUE;
   AmTsPlayer_setVideoParams(player->handle, param);
+  AmTsPlayer_setVideoBlackOut(player->handle, 1);
   AmTsPlayer_startVideoDecoding(player->handle);
 
   //playback_device_video_start(player->handle , param);
@@ -2764,6 +2777,7 @@ int dvr_playback_seek(DVR_PlaybackHandle_t handle, uint64_t segment_id, uint32_t
 
   if (player->has_video) {
     //player->has_video = DVR_FALSE;
+    AmTsPlayer_setVideoBlackOut(player->handle, 0);
     AmTsPlayer_stopVideoDecoding(player->handle);
   }
 
@@ -2809,6 +2823,7 @@ int dvr_playback_seek(DVR_PlaybackHandle_t handle, uint64_t segment_id, uint32_t
         AmTsPlayer_setTrickMode(player->handle, AV_VIDEO_TRICK_MODE_PAUSE_NEXT);
       }
       AmTsPlayer_setVideoParams(player->handle, &vparams);
+      AmTsPlayer_setVideoBlackOut(player->handle, 1);
       AmTsPlayer_startVideoDecoding(player->handle);
       if (IS_KERNEL_SPEED(player->cmd.speed.speed.speed) &&
         player->cmd.speed.speed.speed != PLAYBACK_SPEED_X1) {
@@ -2868,10 +2883,10 @@ static int _dvr_get_cur_time(DVR_PlaybackHandle_t handle) {
   }
 
   int64_t cache = 0;//defalut es buf cache 500ms
-  AmTsPlayer_getDelayTime(player->handle, &cache);
   pthread_mutex_lock(&player->segment_lock);
   loff_t pos = segment_tell_position(player->r_handle) -player->ts_cache_len;
   uint64_t cur = segment_tell_position_time(player->r_handle, pos);
+  AmTsPlayer_getDelayTime(player->handle, &cache);
   pthread_mutex_unlock(&player->segment_lock);
   DVR_PB_DG(1, "get cur time [%lld] cache:%lld cur id [%lld]last id [%lld] pb cache len [%d] [%lld]", cur, cache, player->cur_segment_id,player->last_send_time_id,  player->ts_cache_len, pos);
   if (player->state == DVR_PLAYBACK_STATE_STOP) {
@@ -2892,12 +2907,12 @@ static int _dvr_get_play_cur_time(DVR_PlaybackHandle_t handle, uint64_t *id) {
 
   int64_t cache = 0;//defalut es buf cache 500ms
   int cur_time = 0;
-  AmTsPlayer_getDelayTime(player->handle, &cache);
   pthread_mutex_lock(&player->segment_lock);
-  loff_t pos = segment_tell_position(player->r_handle) -player->ts_cache_len;
+  loff_t pos = segment_tell_position(player->r_handle) - player->ts_cache_len;
   uint64_t cur = segment_tell_position_time(player->r_handle, pos);
+  AmTsPlayer_getDelayTime(player->handle, &cache);
   pthread_mutex_unlock(&player->segment_lock);
-  DVR_PB_DG(1, "get play cur time [%lld] cache:%lld cur id [%lld]last id [%lld] pb cache len [%d] [%lld]", cur, cache, player->cur_segment_id,player->last_send_time_id,  player->ts_cache_len, pos);
+  DVR_PB_DG(1, "***get play cur time [%lld] cache:%lld cur id [%lld]last id [%lld] pb cache len [%d] [%lld]", cur, cache, player->cur_segment_id,player->last_send_time_id,  player->ts_cache_len, pos);
   if (player->state == DVR_PLAYBACK_STATE_STOP) {
     cache = 0;
   }
@@ -3184,6 +3199,7 @@ static int _dvr_playback_fffb_replay(DVR_PlaybackHandle_t handle) {
   //stop
   if (player->has_video) {
     DVR_PB_DG(1, "fffb stop video");
+    AmTsPlayer_setVideoBlackOut(player->handle, 0);
     AmTsPlayer_stopVideoDecoding(player->handle);
   }
   if (player->has_audio) {
@@ -3227,6 +3243,7 @@ static int _dvr_playback_fffb_replay(DVR_PlaybackHandle_t handle) {
     AmTsPlayer_setTrickMode(player->handle, AV_VIDEO_TRICK_MODE_NONE);
     AmTsPlayer_setTrickMode(player->handle, AV_VIDEO_TRICK_MODE_PAUSE_NEXT);
     AmTsPlayer_setVideoParams(player->handle, &vparams);
+    AmTsPlayer_setVideoBlackOut(player->handle, 1);
     AmTsPlayer_startVideoDecoding(player->handle);
     //playback_device_video_start(player->handle , &vparams);
     //if set flag is pause live, we need set trick mode
@@ -3299,6 +3316,7 @@ static int _dvr_playback_replay(DVR_PlaybackHandle_t handle, DVR_Bool_t trick) {
   //stop
   if (player->has_video) {
     player->has_video = DVR_FALSE;
+    AmTsPlayer_setVideoBlackOut(player->handle, 0);
     AmTsPlayer_stopVideoDecoding(player->handle);
   }
 
@@ -3336,6 +3354,7 @@ static int _dvr_playback_replay(DVR_PlaybackHandle_t handle, DVR_Bool_t trick) {
       AmTsPlayer_setTrickMode(player->handle, AV_VIDEO_TRICK_MODE_NONE);
     }
     AmTsPlayer_setVideoParams(player->handle, &vparams);
+    AmTsPlayer_setVideoBlackOut(player->handle, 1);
     AmTsPlayer_startVideoDecoding(player->handle);
   }
 
