@@ -2266,13 +2266,19 @@ static int process_handlePlaybackEvent(DVR_WrapperEventCtx_t *evt, DVR_WrapperCt
       process_generatePlaybackStatus(ctx, &status);
 
       if (evt->playback.event == DVR_PLAYBACK_EVENT_REACHED_END) {
-        DVR_WRAPPER_DEBUG(1, "playback(sn:%ld) error event:0x%x\n", evt->sn, evt->playback.event);
+        DVR_WRAPPER_DEBUG(1, "playback(sn:%ld) event:0x%x\n", evt->sn, evt->playback.event);
         if (ctx->playback.param_open.is_timeshift
           || ctx_isPlay_recording(ctx->playback.param_open.location)) {
           /*wait for more data in recording*/
-        } else if ((status.info_cur.time + DVR_PLAYBACK_END_GAP) >= ctx->playback.status.info_full.time) {
+        }
+        /*trust the low level, make NO check.
+          As this evt is changed to only once due to some operations(paused) in low level.
+        else if ((status.info_cur.time + DVR_PLAYBACK_END_GAP) >= ctx->playback.status.info_full.time) {
           process_notifyPlayback(ctx, evt->playback.event, &status);
-        } else {
+        }
+        */
+        else {
+          process_notifyPlayback(ctx, evt->playback.event, &status);
           ctx->playback.reach_end = DVR_TRUE;
         }
       } else if (evt->playback.event != DVR_PLAYBACK_EVENT_REACHED_BEGIN) {
