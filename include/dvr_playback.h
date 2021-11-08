@@ -42,6 +42,13 @@ typedef struct
   DVR_StreamInfo_t pcr;      /**< PCR.*/
 } DVR_PlaybackPids_t;
 
+/**\brief dvr play pids */
+typedef struct
+{
+  DVR_PlaybackPids_t pids;    /**< Video.*/
+  int av_scale;
+} DVR_Playback_info_t;
+
 /**\brief dvr segments info */
 typedef struct
 {
