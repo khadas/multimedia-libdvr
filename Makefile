@@ -15,7 +15,9 @@ LIBAMDVR_SRCS := \
 	src/dvr_segment.c\
 	src/dvr_wrapper.c\
 	src/list_file.c\
-	src/segment.c
+	src/segment.c\
+	src/am_crypt.c\
+	src/des.c
 LIBAMDVR_OBJS := $(patsubst %.c,%.o,$(LIBAMDVR_SRCS))
 
 AM_FEND_TEST_SRCS := \

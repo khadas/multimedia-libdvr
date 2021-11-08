@@ -218,7 +218,10 @@ typedef struct
   DVR_Bool_t             is_timeshift;    /**< 0:playback mode, 1 : is timeshift mode*/
   am_tsplayer_handle     player_handle;   /**< am tsplayer handle.*/
   DVR_CryptoFunction_t   crypto_fn;       /**< Crypto function.*/
-  void                  *crypto_data;     /**< Crypto function's user data.*/
+  void                   *crypto_data;    /**< Crypto function's user data.*/
+  uint8_t                *clearkey;       /**< key for encrypted PVR on FTA.*/
+  uint8_t                *cleariv;        /**< iv for encrpted PVR on FTA.*/
+  uint32_t               keylen;          /**< key/iv length.*/
   DVR_Bool_t             has_pids;        /**< has video audo pid fmt info*/
   DVR_PlaybackEventFunction_t  event_fn;           /**< playback event callback function*/
   void                        *event_userdata;    /**< event userdata*/
@@ -320,6 +323,7 @@ typedef struct
   int                        first_frame;/**< show first frame*/
   DVR_CryptoFunction_t       dec_func;                             /**< Decrypt function*/
   void                       *dec_userdata;                        /**< Decrypt userdata*/
+  void                       *cryptor;                             /**< Cryptor for encrypted PVR on FTA.*/
   int                        is_secure_mode;                       /**< Playback session run in secure pipeline */
   uint8_t                    *secure_buffer;                       /* Playback session secure buffer */
   uint32_t                   secure_buffer_size;                   /* Playback session secure buffer size */

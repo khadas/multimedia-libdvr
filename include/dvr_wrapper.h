@@ -79,11 +79,14 @@ typedef struct {
   DVR_RecordFlag_t      flags;                           /**< Flags.*/
   DVR_CryptoPeriod_t    crypto_period;                   /**< Crypto period.*/
   DVR_CryptoFunction_t  crypto_fn;                       /**< Crypto callback function.*/
-  void                 *crypto_data;                     /**< User data of crypto function.*/
-  DVR_RecordEventFunction_t   event_fn;                  /**< DVR record event callback function*/
-  void                        *event_userdata;           /**< DVR event userdata*/
-  int                   flush_size;                      /**< DVR flush size*/
-  int                   ringbuf_size;                      /**< DVR ringbuf size*/
+  void                  *crypto_data;                    /**< User data of crypto function.*/
+  uint8_t               *clearkey;                       /**< key for encrypted PVR on FTA.*/
+  uint8_t               *cleariv;                        /**< iv for encrpted PVR on FTA.*/
+  uint32_t              keylen;                          /**< key/iv length.*/
+  DVR_RecordEventFunction_t   event_fn;                  /**< DVR record event callback function.*/
+  void                        *event_userdata;           /**< DVR event userdata.*/
+  int                   flush_size;                      /**< DVR flush size.*/
+  int                   ringbuf_size;                    /**< DVR ringbuf size.*/
 } DVR_WrapperRecordOpenParams_t;
 
 typedef struct {
@@ -104,7 +107,10 @@ typedef struct {
   DVR_Bool_t              is_timeshift;                    /**< 0:playback mode, 1 : is timeshift mode*/
   Playback_DeviceHandle_t playback_handle;                 /**< Playback device handle.*/
   DVR_CryptoFunction_t    crypto_fn;                       /**< Crypto function.*/
-  void                   *crypto_data;                     /**< Crypto function's user data.*/
+  void                    *crypto_data;                    /**< Crypto function's user data.*/
+  uint8_t                 *clearkey;                       /**< key for encrypted PVR on FTA.*/
+  uint8_t                 *cleariv;                        /**< iv for encrpted PVR on FTA.*/
+  uint32_t                keylen;                          /**< key/iv length.*/
   DVR_PlaybackEventFunction_t  event_fn;                   /**< playback event callback function*/
   void                        *event_userdata;             /**< event userdata*/
   DVR_Bool_t              is_notify_time;                  /**< 0:not notify time, 1 : notify*/

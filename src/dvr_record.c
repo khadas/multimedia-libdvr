@@ -10,6 +10,7 @@
 #include "record_device.h"
 #include "segment.h"
 #include <sys/time.h>
+#include "am_crypt.h"
 
 #define CONTROL_SPEED_ENABLE 0
 
@@ -64,6 +65,7 @@ typedef struct {
   DVR_CryptoFunction_t            enc_func;                             /**< Encrypt function*/
   void                            *enc_userdata;                        /**< Encrypt userdata*/
   int                             is_secure_mode;                       /**< Record session run in secure pipeline */
+  void                            *cryptor;                             /**< Cryptor for encrypted PVR on FTA.*/
   size_t                          last_send_size;                       /**< Last send notify segment size */
   uint32_t                        block_size;                           /**< DVR record block size */
   DVR_Bool_t                      is_new_dmx;                           /**< DVR is used new dmx driver */
@@ -215,7 +217,9 @@ void *record_thread(void *arg)
     DVR_DEBUG(1, "%s line %d notify record status, state:%d id=%lld",
           __func__,__LINE__, record_status.state, p_ctx->segment_info.id);
   }
-  DVR_DEBUG(1, "%s, secure_mode:%d, block_size:%d", __func__, p_ctx->is_secure_mode, block_size);
+  DVR_DEBUG(1, "%s, secure_mode:%d, block_size:%d, cryptor:%p",
+	    __func__, p_ctx->is_secure_mode,
+	    block_size, p_ctx->cryptor);
   clock_gettime(CLOCK_MONOTONIC, &start_ts);
 
   struct timeval t1, t2, t3, t4, t5, t6, t7;
@@ -268,7 +272,7 @@ void *record_thread(void *arg)
     gettimeofday(&t2, NULL);
 
     /* Got data from device, record it */
-    if (p_ctx->enc_func) {
+    if (p_ctx->is_secure_mode && p_ctx->enc_func) {
       /* Encrypt record data */
       DVR_CryptoParams_t crypto_params;
 
@@ -280,16 +284,8 @@ void *record_thread(void *arg)
 
       if (p_ctx->is_secure_mode) {
         crypto_params.input_buffer.type = DVR_BUFFER_TYPE_SECURE;
-#if 0
-        if (p_ctx->is_new_dmx) {
-          crypto_params.input_buffer.addr = new_dmx_secure_buf.data_start;
-          crypto_params.input_buffer.size = new_dmx_secure_buf.data_end - new_dmx_secure_buf.data_start;
-        } else
-#endif
-	{
-          crypto_params.input_buffer.addr = secure_buf.addr;
-          crypto_params.input_buffer.size = secure_buf.len;
-        }
+        crypto_params.input_buffer.addr = secure_buf.addr;
+        crypto_params.input_buffer.size = secure_buf.len;
       } else {
         crypto_params.input_buffer.type = DVR_BUFFER_TYPE_NORMAL;
         crypto_params.input_buffer.addr = (size_t)buf;
@@ -309,6 +305,11 @@ void *record_thread(void *arg)
       } else {
         len = 0;
       }
+    } else if (p_ctx->cryptor) {
+      /* Encrypt with clear key */
+      am_crypt_des_crypt(p_ctx->cryptor, buf_out, buf, (uint32_t *)&len, 0);
+      gettimeofday(&t3, NULL);
+      ret = segment_write(p_ctx->segment_handle, buf_out, len);
     } else {
       gettimeofday(&t3, NULL);
       ret = segment_write(p_ctx->segment_handle, buf, len);
@@ -327,7 +328,7 @@ void *record_thread(void *arg)
       goto end;
     }
     /* Do time index */
-    uint8_t *index_buf = p_ctx->enc_func ? buf_out : buf;
+    uint8_t *index_buf = (p_ctx->enc_func || p_ctx->cryptor)? buf_out : buf;
     pos = segment_tell_position(p_ctx->segment_handle);
     has_pcr = record_do_pcr_index(p_ctx, index_buf, len);
     if (has_pcr == 0 && p_ctx->index_type == DVR_INDEX_TYPE_INVALID) {
@@ -421,14 +422,27 @@ int dvr_record_open(DVR_RecordHandle_t *p_handle, DVR_RecordOpenParams_t *params
   DVR_RETURN_IF_FALSE(i < MAX_DVR_RECORD_SESSION_COUNT);
   DVR_RETURN_IF_FALSE(record_ctx[i].state == DVR_RECORD_STATE_CLOSED);
   p_ctx = &record_ctx[i];
-  DVR_DEBUG(1, "%s , current state:%d, dmx_id:%d, notification_size:%zu ", __func__,
-      p_ctx->state, params->dmx_dev_id, params->notification_size);
+  DVR_DEBUG(1, "%s , current state:%d, dmx_id:%d, notification_size:%zu, flags:%d, keylen:%d ",
+        __func__, p_ctx->state, params->dmx_dev_id,
+	params->notification_size,
+	params->flags, params->keylen);
 
   /*Process event params*/
   p_ctx->notification_size = params->notification_size;
   p_ctx->event_notify_fn = params->event_fn;
   p_ctx->event_userdata = params->event_userdata;
   p_ctx->last_send_size = 0;
+
+  if (params->keylen > 0) {
+    p_ctx->cryptor = am_crypt_des_open(params->clearkey,
+				params->cleariv,
+				params->keylen * 8);
+    if (!p_ctx->cryptor)
+      DVR_DEBUG(1, "%s , open des cryptor failed!!!\n", __func__);
+  } else {
+    p_ctx->cryptor = NULL;
+  }
+
   //check is new driver
   p_ctx->is_new_dmx = dvr_check_dmx_isNew();
   /*Process crypto params, todo*/
@@ -478,7 +492,10 @@ int dvr_record_close(DVR_RecordHandle_t handle)
 
   DVR_DEBUG(1, "%s , current state:%d", __func__, p_ctx->state);
   DVR_RETURN_IF_FALSE(p_ctx->state != DVR_RECORD_STATE_CLOSED);
-
+  if (p_ctx->cryptor) {
+    am_crypt_des_close(p_ctx->cryptor);
+    p_ctx->cryptor = NULL;
+  }
   if (p_ctx->is_vod) {
     ret = DVR_SUCCESS;
   } else {

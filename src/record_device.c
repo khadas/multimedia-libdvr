@@ -117,9 +117,6 @@ int add_dvr_pids(Record_DeviceContext_t *p_ctx)
   uint16_t pids[DVR_MAX_RECORD_PIDS_COUNT];
 
   if (dvr_check_dmx_isNew() == 1) {
-    DVR_RETURN_IF_FALSE(p_ctx->dvr_buf);
-    DVR_RETURN_IF_FALSE(p_ctx->output_handle);
-
     memset(pids, 0, sizeof(pids));
     for (i = 0; i < DVR_MAX_RECORD_PIDS_COUNT; i++) {
       if (p_ctx->streams[i].pid != DVR_INVALID_PID) {
@@ -127,7 +124,7 @@ int add_dvr_pids(Record_DeviceContext_t *p_ctx)
         DVR_DEBUG(0, "dvr pid:%#x, cnt:%#x", pids[cnt-1], cnt);
       }
     }
-    if (SECDMX_AddDVRPids_Ptr != NULL)
+    if (SECDMX_AddDVRPids_Ptr != NULL && p_ctx->output_handle)
       result = SECDMX_AddDVRPids_Ptr(p_ctx->output_handle, pids, cnt);
     DVR_RETURN_IF_FALSE(result == DVR_SUCCESS);
   }

@@ -993,6 +993,11 @@ int dvr_wrapper_open_record (DVR_WrapperRecord_t *rec, DVR_WrapperRecordOpenPara
   open_param.ringbuf_size = params->ringbuf_size;
   open_param.event_fn = wrapper_record_event_handler;
   open_param.event_userdata = (void*)ctx->sn;
+  if (params->keylen) {
+    open_param.clearkey = params->clearkey;
+    open_param.cleariv = params->cleariv;
+    open_param.keylen = params->keylen;
+  }
 
   error = dvr_record_open(&ctx->record.recorder, &open_param);
   if (error) {
@@ -1007,9 +1012,11 @@ int dvr_wrapper_open_record (DVR_WrapperRecord_t *rec, DVR_WrapperRecordOpenPara
 
   DVR_WRAPPER_DEBUG(1, "record(dmx:%d) openned ok(sn:%ld).\n", params->dmx_dev_id, ctx->sn);
 
-  error = dvr_record_set_encrypt_callback(ctx->record.recorder, params->crypto_fn, params->crypto_data);
-  if (error) {
-    DVR_WRAPPER_DEBUG(1, "record(dmx:%d) set encrypt callback fail(error:%d).\n", params->dmx_dev_id, error);
+  if (params->crypto_fn) {
+    error = dvr_record_set_encrypt_callback(ctx->record.recorder, params->crypto_fn, params->crypto_data);
+    if (error) {
+      DVR_WRAPPER_DEBUG(1, "record(dmx:%d) set encrypt callback fail(error:%d).\n", params->dmx_dev_id, error);
+    }
   }
 
   pthread_mutex_unlock(&ctx->lock);
@@ -1338,6 +1345,11 @@ int dvr_wrapper_open_playback (DVR_WrapperPlayback_t *playback, DVR_WrapperPlayb
   open_param.player_handle = (am_tsplayer_handle)params->playback_handle;
   open_param.vendor = params->vendor;
 
+  if (params->keylen) {
+    open_param.clearkey = params->clearkey;
+    open_param.cleariv = params->cleariv;
+    open_param.keylen = params->keylen;
+  }
 
   error = dvr_playback_open(&ctx->playback.player, &open_param);
   if (error) {

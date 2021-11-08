@@ -33,7 +33,7 @@ typedef enum
   DVR_RECORD_PID_CLOSE            /**< Close this pid record*/
 } DVR_RecordPidAction_t;
 
-/**\brief DVR record flag, used in push vod mode*/
+/**\brief DVR record flag*/
 typedef enum {
   DVR_RECORD_FLAG_SCRAMBLED = (1 << 0),
   DVR_RECORD_FLAG_ACCURATE  = (1 << 1),
@@ -89,9 +89,9 @@ typedef struct {
   DVR_RecordEventFunction_t   event_fn;           /**< DVR record event callback function*/
   void                        *event_userdata;    /**< DVR event userdata*/
   size_t                      notification_size;  /**< DVR record notification size, record moudle would send a notifaction when the size of current segment is multiple of this value. Put 0 in this argument if you don't want to receive the notification*/
-  DVR_CryptoPeriod_t          crypto_period;      /**< DVR crypto period information*/
-  DVR_CryptoFunction_t        crypto_fn;          /**< DVR crypto callback function*/
-  void                        *crypto_userdata;   /**< DVR crypto userdata*/
+  uint8_t                     *clearkey;          /**< key for encrypted PVR on FTA.*/
+  uint8_t                     *cleariv;           /**< iv for encrpted PVR on FTA.*/
+  uint32_t                    keylen;             /**< key/iv length.*/
   int                         ringbuf_size;       /**< DVR record ring buf size*/
 } DVR_RecordOpenParams_t;
 

@@ -38,6 +38,8 @@ cc_library_shared {
         "src/list_file.c",
         "src/record_device.c",
         "src/segment.c",
+        "src/am_crypt.c",
+        "src/des.c",
     ],
     shared_libs: [
         "libcutils",
@@ -104,6 +106,8 @@ cc_library_shared {
         "src/list_file.c",
         "src/record_device.c",
         "src/segment.c",
+        "src/am_crypt.c",
+        "src/des.c",
     ],
     shared_libs: [
         "libcutils",
