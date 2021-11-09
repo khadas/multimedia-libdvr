@@ -985,7 +985,7 @@ int dvr_wrapper_open_record (DVR_WrapperRecord_t *rec, DVR_WrapperRecordOpenPara
   open_param.dmx_dev_id = params->dmx_dev_id;
   open_param.data_from_memory = 0;
   open_param.flags = params->flags;
-  open_param.notification_size = 500*1024;
+  open_param.notification_size = params->flush_size;
   open_param.flush_size = params->flush_size;
   open_param.ringbuf_size = params->ringbuf_size;
   open_param.event_fn = wrapper_record_event_handler;
