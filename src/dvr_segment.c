@@ -70,7 +70,7 @@ int dvr_segment_del_by_location(const char *location)
   {
     /* del file */
     memset(cmd, 0, sizeof(cmd));
-    sprintf(cmd, "rm %s-*;rm %s.list", location, location);
+    sprintf(cmd, "rm %s-* %s.list %s.stats", location, location, location);
     fp = popen(cmd, "r");
     DVR_RETURN_IF_FALSE(fp);
   }

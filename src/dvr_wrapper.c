@@ -1,4 +1,5 @@
 #include <stddef.h>
+#include <unistd.h>
 #include <stdlib.h>
 #include <pthread.h>
 #include <string.h>
@@ -1941,6 +1942,79 @@ int dvr_wrapper_set_playback_decrypt_callback (DVR_WrapperPlayback_t playback,  
   return error;
 }
 
+int dvr_wrapper_segment_del_by_location (const char *location)
+{
+  char fpath[DVR_MAX_LOCATION_SIZE];
+
+  DVR_RETURN_IF_FALSE(location);
+
+  /*del the stats file*/
+  sprintf(fpath, "%s.stats", location);
+  unlink(fpath);
+
+  return dvr_segment_del_by_location(location);
+}
+
+int dvr_wrapper_segment_get_info_by_location (const char *location, DVR_WrapperInfo_t *p_info)
+{
+  FILE *fp;
+  char fpath[DVR_MAX_LOCATION_SIZE];
+
+  DVR_RETURN_IF_FALSE(location);
+  DVR_RETURN_IF_FALSE(p_info);
+
+  if (p_info)
+    memset(p_info, 0, sizeof(p_info[0]));
+
+  memset(fpath, 0, sizeof(fpath));
+  sprintf(fpath, "%s.stats", location);
+
+  /*stats file exists*/
+  if ((fp = fopen(fpath, "r"))) {
+    char buf[256];
+
+    if (fgets(buf, sizeof(buf), fp) != NULL
+      && (sscanf(buf, ":%llu:%lu:%u",
+        &p_info->size,
+        &p_info->time,
+        &p_info->pkts) == 3)) {
+      fclose(fp);
+      DVR_WRAPPER_DEBUG(1, "rec(%s) t/s/p:(%lu/%llu/%u)\n", location, p_info->time, p_info->size, p_info->pkts);
+      return DVR_SUCCESS;
+    }
+  }
+
+  /*fallback, slow on mass files*/
+  DVR_WRAPPER_DEBUG(1, "rec '%s.stats' invalid, fallback to enum, slow on long-time-record.\n",
+    location);
+
+  int error;
+  uint32_t n_ids;
+  uint64_t *p_ids;
+  DVR_RecordSegmentInfo_t info;
+
+  memset(&info, 0, sizeof(info));
+  error = dvr_segment_get_list(fpath, &n_ids, &p_ids);
+  if (!error) {
+     int i;
+     for (i = 0; i < n_ids; i++) {
+        error = dvr_segment_get_info(fpath, p_ids[i], &info);
+        if (!error) {
+           p_info->size += info.size;
+           p_info->time += info.duration;
+           p_info->pkts += info.nb_packets;
+        } else {
+           DVR_WRAPPER_DEBUG(1, "%s:%lld get seg info fail.\n", fpath, p_ids[i]);
+           break;
+        }
+     }
+     free(p_ids);
+  }
+  DVR_WRAPPER_DEBUG(1, "rec(%s)... t/s/p:(%lu/%llu/%u)\n", location, p_info->time, p_info->size, p_info->pkts);
+
+  return (error)? DVR_FAILURE : DVR_SUCCESS;
+}
+
 static DVR_Result_t wrapper_record_event_handler(DVR_RecordEvent_t event, void *params, void *userdata)
 {
   DVR_WrapperEventCtx_t evt;
@@ -1985,6 +2059,32 @@ static inline int process_notifyRecord(DVR_WrapperCtx_t *ctx, DVR_RecordEvent_t 
     return ctx->record.event_fn(evt, status, ctx->record.event_userdata);
   return 0;
 }
+
+static int wrapper_saveRecordStatistics(const char *location, DVR_WrapperRecordStatus_t *p_status)
+{
+  FILE *fp;
+  char fpath[DVR_MAX_LOCATION_SIZE];
+
+  DVR_RETURN_IF_FALSE(location);
+  DVR_RETURN_IF_FALSE(p_status);
+
+  sprintf(fpath, "%s.stats", location);
+
+  /*stats file*/
+  if ((fp = fopen(fpath, "w"))) {
+    char buf[256];
+    snprintf(buf, sizeof(buf), ":%llu:%lu:%u\n",
+        p_status->info.size - p_status->info_obsolete.size,
+        p_status->info.time - p_status->info_obsolete.time,
+        p_status->info.pkts - p_status->info_obsolete.pkts);
+    fputs(buf, fp);
+    fclose(fp);
+    return DVR_SUCCESS;
+  }
+
+  return DVR_FAILURE;
+}
+
 
 static inline int record_startNextSegment(DVR_WrapperCtx_t *ctx)
 {
@@ -2085,6 +2185,7 @@ static int process_handleRecordEvent(DVR_WrapperEventCtx_t *evt, DVR_WrapperCtx_
 
           status.state = evt->record.status.state;
           process_notifyRecord(ctx, evt->record.event, &status);
+          wrapper_saveRecordStatistics(ctx->record.param_open.location, &status);
         } break;
         case DVR_RECORD_STATE_STARTED:
         {
@@ -2092,6 +2193,7 @@ static int process_handleRecordEvent(DVR_WrapperEventCtx_t *evt, DVR_WrapperCtx_
 
           process_generateRecordStatus(ctx, &status);
           process_notifyRecord(ctx, evt->record.event, &status);
+          wrapper_saveRecordStatistics(ctx->record.param_open.location, &status);
 
           /*restart to next segment*/
           if (ctx->record.param_open.segment_size
@@ -2107,6 +2209,7 @@ static int process_handleRecordEvent(DVR_WrapperEventCtx_t *evt, DVR_WrapperCtx_
                 ctx->sn, error);
               status.state = DVR_RECORD_STATE_CLOSED;
               process_notifyRecord(ctx, DVR_RECORD_EVENT_WRITE_ERROR, &status);
+              wrapper_saveRecordStatistics(ctx->record.param_open.location, &status);
             }
           }
 
@@ -2131,6 +2234,7 @@ static int process_handleRecordEvent(DVR_WrapperEventCtx_t *evt, DVR_WrapperCtx_
 
               process_generateRecordStatus(ctx, &status);
               process_notifyRecord(ctx, evt->record.event, &status);
+              wrapper_saveRecordStatistics(ctx->record.param_open.location, &status);
             }
           }
 
@@ -2153,6 +2257,7 @@ static int process_handleRecordEvent(DVR_WrapperEventCtx_t *evt, DVR_WrapperCtx_
 
               process_generateRecordStatus(ctx, &status);
               process_notifyRecord(ctx, evt->record.event, &status);
+              wrapper_saveRecordStatistics(ctx->record.param_open.location, &status);
             }
           }
         } break;
@@ -2162,6 +2267,7 @@ static int process_handleRecordEvent(DVR_WrapperEventCtx_t *evt, DVR_WrapperCtx_
 
           process_generateRecordStatus(ctx, &status);
           process_notifyRecord(ctx, evt->record.event, &status);
+          wrapper_saveRecordStatistics(ctx->record.param_open.location, &status);
         } break;
         default:
         break;

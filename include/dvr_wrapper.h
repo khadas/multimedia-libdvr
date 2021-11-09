@@ -329,6 +329,22 @@ int dvr_wrapper_set_secure_buffer (DVR_WrapperPlayback_t playback,  uint8_t *p_s
  */
 int dvr_wrapper_set_decrypt_callback (DVR_WrapperPlayback_t playback,  DVR_CryptoFunction_t func, void *userdata);
 
+/**
+ * Delete all info of segment whose location is "*location"
+ * \param[in] location The record of need del file's location
+ * \retval DVR_SUCCESS On success.
+ * \return Error code.
+ */
+int dvr_wrapper_segment_del_by_location (const char *location);
+
+/**
+ * Get the info of segment whose location is "*location"
+ * \param[in] location The record file's location
+ * \retval DVR_SUCCESS On success.
+ * \return Error code.
+ */
+int dvr_wrapper_segment_get_info_by_location (const char *location, DVR_WrapperInfo_t *p_info);
+
 
 
 #ifdef __cplusplus
