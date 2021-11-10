@@ -556,8 +556,11 @@ static void *wrapper_task(void *arg)
 
         if (ctx_valid(ctx)) {
           /*double check after lock*/
-          if (evt->sn == ctx->sn)
+          if (evt->sn == ctx->sn) {
+            pthread_mutex_unlock(&tctx->lock);
             process_handleEvents(evt, ctx);
+            pthread_mutex_lock(&tctx->lock);
+          }
         }
         pthread_mutex_unlock(&ctx->lock);
       }
