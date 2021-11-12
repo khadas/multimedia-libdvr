@@ -527,7 +527,7 @@ int record_device_stop(Record_DeviceHandle_t handle)
   return DVR_SUCCESS;
 }
 
-ssize_t record_device_read(Record_DeviceHandle_t handle, void *buf, size_t len, int timeout)
+int record_device_read(Record_DeviceHandle_t handle, void *buf, size_t len, int timeout)
 {
   Record_DeviceContext_t *p_ctx;
   struct pollfd fds[2];
