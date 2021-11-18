@@ -29,8 +29,6 @@ cc_binary {
 
     include_dirs: [
       "hardware/amlogic/media/amcodec/include",
-      "system/core/liblog/include",
       "vendor/amlogic/common/mediahal_sdk/include",
-      "vendor/amlogic/common/libdvr/include",
     ],
 }
