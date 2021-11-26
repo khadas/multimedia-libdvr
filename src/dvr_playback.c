@@ -952,11 +952,12 @@ static void* _dvr_playback_thread(void *arg)
   int reach_end_timeout = 0;//ms
   int cache_time = 0;
   int timeout = 300;//ms
+  int check_no_data_time = 4;
   uint64_t write_timeout_ms = 50;
   uint8_t *buf = NULL;
   int buf_len = player->openParams.block_size > 0 ? player->openParams.block_size : (256 * 1024);
   DVR_Bool_t b_writed_whole_block = player->openParams.block_size > 0 ? DVR_TRUE:DVR_FALSE;
-
+  int first_write = 0;
   int dec_buf_size = buf_len + 188;
   int real_read = 0;
   DVR_Bool_t goto_rewrite = DVR_FALSE;
@@ -1015,12 +1016,13 @@ static void* _dvr_playback_thread(void *arg)
   _dvr_check_cur_segment_flag((DVR_PlaybackHandle_t)player);
   //set video show
   AmTsPlayer_showVideo(player->handle);
-
+  if (player->vendor == DVR_PLAYBACK_VENDOR_AMAZON)
+    check_no_data_time = 8;
   int trick_stat = 0;
   while (player->is_running/* || player->cmd.last_cmd != player->cmd.cur_cmd*/) {
 
     //check trick stat
-    DVR_PB_DG(1, "lock");
+    DVR_PB_DG(1, "lock check_no_data_time:%d", check_no_data_time);
     pthread_mutex_lock(&player->lock);
 
     if (player->cmd.cur_cmd == DVR_PLAYBACK_CMD_SEEK ||
@@ -1252,7 +1254,7 @@ static void* _dvr_playback_thread(void *arg)
       if (ret != DVR_SUCCESS && delay < MIN_TSPLAYER_DELAY_TIME) {
         player->noData++;
         DVR_PB_DG(1, "playback nodata[%d]", player->noData);
-        if (player->noData == 4) {
+        if (player->noData == check_no_data_time) {
             DVR_PB_DG(1, "playback send nodata event nodata[%d]", player->noData);
                   //send event here and pause
             DVR_Play_Notify_t notify;
@@ -1301,9 +1303,10 @@ static void* _dvr_playback_thread(void *arg)
        }
       reach_end_timeout = 0;
       cache_time = 0;
-      pthread_mutex_lock(&player->lock);
       //change next segment success case
       _dvr_playback_sent_transition_ok((DVR_PlaybackHandle_t)player, DVR_FALSE);
+      pthread_mutex_lock(&player->lock);
+      player->noData = 0;
       DVR_PB_DG(1, "_dvr_replay_changed_pid:start");
       _dvr_replay_changed_pid((DVR_PlaybackHandle_t)player);
       _dvr_check_cur_segment_flag((DVR_PlaybackHandle_t)player);
@@ -1315,7 +1318,7 @@ static void* _dvr_playback_thread(void *arg)
 
       pthread_mutex_unlock(&player->lock);
     }//read len 0 check end
-    if (player->noData >= 4) {
+    if (player->noData >= check_no_data_time) {
       player->noData = 0;
       DVR_PB_DG(1, "playback send data event resume[%d]", player->noData);
       //send event here and pause
@@ -1397,6 +1400,9 @@ rewrite:
 
     pthread_mutex_lock(&player->segment_lock);
     player->ts_cache_len = real_read;
+    first_write++;
+    if (first_write == 1)
+    DVR_PB_DG(1, "----firsr write ts data");
     ret = AmTsPlayer_writeData(player->handle, &wbufs, write_timeout_ms);
     if (ret == AM_TSPLAYER_OK) {
       player->ts_cache_len = 0;
@@ -2870,6 +2876,7 @@ int dvr_playback_seek(DVR_PlaybackHandle_t handle, uint64_t segment_id, uint32_t
     AmTsPlayer_setVideoBlackOut(player->handle, 0);
     AmTsPlayer_stopVideoDecoding(player->handle);
   }
+
 
   if (player->has_audio) {
     player->has_audio =DVR_FALSE;

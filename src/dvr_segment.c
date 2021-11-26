@@ -74,8 +74,8 @@ int dvr_segment_del_by_location(const char *location)
     fp = popen(cmd, "r");
     DVR_RETURN_IF_FALSE(fp);
   }
-  DVR_DEBUG(1, "%s location:%s end", __func__, location);
   pclose(fp);
+  DVR_DEBUG(1, "%s location:%s end", __func__, location);
   return DVR_SUCCESS;
 }
 
