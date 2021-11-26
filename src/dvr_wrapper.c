@@ -1982,11 +1982,11 @@ int dvr_wrapper_segment_get_info_by_location (const char *location, DVR_WrapperI
       DVR_WRAPPER_DEBUG(1, "rec(%s) t/s/p:(%lu/%llu/%u)\n", location, p_info->time, p_info->size, p_info->pkts);
       return DVR_SUCCESS;
     }
+    fclose(fp);
   }
 
   /*fallback, slow on mass files*/
-  DVR_WRAPPER_DEBUG(1, "rec '%s.stats' invalid, fallback to enum, slow on long-time-record.\n",
-    location);
+  DVR_WRAPPER_DEBUG(1, "rec '%s.stats' invalid.\n", location);
 
   int error;
   uint32_t n_ids;
@@ -2009,8 +2009,10 @@ int dvr_wrapper_segment_get_info_by_location (const char *location, DVR_WrapperI
         }
      }
      free(p_ids);
+  } else {
+     n_ids = 0;
   }
-  DVR_WRAPPER_DEBUG(1, "rec(%s)... t/s/p:(%lu/%llu/%u)\n", location, p_info->time, p_info->size, p_info->pkts);
+  DVR_WRAPPER_DEBUG(1, "rec(%s)... t/s/p:(%lu/%llu/%u) segs(%u) error(%d)\n", location, p_info->time, p_info->size, p_info->pkts, n_ids, error);
 
   return (error)? DVR_FAILURE : DVR_SUCCESS;
 }
