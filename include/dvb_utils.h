@@ -93,6 +93,13 @@ typedef unsigned int uint_t;
     DVB_DEMUX_SOURCE_TS7_1, /**< DMA secure port 7_1.*/
   } DVB_DemuxSource_t;
 
+/**
+ * Enable/disable CIplus mode.
+ * \param enable Enable/disable.
+ * \retval 0 On success.
+ * \retval -1 On error.
+ */
+int dvb_enable_ciplus(int enable);
 
   /**
  * Set the demux's input source.

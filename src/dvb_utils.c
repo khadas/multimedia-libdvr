@@ -14,6 +14,50 @@
 
 #include <dmx.h>
 
+static int ciplus_enable = 0;
+
+/**
+ * Enable/disable CIplus mode.
+ * \param enable Enable/disable.
+ * \retval 0 On success.
+ * \retval -1 On error.
+ */
+int dvb_enable_ciplus(int enable)
+{
+    int out;
+    char buf[32];
+
+    ciplus_enable = enable;
+
+    if (dvr_check_dmx_isNew())
+        return 0;
+
+    if (enable)
+    {
+        int i;
+
+        out = 0;
+
+        for (i = 0; i < 3; i ++)
+        {
+            DVB_DemuxSource_t src;
+
+            dvb_get_demux_source(i, &src);
+            if (src != DVB_DEMUX_SOURCE_DMA0)
+                out |= 1 << i;
+        }
+    }
+    else
+    {
+        out = 8;
+    }
+
+    snprintf(buf, sizeof(buf), "%d", out);
+    dvr_file_echo("/sys/class/dmx/ciplus_output_ctrl", buf);
+
+    return 0;
+}
+
 /**
  * Set the demux's input source.
  * \param dmx_idx Demux device's index.
@@ -96,6 +140,29 @@ int dvb_set_demux_source(int dmx_idx, DVB_DemuxSource_t src)
     else
     {
         char *val;
+
+        if (ciplus_enable)
+        {
+            char buf[32];
+            int i, out;
+
+            out = 0;
+
+            for (i = 0; i < 3; i ++)
+            {
+                DVB_DemuxSource_t dmx_src;
+
+                if (i == dmx_idx)
+                    dmx_src = src;
+                else
+                    dvb_get_demux_source(i, &dmx_src);
+                if (dmx_src != DVB_DEMUX_SOURCE_DMA0)
+                    out |= 1 << i;
+            }
+
+            snprintf(buf, sizeof(buf), "%d", out);
+            dvr_file_echo("/sys/class/dmx/ciplus_output_ctrl", buf);
+        }
 
         switch (src)
         {
