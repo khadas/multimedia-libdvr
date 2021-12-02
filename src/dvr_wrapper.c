@@ -1078,7 +1078,7 @@ int dvr_wrapper_start_record (DVR_WrapperRecord_t rec, DVR_WrapperRecordStartPar
   DVR_RETURN_IF_FALSE(ctx);
 
   pthread_mutex_lock(&ctx->lock);
-  DVR_WRAPPER_DEBUG(1, "start record(sn:%ld, location:%s) ...\n", ctx->sn, ctx->record.param_open.location);
+  DVR_WRAPPER_DEBUG(1, "start record(sn:%ld, location:%s) save(%d)...\n", ctx->sn, ctx->record.param_open.location, params->save_rec_file);
   DVR_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->lock);
 
   start_param = &ctx->record.param_start;
@@ -1090,7 +1090,8 @@ int dvr_wrapper_start_record (DVR_WrapperRecord_t rec, DVR_WrapperRecordStartPar
     start_param->segment.pids[i] = params->pids_info.pids[i];
     start_param->segment.pid_action[i] = DVR_RECORD_PID_CREATE;
   }
-  dvr_segment_del_by_location(start_param->location);
+  if (params->save_rec_file == 0)//default is not save
+    dvr_segment_del_by_location(start_param->location);
   {
     /*sync to update for further use*/
     DVR_RecordStartParams_t *update_param;
@@ -1325,7 +1326,7 @@ int dvr_wrapper_open_playback (DVR_WrapperPlayback_t *playback, DVR_WrapperPlayb
 
   pthread_mutex_lock(&ctx->lock);
 
-  DVR_WRAPPER_DEBUG(1, "open playback(dmx:%d) ..vendor[%d].\n", params->dmx_dev_id, params->vendor);
+  DVR_WRAPPER_DEBUG(1, "open playback(dmx:%d) ..vendor[%d]params->block_size[%d].\n", params->dmx_dev_id, params->vendor, params->block_size);
 
   ctx_reset(ctx);
 
@@ -1842,6 +1843,59 @@ int dvr_wrapper_update_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackPid
         if (memcmp(&pseg->playback_info.pids, p_pids, sizeof(*p_pids)) != 0) {
           pseg->playback_info.pids = *p_pids;
           error = dvr_playback_update_segment_pids(ctx->playback.player, pseg->seg_info.id, p_pids);
+          if (error) {
+            DVR_WRAPPER_DEBUG(1, "failed to playback(sn:%ld) update segment(id:%lld) pids (%d)\n",
+              ctx->sn, pseg->seg_info.id, error);
+            /*do not break, let list updated*/
+          }
+        }
+      }
+      /*break;*/
+    }
+  }
+
+  DVR_WRAPPER_DEBUG(1, "update playback(sn:%ld) v/a(%d:%d/%d:%d) (%d)\n",
+    ctx->sn,
+    p_pids->video.pid, p_pids->video.format,
+    p_pids->audio.pid, p_pids->audio.format,
+    error);
+
+  pthread_mutex_unlock(&ctx->lock);
+
+  return error;
+}
+
+int dvr_wrapper_only_update_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackPids_t *p_pids)
+{
+  DVR_WrapperCtx_t *ctx;
+  int error;
+  DVR_WrapperPlaybackSegmentInfo_t *pseg;
+
+  DVR_RETURN_IF_FALSE(playback);
+  DVR_RETURN_IF_FALSE(p_pids);
+
+  ctx = ctx_getPlayback((unsigned long)playback);
+  DVR_RETURN_IF_FALSE(ctx);
+
+  pthread_mutex_lock(&ctx->lock);
+
+  DVR_WRAPPER_DEBUG(1, "update playback(sn:%ld) v/a(%d:%d/%d:%d) ...\n",
+    ctx->sn,
+    p_pids->video.pid, p_pids->video.format,
+    p_pids->audio.pid, p_pids->audio.format);
+  DVR_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->lock);
+
+  ctx->playback.pids_req = *p_pids;
+
+  error = 0;
+  list_for_each_entry_reverse(pseg, &ctx->segments, head) {
+    /*should update the whole list of segments*/
+    /*if (pseg->seg_info.id == ctx->current_segment_id)*/ {
+      /*list_for_each_entry_from(pseg, &ctx->segments, head)*/ {
+        /*check udpate for pids*/
+        if (memcmp(&pseg->playback_info.pids, p_pids, sizeof(*p_pids)) != 0) {
+          pseg->playback_info.pids = *p_pids;
+          error = dvr_playback_only_update_segment_pids(ctx->playback.player, pseg->seg_info.id, p_pids);
           if (error) {
             DVR_WRAPPER_DEBUG(1, "failed to playback(sn:%ld) update segment(id:%lld) pids (%d)\n",
               ctx->sn, pseg->seg_info.id, error);

@@ -335,7 +335,7 @@ typedef struct
   DVR_Bool_t                 first_trans_ok;
   DVR_PlaybackVendor_t       vendor;
   int                        noData;
-  DVR_Bool_t                 seek_pause;
+  DVR_Bool_t                 seek_pause;                /**<set true when user call seek at pause state,we will start inject data, if first frame is got,set false and stop inject data*/
   int                        last_segment_tatol;        /**< last segment tatol time*/
 
   DVR_PlaybackConSpe_t       con_spe;   /**< inject data speed info*/
@@ -347,6 +347,8 @@ typedef struct
   //first play need seek to start time
   uint32_t                   first_start_time;
   DVR_Bool_t                 need_seek_start;
+  //init fake pid
+  int                         fake_pid;
 } DVR_Playback_t;
 /**\endcond*/
 
@@ -412,6 +414,16 @@ int dvr_playback_update_segment_flags(DVR_PlaybackHandle_t handle,
  */
 int dvr_playback_update_segment_pids(DVR_PlaybackHandle_t handle, uint64_t segment_id,
 DVR_PlaybackPids_t *p_pids);
+
+/**\brief dvr play back only up1date segment pids
+ * only update segment info, not stop start codec.
+ * \param[in] handle playback handle
+ * \param[in] segment_id need updated pids segment id
+ * \param[in] p_pids the new PIDs
+ * \retval DVR_SUCCESS On success
+ * \return Error code
+ */
+int dvr_playback_only_update_segment_pids(DVR_PlaybackHandle_t handle, uint64_t segment_id, DVR_PlaybackPids_t *p_pids);
 
 /**\brief Stop playing, will stop video and audio
  * \param[in] handle playback handle

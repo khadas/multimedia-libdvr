@@ -29,6 +29,10 @@ typedef struct {
   uint64_t        cur_time;                           /**< Current time save in index file */
   uint64_t        segment_id;                         /**< Current segment ID */
   char            location[MAX_SEGMENT_PATH_SIZE];    /**< Current time save in index file */
+  loff_t          first_offset;
+  loff_t          last_offset;
+  loff_t          last_record_offset;
+  float           avg_rate;
 } Segment_Context_t;
 
 /**\brief Segment file type*/
@@ -130,6 +134,7 @@ int segment_open(Segment_OpenParams_t *params, Segment_Handle_t *p_handle)
     p_ctx->first_pts = ULLONG_MAX;
     p_ctx->last_pts = ULLONG_MAX;
     p_ctx->last_record_pts = ULLONG_MAX;
+    p_ctx->avg_rate = 0.0;
   } else {
     DVR_DEBUG(1, "%s, unknow mode use default", __func__);
     p_ctx->ts_fd = open(ts_fname, O_RDONLY);
@@ -231,13 +236,14 @@ int segment_update_pts_force(Segment_Handle_t handle, uint64_t pts, loff_t offse
   if (p_ctx->first_pts == ULLONG_MAX) {
     DVR_DEBUG(1, "%s first pcr:%llu", __func__, pts);
     p_ctx->first_pts = pts;
+    p_ctx->first_offset = offset;
   }
   memset(buf, 0, sizeof(buf));
   if (p_ctx->last_pts == ULLONG_MAX) {
     /*Last pts is init value*/
     sprintf(buf, "{time=%llu, offset=%lld}", pts - p_ctx->first_pts, offset);
     p_ctx->cur_time = pts - p_ctx->first_pts;
-  DVR_DEBUG(1, "%s force pcr:%llu -1", __func__, pts);
+    DVR_DEBUG(1, "%s force pcr:%llu -1", __func__, pts);
   } else {
     /*Last pts has valid value*/
     int diff = pts - p_ctx->last_pts;
@@ -248,6 +254,8 @@ int segment_update_pts_force(Segment_Handle_t handle, uint64_t pts, loff_t offse
       sprintf(buf, "\n{time=%llu, offset=%lld}", p_ctx->cur_time, offset);
     } else {
       /*This is a normal pts, record it*/
+      //check if this pcr is transition.if true,add 200ms
+      //other case normal.
       p_ctx->cur_time += diff;
       DVR_DEBUG(1, "%s force pcr:%llu -1 diff [%d]", __func__, pts, diff);
       sprintf(buf, "\n{time=%llu, offset=%lld}", p_ctx->cur_time, offset);
@@ -263,7 +271,6 @@ int segment_update_pts_force(Segment_Handle_t handle, uint64_t pts, loff_t offse
     p_ctx->last_record_pts = pts;
   }
   p_ctx->last_pts = pts;
-
   return DVR_SUCCESS;
 }
 
@@ -298,7 +305,22 @@ int segment_update_pts(Segment_Handle_t handle, uint64_t pts, loff_t offset)
       //p_ctx->cur_time = p_ctx->cur_time + PTS_DISCONTINE_DEVIATION;
     } else {
       /*This is a normal pts, record it*/
-      p_ctx->cur_time += diff;
+      loff_t off_diff = offset - p_ctx->last_offset;
+      float rate = (float) (off_diff) / (float)(diff);
+      if (p_ctx->avg_rate == 0.0) {
+            p_ctx->avg_rate = (float) offset / (float)(p_ctx->cur_time + diff);
+      }
+      if (diff >= 1000) {
+        DVR_DEBUG(1, "PTS TRANSITION ERROR last pcr[%llu]pts[%llu]pcr diff[%d]off[%llu]off_diff[%llu]rate[%f]avg rate[%f]4*rate[%d]av_diff[%d]",p_ctx->last_pts, pts, diff, offset,off_diff, rate, p_ctx->avg_rate, (int)(rate * 4), (int)(off_diff / p_ctx->avg_rate));
+        if (p_ctx->avg_rate != 0 && (int)(p_ctx->avg_rate) >= (int)(rate * 4)) {
+          diff = off_diff / p_ctx->avg_rate;
+          p_ctx->cur_time += diff;
+        } else {
+          p_ctx->cur_time += diff;
+        }
+      } else {
+         p_ctx->cur_time += diff;
+      }
       sprintf(buf, "\n{time=%llu, offset=%lld}", p_ctx->cur_time, offset);
     }
   }
@@ -310,9 +332,12 @@ int segment_update_pts(Segment_Handle_t handle, uint64_t pts, loff_t offset)
     fflush(p_ctx->index_fp);
     fsync(fileno(p_ctx->index_fp));
     p_ctx->last_record_pts = pts;
+    p_ctx->last_record_offset = offset;
+    if (p_ctx->cur_time > 0)
+      p_ctx->avg_rate = (float) offset / (float)p_ctx->cur_time;
   }
   p_ctx->last_pts = pts;
-
+  p_ctx->last_offset = offset;
   return DVR_SUCCESS;
 }
 

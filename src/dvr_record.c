@@ -154,6 +154,7 @@ static int record_do_pcr_index(DVR_RecordContext_t *p_ctx, uint8_t *buf, int len
   int has_pcr = 0;
 
   pos = segment_tell_position(p_ctx->segment_handle);
+
   while (left >= 188) {
     if (*p == 0x47) {
       has_pcr |= record_save_pcr(p_ctx, p, pos);
@@ -190,7 +191,7 @@ void *record_thread(void *arg)
   #define DVR_STORE_INFO_TIME (400)
   DVR_SecureBuffer_t secure_buf;
   DVR_NewDmxSecureBuffer_t new_dmx_secure_buf;
-
+  int first_read = 0;
   if (CONTROL_SPEED_ENABLE == 0)
     p_ctx->index_type = DVR_INDEX_TYPE_INVALID;
   else
@@ -311,6 +312,10 @@ void *record_thread(void *arg)
       gettimeofday(&t3, NULL);
       ret = segment_write(p_ctx->segment_handle, buf_out, len);
     } else {
+      if (first_read == 0) {
+        first_read = 1;
+        DVR_DEBUG(1, "%s：%d,first read ts", __func__,__LINE__);
+      }
       gettimeofday(&t3, NULL);
       ret = segment_write(p_ctx->segment_handle, buf, len);
     }

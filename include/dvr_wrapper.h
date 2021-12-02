@@ -91,6 +91,7 @@ typedef struct {
 
 typedef struct {
   DVR_WrapperPidsInfo_t pids_info;
+  int                   save_rec_file;                    /**< save rec file with same location,defaule is 0.*/
 } DVR_WrapperRecordStartParams_t;
 
 typedef struct {
@@ -308,6 +309,15 @@ int dvr_wrapper_get_playback_status (DVR_WrapperPlayback_t playback, DVR_Wrapper
  * \return Error code.
  */
 int dvr_wrapper_update_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackPids_t *p_pids);
+
+/**
+ * only Update playback info.
+ * \param playback The playback handle.
+ * \param flags Playback flags.
+ * \retval DVR_SUCCESS On success.
+ * \return Error code.
+ */
+int dvr_wrapper_only_update_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackPids_t *p_pids);
 
 /**
  * Set playback secure buffer.
