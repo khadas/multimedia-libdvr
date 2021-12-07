@@ -12,8 +12,8 @@ typedef struct {
 static int av_des_crypt_ts_packet(AVDES* d, uint8_t* dst, const uint8_t *src, int decrypt)
 {
 	int afc;
-	uint32_t afc_len = 0;
-	uint32_t crypt_len = 188;
+	int afc_len = 0;
+	int crypt_len = 188;
 	uint8_t *p_in = src;
 	uint8_t *p_out = dst;
 
@@ -73,15 +73,15 @@ int am_crypt_des_close(void *cryptor)
 }
 
 int am_crypt_des_crypt(void* cryptor, uint8_t* dst,
-		       const uint8_t *src, uint32_t *len, int decrypt)
+		       const uint8_t *src, int *len, int decrypt)
 {
-	uint32_t out_len = 0;
-	uint32_t left = *len;
-	uint32_t *p_out_len = len;
+	int out_len = 0;
+	int left = *len;
+	int *p_out_len = len;
 	uint8_t *p_in = src;
 	uint8_t *p_out = dst;
 	uint8_t *p_cache = &((am_cryptor_t *)cryptor)->cache[0];
-	uint8_t *p_cache_len = &((am_cryptor_t *)cryptor)->cache_len;
+	int *p_cache_len = &((am_cryptor_t *)cryptor)->cache_len;
 
 	/* Check parameters*/
 	if (!p_in || !p_out) {
@@ -125,7 +125,7 @@ int am_crypt_des_crypt(void* cryptor, uint8_t* dst,
 
 	/* Process input buffer */
 	memcpy(p_out, p_in, left);
-	while (left) {
+	while (left > 0) {
 		if (*p_in == 0x47) {
 			if (left < 188) {
 				printf("%s cache %#x bytes\n", __func__,

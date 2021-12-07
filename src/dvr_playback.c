@@ -1379,7 +1379,7 @@ static void* _dvr_playback_thread(void *arg)
       }
       wbufs.buf_size = crypto_params.output_size;
     } else if (player->cryptor) {
-      uint32_t len = real_read;
+      int len = real_read;
       am_crypt_des_crypt(player->cryptor, dec_bufs.buf_data, buf, &len, 1);
       wbufs.buf_data = dec_bufs.buf_data;
       wbufs.buf_type = TS_INPUT_BUFFER_TYPE_NORMAL;
