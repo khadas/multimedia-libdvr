@@ -308,7 +308,9 @@ void *record_thread(void *arg)
       }
     } else if (p_ctx->cryptor) {
       /* Encrypt with clear key */
-      am_crypt_des_crypt(p_ctx->cryptor, buf_out, buf, (uint32_t *)&len, 0);
+      int crypt_len = len;
+      am_crypt_des_crypt(p_ctx->cryptor, buf_out, buf, &crypt_len, 0);
+      len = crypt_len;
       gettimeofday(&t3, NULL);
       ret = segment_write(p_ctx->segment_handle, buf_out, len);
     } else {

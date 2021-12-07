@@ -22,7 +22,7 @@ void *am_crypt_des_open(const uint8_t *key, const uint8_t *iv, int key_bits);
 int am_crypt_des_close(void *cryptor);
 
 int am_crypt_des_crypt(void* cryptor, uint8_t* dst,
-		       const uint8_t *src, uint32_t *len, int decrypt);
+		       const uint8_t *src, int *len, int decrypt);
 
 #ifdef __cplusplus
 }
