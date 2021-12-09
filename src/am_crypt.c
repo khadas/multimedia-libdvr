@@ -3,6 +3,8 @@
 #include "des.h"
 #include "am_crypt.h"
 
+#define printf(a...) ((void)0)
+
 typedef struct {
     AVDES des_cryptor;
     uint8_t cache[188];
@@ -14,7 +16,7 @@ static int av_des_crypt_ts_packet(AVDES* d, uint8_t* dst, const uint8_t *src, in
 	int afc;
 	int afc_len = 0;
 	int crypt_len = 188;
-	uint8_t *p_in = src;
+	const uint8_t *p_in = src;
 	uint8_t *p_out = dst;
 
 	afc = (p_in[3] >> 4) & 0x3;
@@ -78,7 +80,7 @@ int am_crypt_des_crypt(void* cryptor, uint8_t* dst,
 	int out_len = 0;
 	int left = *len;
 	int *p_out_len = len;
-	uint8_t *p_in = src;
+	const uint8_t *p_in = src;
 	uint8_t *p_out = dst;
 	uint8_t *p_cache = &((am_cryptor_t *)cryptor)->cache[0];
 	int *p_cache_len = &((am_cryptor_t *)cryptor)->cache_len;
@@ -113,6 +115,7 @@ int am_crypt_des_crypt(void* cryptor, uint8_t* dst,
 #endif
 		/* Process cache data */
 		memcpy(p_cache + *p_cache_len, p_in, 188 - ((am_cryptor_t *)cryptor)->cache_len);
+		memcpy(p_out, p_cache, 188);
 		av_des_crypt_ts_packet(
 			(AVDES *)&(((am_cryptor_t *)cryptor)->des_cryptor),
 			p_out, p_cache, decrypt);
