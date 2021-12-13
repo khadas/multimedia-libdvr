@@ -289,7 +289,8 @@ void *record_thread(void *arg)
     gettimeofday(&t2, NULL);
 
     /* Got data from device, record it */
-    if (p_ctx->is_secure_mode && p_ctx->enc_func) {
+    //if (p_ctx->is_secure_mode && p_ctx->enc_func) {
+    if (p_ctx->enc_func) {
       /* Encrypt record data */
       DVR_CryptoParams_t crypto_params;
 

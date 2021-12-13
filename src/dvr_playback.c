@@ -1380,7 +1380,8 @@ static void* _dvr_playback_thread(void *arg)
       }
     }
 
-    if (player->is_secure_mode && player->dec_func) {
+    //if (player->is_secure_mode && player->dec_func) {
+    if (player->dec_func) {
       DVR_CryptoParams_t crypto_params;
 
       memset(&crypto_params, 0, sizeof(crypto_params));
@@ -1394,16 +1395,29 @@ static void* _dvr_playback_thread(void *arg)
       crypto_params.input_buffer.addr = (size_t)buf;
       crypto_params.input_buffer.size = real_read;
 
-      crypto_params.output_buffer.type = DVR_BUFFER_TYPE_SECURE;
-      crypto_params.output_buffer.addr = (size_t)player->secure_buffer;
-      crypto_params.output_buffer.size = dec_buf_size;
-      ret = player->dec_func(&crypto_params, player->dec_userdata);
-      wbufs.buf_data = player->secure_buffer;
-      wbufs.buf_type = TS_INPUT_BUFFER_TYPE_SECURE;
-      if (ret != DVR_SUCCESS) {
-        DVR_PB_DG(1, "decrypt failed");
+      if (player->is_secure_mode) {
+          crypto_params.output_buffer.type = DVR_BUFFER_TYPE_SECURE;
+          crypto_params.output_buffer.addr = (size_t)player->secure_buffer;
+          crypto_params.output_buffer.size = dec_buf_size;
+          ret = player->dec_func(&crypto_params, player->dec_userdata);
+          wbufs.buf_data = player->secure_buffer;
+          wbufs.buf_type = TS_INPUT_BUFFER_TYPE_SECURE;
+          if (ret != DVR_SUCCESS) {
+            DVR_PB_DG(1, "decrypt failed");
+          }
+          wbufs.buf_size = crypto_params.output_size;
+      } else {  // only for NAGRA
+          crypto_params.output_buffer.type = crypto_params.input_buffer.type;
+          crypto_params.output_buffer.addr = (size_t)dec_bufs.buf_data;
+          crypto_params.output_buffer.size = crypto_params.input_buffer.size;
+          ret = player->dec_func(&crypto_params, player->dec_userdata);
+          wbufs.buf_data = (uint8_t*)crypto_params.output_buffer.addr;
+          wbufs.buf_type = TS_INPUT_BUFFER_TYPE_NORMAL;
+          if (ret != DVR_SUCCESS) {
+            DVR_PB_DG(1, "decrypt failed");
+          }
+          wbufs.buf_size = crypto_params.output_buffer.size;
       }
-      wbufs.buf_size = crypto_params.output_size;
     } else if (player->cryptor) {
       int len = real_read;
       am_crypt_des_crypt(player->cryptor, dec_bufs.buf_data, buf, &len, 1);
