@@ -22,6 +22,7 @@ typedef struct {
   int             ts_fd;                              /**< Segment ts file fd*/
   FILE            *index_fp;                          /**< Time index file fd*/
   FILE            *dat_fp;                            /**< Information file fd*/
+  FILE            *all_dat_fp;                            /**< Information file fd*/
   FILE            *ongoing_fp;                        /**< Ongoing file fd, used to verify timedhift mode*/
   uint64_t        first_pts;                          /**< First pts value, use for write mode*/
   uint64_t        last_pts;                           /**< Last input pts value, use for write mode*/
@@ -41,6 +42,7 @@ typedef enum {
   SEGMENT_FILE_TYPE_INDEX,                    /**< Used for store index data*/
   SEGMENT_FILE_TYPE_DAT,                      /**< Used for store information data, such as duration etc*/
   SEGMENT_FILE_TYPE_ONGOING,                  /**< Used for store information data, such as duration etc*/
+  SEGMENT_FILE_TYPE_ALLDAT,                  /**< Used for store all information data*/
 } Segment_FileType_t;
 
 static void segment_get_fname(char fname[MAX_SEGMENT_PATH_SIZE],
@@ -53,10 +55,13 @@ static void segment_get_fname(char fname[MAX_SEGMENT_PATH_SIZE],
   memset(fname, 0, MAX_SEGMENT_PATH_SIZE);
   strncpy(fname, location, strlen(location));
   offset = strlen(location);
-  strncpy(fname + offset, "-", 1);
-  offset += 1;
-  sprintf(fname + offset, "%04llu", segment_id);
-  offset += 4;
+  if (type != SEGMENT_FILE_TYPE_ALLDAT) {
+    strncpy(fname + offset, "-", 1);
+    offset += 1;
+    sprintf(fname + offset, "%04llu", segment_id);
+    offset += 4;
+  }
+
   if (type == SEGMENT_FILE_TYPE_TS)
     strncpy(fname + offset, ".ts", 3);
   else if (type == SEGMENT_FILE_TYPE_INDEX)
@@ -65,6 +70,9 @@ static void segment_get_fname(char fname[MAX_SEGMENT_PATH_SIZE],
     strncpy(fname + offset, ".dat", 4);
   else if (type == SEGMENT_FILE_TYPE_ONGOING)
     strncpy(fname + offset, ".going", 6);
+  else if (type == SEGMENT_FILE_TYPE_ALLDAT)
+    strncpy(fname + offset, ".dat", 4);
+
 }
 
 static void segment_get_dirname(char dir_name[MAX_SEGMENT_PATH_SIZE],
@@ -90,6 +98,7 @@ int segment_open(Segment_OpenParams_t *params, Segment_Handle_t *p_handle)
   char ts_fname[MAX_SEGMENT_PATH_SIZE];
   char index_fname[MAX_SEGMENT_PATH_SIZE];
   char dat_fname[MAX_SEGMENT_PATH_SIZE];
+  char all_dat_fname[MAX_SEGMENT_PATH_SIZE];
   char dir_name[MAX_SEGMENT_PATH_SIZE];
   char going_name[MAX_SEGMENT_PATH_SIZE];
 
@@ -111,6 +120,10 @@ int segment_open(Segment_OpenParams_t *params, Segment_Handle_t *p_handle)
   memset(dat_fname, 0, sizeof(dat_fname));
   segment_get_fname(dat_fname, params->location, params->segment_id, SEGMENT_FILE_TYPE_DAT);
 
+  memset(all_dat_fname, 0, sizeof(all_dat_fname));
+  segment_get_fname(all_dat_fname, params->location, params->segment_id, SEGMENT_FILE_TYPE_ALLDAT);
+
+
   memset(going_name, 0, sizeof(going_name));
   segment_get_fname(going_name, params->location, params->segment_id, SEGMENT_FILE_TYPE_ONGOING);
 
@@ -126,10 +139,12 @@ int segment_open(Segment_OpenParams_t *params, Segment_Handle_t *p_handle)
     p_ctx->index_fp = fopen(index_fname, "r");
     p_ctx->dat_fp = fopen(dat_fname, "r");
     p_ctx->ongoing_fp = NULL;
+    p_ctx->all_dat_fp = fopen(all_dat_fname, "r");
   } else if (params->mode == SEGMENT_MODE_WRITE) {
     p_ctx->ts_fd = open(ts_fname, O_CREAT | O_RDWR | O_TRUNC, 0644);
     p_ctx->index_fp = fopen(index_fname, "w+");
     p_ctx->dat_fp = fopen(dat_fname, "w+");
+    p_ctx->all_dat_fp = fopen(all_dat_fname, "a+");
     p_ctx->ongoing_fp = fopen(going_name, "w+");
     p_ctx->first_pts = ULLONG_MAX;
     p_ctx->last_pts = ULLONG_MAX;
@@ -140,6 +155,7 @@ int segment_open(Segment_OpenParams_t *params, Segment_Handle_t *p_handle)
     p_ctx->ts_fd = open(ts_fname, O_RDONLY);
     p_ctx->index_fp = fopen(index_fname, "r");
     p_ctx->dat_fp = fopen(dat_fname, "r");
+    p_ctx->all_dat_fp = fopen(all_dat_fname, "r");
     p_ctx->ongoing_fp = NULL;
   }
 
@@ -643,6 +659,58 @@ int segment_store_info(Segment_Handle_t handle, Segment_StoreInfo_t *p_info)
 }
 
 /* Should consider the case of cut power, todo... */
+int segment_store_allInfo(Segment_Handle_t handle, Segment_StoreInfo_t *p_info)
+{
+  Segment_Context_t *p_ctx;
+  char buf[256];
+  uint32_t i;
+
+  p_ctx = (Segment_Context_t *)handle;
+  DVR_RETURN_IF_FALSE(p_ctx);
+  DVR_RETURN_IF_FALSE(p_ctx->all_dat_fp);
+  DVR_RETURN_IF_FALSE(p_info);
+  //seek 0, rewrite info
+  DVR_RETURN_IF_FALSE(fseek(p_ctx->all_dat_fp, 0, SEEK_END) != -1);
+
+  /*Save segment id*/
+  memset(buf, 0, sizeof(buf));
+  sprintf(buf, "id=%lld\n", p_info->id);
+  fputs(buf, p_ctx->all_dat_fp);
+
+  /*Save number of pids*/
+  memset(buf, 0, sizeof(buf));
+  sprintf(buf, "nb_pids=%d\n", p_info->nb_pids);
+  fputs(buf, p_ctx->all_dat_fp);
+
+  /*Save pid information*/
+  for (i = 0; i < p_info->nb_pids; i++) {
+    memset(buf, 0, sizeof(buf));
+    sprintf(buf, "{pid=%d, type=%d}\n", p_info->pids[i].pid, p_info->pids[i].type);
+    fputs(buf, p_ctx->all_dat_fp);
+  }
+
+  /*Save segment duration*/
+  memset(buf, 0, sizeof(buf));
+  DVR_DEBUG(1, "duration store:[%ld]", p_info->duration);
+  sprintf(buf, "duration=%ld\n", p_info->duration);
+  fputs(buf, p_ctx->all_dat_fp);
+
+  /*Save segment size*/
+  memset(buf, 0, sizeof(buf));
+  sprintf(buf, "size=%zu\n", p_info->size);
+  fputs(buf, p_ctx->all_dat_fp);
+
+  /*Save number of packets*/
+  memset(buf, 0, sizeof(buf));
+  sprintf(buf, "nb_packets=%d\n", p_info->nb_packets);
+  fputs(buf, p_ctx->all_dat_fp);
+
+  fflush(p_ctx->all_dat_fp);
+  fsync(fileno(p_ctx->all_dat_fp));
+  return DVR_SUCCESS;
+}
+
+/* Should consider the case of cut power, todo... */
 int segment_load_info(Segment_Handle_t handle, Segment_StoreInfo_t *p_info)
 {
   Segment_Context_t *p_ctx;
@@ -717,6 +785,100 @@ int segment_load_info(Segment_Handle_t handle, Segment_StoreInfo_t *p_info)
   p1 = strstr(buf, "nb_packets=");
   DVR_RETURN_IF_FALSE(p1);
   p_info->nb_packets = strtoull(p1 + 11, NULL, 10);
+
+  return DVR_SUCCESS;
+}
+
+/* Should consider the case of cut power, todo... */
+int segment_load_allInfo(Segment_Handle_t handle, struct list_head *list)
+{
+  Segment_Context_t *p_ctx;
+  uint32_t i;
+  char buf[256];
+  char value[256];
+  char *p1, *p2;
+
+  p_ctx = (Segment_Context_t *)handle;
+  DVR_RETURN_IF_FALSE(p_ctx);
+  DVR_RETURN_IF_FALSE(list);
+
+  //first get
+  p1 = fgets(buf, sizeof(buf), p_ctx->all_dat_fp);
+  DVR_RETURN_IF_FALSE(p1);
+
+  do {
+
+    DVR_RecordSegmentInfo_t *p_info;
+
+    p_info = malloc(sizeof(DVR_RecordSegmentInfo_t));
+    memset(p_info, 0, sizeof(DVR_RecordSegmentInfo_t));
+
+    list_add_tail(&p_info->head, list);
+
+    /*Load segment id*/
+    DVR_RETURN_IF_FALSE(p1);
+    p1 = strstr(buf, "id=");
+    DVR_RETURN_IF_FALSE(p1);
+    p_info->id = strtoull(p1 + 3, NULL, 10);
+
+    /*Save number of pids*/
+    p1 = fgets(buf, sizeof(buf), p_ctx->all_dat_fp);
+    DVR_RETURN_IF_FALSE(p1);
+    p1 = strstr(buf, "nb_pids=");
+    DVR_RETURN_IF_FALSE(p1);
+    p_info->nb_pids = strtoull(p1 + 8, NULL, 10);
+
+    /*Save pid information*/
+    for (i = 0; i < p_info->nb_pids; i++) {
+      p1 = fgets(buf, sizeof(buf), p_ctx->all_dat_fp);
+      DVR_RETURN_IF_FALSE(p1);
+      memset(value, 0, sizeof(value));
+      if ((p1 = strstr(buf, "pid="))) {
+        DVR_RETURN_IF_FALSE(p1);
+        p1 += 4;
+        if ((p2 = strstr(buf, ","))) {
+          DVR_RETURN_IF_FALSE(p2);
+          memcpy(value, p1, p2 - p1);
+        }
+        p_info->pids[i].pid = strtoull(value, NULL, 10);
+      }
+
+      memset(value, 0, sizeof(value));
+      if ((p1 = strstr(buf, "type="))) {
+        DVR_RETURN_IF_FALSE(p1);
+        p1 += 5;
+        if ((p2 = strstr(buf, "}"))) {
+          DVR_RETURN_IF_FALSE(p2);
+          memcpy(value, p1, p2 - p1);
+        }
+        p_info->pids[i].type = strtoull(value, NULL, 10);
+      }
+    }
+
+    /*Save segment duration*/
+    p1 = fgets(buf, sizeof(buf), p_ctx->all_dat_fp);
+    DVR_RETURN_IF_FALSE(p1);
+    p1 = strstr(buf, "duration=");
+    DVR_RETURN_IF_FALSE(p1);
+    p_info->duration = strtoull(p1 + 9, NULL, 10);
+    //DVR_DEBUG(1, "load info p_info->duration:%lld", p_info->duration);
+
+    /*Save segment size*/
+    p1 = fgets(buf, sizeof(buf), p_ctx->all_dat_fp);
+    DVR_RETURN_IF_FALSE(p1);
+    p1 = strstr(buf, "size=");
+    DVR_RETURN_IF_FALSE(p1);
+    p_info->size = strtoull(p1 + 5, NULL, 10);
+
+    /*Save number of packets*/
+    p1 = fgets(buf, sizeof(buf), p_ctx->all_dat_fp);
+    DVR_RETURN_IF_FALSE(p1);
+    p1 = strstr(buf, "nb_packets=");
+    DVR_RETURN_IF_FALSE(p1);
+    p_info->nb_packets = strtoull(p1 + 11, NULL, 10);
+    //if reach end,exit loop
+    p1 = fgets(buf, sizeof(buf), p_ctx->all_dat_fp);
+  } while (p1);
 
   return DVR_SUCCESS;
 }

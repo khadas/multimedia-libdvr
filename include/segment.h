@@ -126,6 +126,14 @@ uint64_t segment_tell_total_time(Segment_Handle_t handle);
  */
 int segment_store_info(Segment_Handle_t handle, Segment_StoreInfo_t *p_info);
 
+/**\brief Store the segment all information to a file
+ * \param[in] handle, The segment handle
+ * \param[in] p_info, The segment information pointer
+ * \return DVR_SUCCESS On success
+ * \return Error code On failure
+ */
+int segment_store_allInfo(Segment_Handle_t handle, Segment_StoreInfo_t *p_info);
+
 /**\brief Load the segment information from a file
  * \param[in] handle, The segment handle
  * \param[out] p_info, The segment information pointer
@@ -133,6 +141,15 @@ int segment_store_info(Segment_Handle_t handle, Segment_StoreInfo_t *p_info);
  * \return Error code On failure
  */
 int segment_load_info(Segment_Handle_t handle, Segment_StoreInfo_t *p_info);
+
+/**\brief Load the segment information from a file
+ * \param[in] handle, The segment handle
+ * \param[out] p_info, The segment information pointer
+ * \return DVR_SUCCESS On success
+ * \return Error code On failure
+ */
+int segment_load_allInfo(Segment_Handle_t handle, struct list_head *list);
+
 
 /**\brief Delete the segment information file
  * \param[in] location, The record file's location

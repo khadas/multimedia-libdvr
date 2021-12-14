@@ -192,6 +192,31 @@ int dvr_segment_get_info(const char *location, uint64_t segment_id, DVR_RecordSe
   return DVR_SUCCESS;
 }
 
+int dvr_segment_get_allInfo(const char *location, struct list_head *list)
+{
+  int ret;
+  Segment_OpenParams_t open_params;
+  Segment_Handle_t segment_handle;
+
+  DVR_RETURN_IF_FALSE(location);
+  DVR_RETURN_IF_FALSE(list);
+  DVR_RETURN_IF_FALSE(strlen((const char *)location) < DVR_MAX_LOCATION_SIZE);
+
+  memset(&open_params, 0, sizeof(open_params));
+  memcpy(open_params.location, location, strlen(location));
+  open_params.segment_id = 0;
+  open_params.mode = SEGMENT_MODE_READ;
+  ret = segment_open(&open_params, &segment_handle);
+  if (ret == DVR_SUCCESS) {
+    ret = segment_load_allInfo(segment_handle, list);
+  }
+  ret = segment_close(segment_handle);
+  DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
+
+  return DVR_SUCCESS;
+}
+
+
 int dvr_segment_link(const char *location, uint32_t nb_segments, uint64_t *p_segment_ids)
 {
   return dvr_segment_link_op(location, nb_segments, p_segment_ids, LSEG_OP_NEW);

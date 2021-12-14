@@ -52,6 +52,16 @@ int dvr_segment_del_by_location(const char *location);
  */
 int dvr_segment_get_info(const char *location, uint64_t segment_id, DVR_RecordSegmentInfo_t *p_info);
 
+/**\brief Get the segment's information
+ * \param[in] location The record file's location
+ * \param[in] segment_id The segment index
+ * \param[out] p_info Return the segment's information
+ * \return DVR_SUCCESS On success
+ * \return Error code On failure
+ */
+
+int dvr_segment_get_allInfo(const char *location, struct list_head *list);
+
 /**\brief Link a segment group as the record file's list
  * \param[in] location The record file's location
  * \param[in] nb_segments The number of segments

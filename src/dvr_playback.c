@@ -1402,13 +1402,15 @@ rewrite:
 
     pthread_mutex_lock(&player->segment_lock);
     player->ts_cache_len = real_read;
-    first_write++;
-    if (first_write == 1)
-    DVR_PB_DG(1, "----firsr write ts data");
+    //used for printf first write data time.
+    //to check change channel kpi.
+    if (first_write == 0) {
+      first_write++;
+      DVR_PB_DG(1, "----firsr write ts data");
+    }
+
     ret = AmTsPlayer_writeData(player->handle, &wbufs, write_timeout_ms);
     if (ret == AM_TSPLAYER_OK) {
-    DVR_PB_DG(1, "----ok write ts data");
-
       player->ts_cache_len = 0;
       pthread_mutex_unlock(&player->segment_lock);
       real_read = 0;

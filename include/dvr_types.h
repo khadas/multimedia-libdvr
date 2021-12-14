@@ -22,6 +22,7 @@
 #include <assert.h>
 #include <pthread.h>
 
+#include "list.h"
 #include <android/log.h>
 
 #ifndef __ANDROID_API__
@@ -201,6 +202,7 @@ typedef enum
 
 /**\brief Segment store information*/
 typedef struct {
+  struct  list_head   head;         /**< Segment node.*/
   uint64_t            id;                                         /**< DVR segment id*/
   uint32_t            nb_pids;                                    /**< DVR segment number of pids*/
   DVR_StreamPid_t     pids[DVR_MAX_RECORD_PIDS_COUNT];            /**< DVR pids information*/
