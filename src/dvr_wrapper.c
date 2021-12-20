@@ -1495,7 +1495,7 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
     DVR_WRAPPER_DEBUG(1, "get list segment_nb::%d",segment_nb);
     //we need free info list buf when we used end.
     error = dvr_segment_get_allInfo(ctx->playback.param_open.location, &info_list);
-    if (error) {
+    if (error == DVR_FAILURE) {
           error = DVR_FAILURE;
           DVR_WRAPPER_DEBUG(1, "fail to get all seg info (location:%s, seg:%llu), (error:%d)\n",
             ctx->playback.param_open.location, p_segment_ids[i], error);

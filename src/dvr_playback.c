@@ -666,7 +666,7 @@ static int _change_to_next_segment(DVR_PlaybackHandle_t handle)
     return DVR_FAILURE;
   }
   pthread_mutex_lock(&player->segment_lock);
-
+retry:
   ret = _dvr_get_next_segmentId(handle);
   if (ret == DVR_FAILURE) {
     DVR_PB_DG(1, "not found segment info");
@@ -690,6 +690,7 @@ static int _change_to_next_segment(DVR_PlaybackHandle_t handle)
   ret = segment_open(&params, &(player->r_handle));
   if (ret == DVR_FAILURE) {
     DVR_PB_DG(1, "open segment error");
+    goto retry;
   }
   pthread_mutex_unlock(&player->segment_lock);
   int total = _dvr_get_end_time( handle);
@@ -1023,7 +1024,7 @@ static void* _dvr_playback_thread(void *arg)
   while (player->is_running/* || player->cmd.last_cmd != player->cmd.cur_cmd*/) {
 
     //check trick stat
-    DVR_PB_DG(1, "lock check_no_data_time:%d", check_no_data_time);
+    //DVR_PB_DG(1, "lock check_no_data_time:%d", check_no_data_time);
     pthread_mutex_lock(&player->lock);
 
     if (player->cmd.cur_cmd == DVR_PLAYBACK_CMD_SEEK ||
@@ -1179,8 +1180,7 @@ static void* _dvr_playback_thread(void *arg)
     }
     if (goto_rewrite == DVR_TRUE) {
       goto_rewrite = DVR_FALSE;
-        DVR_PB_DG(1, "unlock---");
-
+      //DVR_PB_DG(1, "unlock---");
       pthread_mutex_unlock(&player->lock);
       //DVR_PB_DG(1, "rewrite-player->speed[%f]", player->speed);
       goto rewrite;
@@ -1196,7 +1196,7 @@ static void* _dvr_playback_thread(void *arg)
     player->ts_cache_len = real_read;
     //DVR_PB_DG(1, "start read end [%d]", read);
     pthread_mutex_unlock(&player->segment_lock);
-    DVR_PB_DG(1, "unlock---");
+    //DVR_PB_DG(1, "unlock---");
     pthread_mutex_unlock(&player->lock);
     if (read < 0 && errno == EIO) {
       //EIO ERROR, EXIT THRAD
@@ -3080,13 +3080,22 @@ static int _dvr_get_play_cur_time(DVR_PlaybackHandle_t handle, uint64_t *id) {
     //this case is open new segment end,but cache data is last segment.
     //we need used last segment len to send play time.
     cur = 0;
-    DVR_PB_DG(1, "change segment [%lld][%lld]", player->last_segment_id, player->cur_segment_id);
+    DVR_PB_DG(1, "change segment [%lld][%lld]",
+                  player->last_segment_id, player->cur_segment_id);
   } else {
     cur = segment_tell_position_time(player->r_handle, pos);
   }
   AmTsPlayer_getDelayTime(player->handle, &cache);
   pthread_mutex_unlock(&player->segment_lock);
-  DVR_PB_DG(1, "***get play cur time [%lld] cache:%lld cur id [%lld]last id [%lld] pb cache len [%d] [%lld][%lld]", cur, cache, player->cur_segment_id,player->last_send_time_id,  player->ts_cache_len, pos, tmp_pos);
+  DVR_PB_DG(1, "***get play cur time [%lld] cache:%lld cur id [%lld]\
+              last id [%lld] pb cache len [%d] pos [%lld][%lld]",
+                          cur,
+                          cache,
+                          player->cur_segment_id,
+                          player->last_send_time_id,
+                          player->ts_cache_len,
+                          pos,
+                          tmp_pos);
   if (player->state == DVR_PLAYBACK_STATE_STOP) {
     cache = 0;
   }

@@ -168,6 +168,8 @@ int segment_open(Segment_OpenParams_t *params, Segment_Handle_t *p_handle)
       fclose(p_ctx->index_fp);
     if (p_ctx->dat_fp)
       fclose(p_ctx->dat_fp);
+    if (p_ctx->all_dat_fp)
+      fclose(p_ctx->all_dat_fp);
     if (p_ctx->ongoing_fp)
       fclose(p_ctx->ongoing_fp);
     free(p_ctx);
@@ -200,7 +202,9 @@ int segment_close(Segment_Handle_t handle)
   if (p_ctx->dat_fp) {
     fclose(p_ctx->dat_fp);
   }
-
+  if (p_ctx->all_dat_fp) {
+    fclose(p_ctx->all_dat_fp);
+  }
   if (p_ctx->ongoing_fp != NULL) {
     fclose(p_ctx->ongoing_fp);
     char going_name[MAX_SEGMENT_PATH_SIZE];
@@ -801,7 +805,10 @@ int segment_load_allInfo(Segment_Handle_t handle, struct list_head *list)
   p_ctx = (Segment_Context_t *)handle;
   DVR_RETURN_IF_FALSE(p_ctx);
   DVR_RETURN_IF_FALSE(list);
-
+  if (p_ctx->all_dat_fp == NULL) {
+    DVR_DEBUG(1, "all dat file not open\n");
+    return DVR_FAILURE;
+  }
   //first get
   p1 = fgets(buf, sizeof(buf), p_ctx->all_dat_fp);
   DVR_RETURN_IF_FALSE(p1);

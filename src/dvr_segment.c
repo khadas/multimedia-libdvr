@@ -70,7 +70,7 @@ int dvr_segment_del_by_location(const char *location)
   {
     /* del file */
     memset(cmd, 0, sizeof(cmd));
-    sprintf(cmd, "rm %s-* %s.list %s.stats", location, location, location);
+    sprintf(cmd, "rm %s-* %s.list %s.stats %s.odb %s.dat", location, location, location, location, location);
     fp = popen(cmd, "r");
     DVR_RETURN_IF_FALSE(fp);
   }
@@ -156,7 +156,7 @@ int dvr_segment_get_list(const char *location, uint32_t *p_segment_nb, uint64_t 
       }
       memset(buf, 0, sizeof(buf));
     }
-    //DVR_DEBUG(1, "%s location:%s  n=%d j=%d end", __func__, location, n, j);
+    DVR_DEBUG(1, "%s location:%s  n=%d j=%d end", __func__, location, n, j);
     pclose(fp);
     *p_segment_nb = n;
     *pp_segment_ids = p;
@@ -183,8 +183,8 @@ int dvr_segment_get_info(const char *location, uint64_t segment_id, DVR_RecordSe
   if (ret == DVR_SUCCESS) {
     ret = segment_load_info(segment_handle, p_info);
   }
-  //DVR_DEBUG(1, "%s, id:%lld, nb_pids:%d, duration:%ld ms, size:%zu, nb_packets:%d",
-    //  __func__, p_info->id, p_info->nb_pids, p_info->duration, p_info->size, p_info->nb_packets);
+  DVR_DEBUG(1, "%s, id:%lld, nb_pids:%d, duration:%ld ms, size:%zu, nb_packets:%d",
+      __func__, p_info->id, p_info->nb_pids, p_info->duration, p_info->size, p_info->nb_packets);
   //DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
   ret = segment_close(segment_handle);
   DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
@@ -209,6 +209,10 @@ int dvr_segment_get_allInfo(const char *location, struct list_head *list)
   ret = segment_open(&open_params, &segment_handle);
   if (ret == DVR_SUCCESS) {
     ret = segment_load_allInfo(segment_handle, list);
+    if (ret == DVR_FAILURE) {
+      segment_close(segment_handle);
+      return DVR_FAILURE;
+    }
   }
   ret = segment_close(segment_handle);
   DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
