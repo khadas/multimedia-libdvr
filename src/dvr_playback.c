@@ -1182,6 +1182,7 @@ static void* _dvr_playback_thread(void *arg)
       goto_rewrite = DVR_FALSE;
       //DVR_PB_DG(1, "unlock---");
       pthread_mutex_unlock(&player->lock);
+      _dvr_playback_sent_playtime((DVR_PlaybackHandle_t)player, DVR_FALSE);
       //DVR_PB_DG(1, "rewrite-player->speed[%f]", player->speed);
       goto rewrite;
     }
