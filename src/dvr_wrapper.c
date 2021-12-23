@@ -1425,12 +1425,12 @@ int dvr_wrapper_close_playback (DVR_WrapperPlayback_t playback)
 int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag_t flags, DVR_PlaybackPids_t *p_pids)
 {
   DVR_WrapperCtx_t *ctx;
-  int error;
+  int error=0;
   uint64_t *p_segment_ids;
   uint32_t segment_nb;
   uint32_t i;
   DVR_RecordSegmentInfo_t seg_info_1st;
-  int got_1st_seg;
+  int got_1st_seg=0;
   DVR_WrapperCtx_t *ctx_record;/*for timeshift*/
   DVR_Bool_t is_timeshift = DVR_FALSE;
 
