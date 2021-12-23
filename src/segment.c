@@ -15,6 +15,7 @@
 #define PCR_RECORD_INTERVAL_MS (300)
 #define PTS_DISCONTINE_DEVIATION     (40)
 #define PTS_HEAD_DEVIATION     (40)
+#define PCR_JUMP_DUR     (5000)
 
 
 /**\brief Segment context*/
@@ -330,7 +331,7 @@ int segment_update_pts(Segment_Handle_t handle, uint64_t pts, loff_t offset)
       if (p_ctx->avg_rate == 0.0) {
             p_ctx->avg_rate = (float) offset / (float)(p_ctx->cur_time + diff);
       }
-      if (diff >= 1000) {
+      if (diff >= PCR_JUMP_DUR) {
         DVR_DEBUG(1, "PTS TRANSITION ERROR last pcr[%llu]pts[%llu]pcr diff[%d]off[%llu]off_diff[%llu]rate[%f]avg rate[%f]4*rate[%d]av_diff[%d]",p_ctx->last_pts, pts, diff, offset,off_diff, rate, p_ctx->avg_rate, (int)(rate * 4), (int)(off_diff / p_ctx->avg_rate));
         if (p_ctx->avg_rate != 0 && (int)(p_ctx->avg_rate) >= (int)(rate * 4)) {
           diff = off_diff / p_ctx->avg_rate;
