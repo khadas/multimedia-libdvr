@@ -1555,13 +1555,59 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
           int found = 0;
           list_for_each_entry(seg_info, &info_list, head)
           {
-            if (seg_info->id == i) {
+            if (seg_info->id == p_segment_ids[i]) {
               found = 1;
               DVR_WRAPPER_DEBUG(1, "get segment info::%d", i);
               break;
             }
           }
           if (!found) {
+            //last info is not found if when recording occured power off.
+            if (p_segment_ids[i] == segment_nb - 1) {
+              DVR_RecordSegmentInfo_t seg_info;
+              DVR_PlaybackSegmentFlag_t flags;
+
+              error = dvr_segment_get_info(ctx->playback.param_open.location, p_segment_ids[i], &seg_info);
+              if (error) {
+                error = DVR_FAILURE;
+                DVR_WRAPPER_DEBUG(1, "fail to get seg info (location:%s, seg:%llu), (error:%d)\n",
+                  ctx->playback.param_open.location, p_segment_ids[i], error);
+                break;
+              }
+              //
+              //add check if has audio  or video pid. if not exist. not add segment to playback
+              int ii = 0;
+              int has_av = 0;
+              for (ii = 0; ii < seg_info.nb_pids; ii++) {
+                int type = (seg_info.pids[ii].type >> 24) & 0x0f;
+                if (type == DVR_STREAM_TYPE_VIDEO ||
+                  type == DVR_STREAM_TYPE_AUDIO ||
+                  type == DVR_STREAM_TYPE_AD) {
+                DVR_WRAPPER_DEBUG(1, "success to get seg av info \n");
+                  DVR_WRAPPER_DEBUG(1, "success to get seg av info type[0x%x][%d] [%d][%d][%d]\n",(seg_info.pids[ii].type >> 24)&0x0f,seg_info.pids[ii].pid,
+                  DVR_STREAM_TYPE_VIDEO,
+                  DVR_STREAM_TYPE_AUDIO,
+                  DVR_STREAM_TYPE_AD);
+                  has_av = 1;
+                  //break;
+                } else {
+                  DVR_WRAPPER_DEBUG(1, "error to get seg av info type[0x%x][%d] [%d][%d][%d]\n",(seg_info.pids[ii].type >> 24)&0x0f,seg_info.pids[ii].pid,
+                  DVR_STREAM_TYPE_VIDEO,
+                  DVR_STREAM_TYPE_AUDIO,
+                  DVR_STREAM_TYPE_AD);
+                }
+              }
+              if (has_av == 0) {
+                DVR_WRAPPER_DEBUG(1, "fail to get seg av info \n");
+                continue;
+              } else {
+                DVR_WRAPPER_DEBUG(1, "success to get seg av info \n");
+              }
+              flags = DVR_PLAYBACK_SEGMENT_DISPLAYABLE | DVR_PLAYBACK_SEGMENT_CONTINUOUS;
+              error = wrapper_addPlaybackSegment(ctx, &seg_info, p_pids, flags);
+              if (error)
+                break;
+            }
             continue;
           }
 
@@ -2122,7 +2168,7 @@ int dvr_wrapper_segment_get_info_by_location (const char *location, DVR_WrapperI
   uint32_t n_ids;
   uint64_t *p_ids;
 
-  error = dvr_segment_get_list(fpath, &n_ids, &p_ids);
+  error = dvr_segment_get_list(location, &n_ids, &p_ids);
 
   if (!error) {
      int i;
@@ -2130,23 +2176,23 @@ int dvr_wrapper_segment_get_info_by_location (const char *location, DVR_WrapperI
     INIT_LIST_HEAD(&info_list);
 
     //we need free info list buf when we used end.
-    error = dvr_segment_get_allInfo(fpath, &info_list);
-    if (error) {
+    error = dvr_segment_get_allInfo(location, &info_list);
+    if (error == DVR_FAILURE) {
       DVR_RecordSegmentInfo_t info;
 
       memset(&info, 0, sizeof(info));
       error = DVR_FAILURE;
       DVR_WRAPPER_DEBUG(1, "fail to get seg info (location:%s, seg:%llu), (error:%d)\n",
-        fpath, 0, error);
+        location, 0, error);
 
       for (i = 0; i < n_ids; i++) {
-          error = dvr_segment_get_info(fpath, p_ids[i], &info);
+          error = dvr_segment_get_info(location, p_ids[i], &info);
           if (!error) {
             p_info->size += info.size;
             p_info->time += info.duration;
             p_info->pkts += info.nb_packets;
           } else {
-            DVR_WRAPPER_DEBUG(1, "%s:%lld get seg info fail.\n", fpath, p_ids[i]);
+            DVR_WRAPPER_DEBUG(1, "%s:%lld get seg info fail.\n", location, p_ids[i]);
             break;
           }
       }
@@ -2159,13 +2205,26 @@ int dvr_wrapper_segment_get_info_by_location (const char *location, DVR_WrapperI
           int found = 0;
           list_for_each_entry(seg_info, &info_list, head)
           {
-            if (seg_info->id == i) {
+            if (seg_info->id == p_ids[i]) {
               found = 1;
               break;
             }
           }
           if (!found) {
-              DVR_WRAPPER_DEBUG(1, "get segment info::%d error", i);
+              DVR_WRAPPER_DEBUG(1, "get segment info::%d [%d]n_ids[%d]error", i, p_ids[i], n_ids);
+              if (p_ids[i] == n_ids - 1) {
+                DVR_RecordSegmentInfo_t info;
+                DVR_WRAPPER_DEBUG(1, "get last segment info::%d [%d]n_ids[%d] from subfile", i, p_ids[i], n_ids);
+                error = dvr_segment_get_info(location, p_ids[i], &info);
+                if (!error) {
+                  p_info->size += info.size;
+                  p_info->time += info.duration;
+                  p_info->pkts += info.nb_packets;
+                } else {
+                  DVR_WRAPPER_DEBUG(1, "%s:%lld get seg info fail.\n", location, p_ids[i]);
+                  break;
+                }
+              }
               continue;
           }
 
@@ -2174,7 +2233,7 @@ int dvr_wrapper_segment_get_info_by_location (const char *location, DVR_WrapperI
             p_info->time += seg_info->duration;
             p_info->pkts += seg_info->nb_packets;
           } else {
-            DVR_WRAPPER_DEBUG(1, "%s:%lld get seg info fail.\n", fpath, p_ids[i]);
+            DVR_WRAPPER_DEBUG(1, "%s:%lld get seg info fail.\n", location, p_ids[i]);
             break;
           }
       }

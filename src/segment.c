@@ -146,6 +146,7 @@ int segment_open(Segment_OpenParams_t *params, Segment_Handle_t *p_handle)
     p_ctx->index_fp = fopen(index_fname, "w+");
     p_ctx->dat_fp = fopen(dat_fname, "w+");
     p_ctx->all_dat_fp = fopen(all_dat_fname, "a+");
+    DVR_DEBUG(1, "%s dir %s is opened", __func__, all_dat_fname);
     p_ctx->ongoing_fp = fopen(going_name, "w+");
     p_ctx->first_pts = ULLONG_MAX;
     p_ctx->last_pts = ULLONG_MAX;
