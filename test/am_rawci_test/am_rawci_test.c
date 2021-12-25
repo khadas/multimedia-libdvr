@@ -10,8 +10,8 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <dvb_utils.h>
-#include <amci.h>
+#include "../../include/dvb_utils.h"
+#include "../../include/amci.h"
 
 typedef struct
 {

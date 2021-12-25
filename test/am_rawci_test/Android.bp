@@ -24,7 +24,6 @@ cc_binary {
     ],
 
     include_dirs: [
-      "vendor/amlogic/common/libdvr/include",
     ],
 
 }
