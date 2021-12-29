@@ -70,6 +70,7 @@ typedef struct {
   uint32_t                        block_size;                           /**< DVR record block size */
   DVR_Bool_t                      is_new_dmx;                           /**< DVR is used new dmx driver */
   int                             index_type;                           /**< DVR is used pcr or local time */
+  uint64_t                        pts;                                  /**< The newest pcr or local time */
 } DVR_RecordContext_t;
 
 extern ssize_t record_device_read_ext(Record_DeviceHandle_t handle, size_t *buf, size_t *len);
@@ -141,6 +142,8 @@ static int record_save_pcr(DVR_RecordContext_t *p_ctx, uint8_t *buf, loff_t pos)
   }
 
   if (has_pcr && p_ctx->index_type == DVR_INDEX_TYPE_PCR) {
+    //save newest pcr
+    p_ctx->pts = pcr/90;
     segment_update_pts(p_ctx->segment_handle, pcr/90, pos);
   }
   return has_pcr;
@@ -439,6 +442,7 @@ int dvr_record_open(DVR_RecordHandle_t *p_handle, DVR_RecordOpenParams_t *params
   p_ctx->event_notify_fn = params->event_fn;
   p_ctx->event_userdata = params->event_userdata;
   p_ctx->last_send_size = 0;
+  p_ctx->pts = ULLONG_MAX;
 
   if (params->keylen > 0) {
     p_ctx->cryptor = am_crypt_des_open(params->clearkey,
@@ -725,6 +729,8 @@ int dvr_record_next_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t *
   //DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
   /*Update segment info*/
   ret = segment_store_info(p_ctx->segment_handle, &p_ctx->segment_info);
+  if (p_ctx->pts != ULLONG_MAX)
+    segment_update_pts(p_ctx->segment_handle, p_ctx->pts, 0);
 
   p_ctx->state = DVR_RECORD_STATE_STARTED;
   pthread_create(&p_ctx->thread, NULL, record_thread, p_ctx);
