@@ -3088,19 +3088,26 @@ static int _dvr_get_play_cur_time(DVR_PlaybackHandle_t handle, uint64_t *id) {
   }
   AmTsPlayer_getDelayTime(player->handle, &cache);
 
-  // The idea here is to work around a defect of AmTsPlayer_getDelayTime which
-  // does NOT work as expect to return real cache length at starting phase of
-  // a playback. "cache==0" indicates the situation that playback is NOT
-  // actually started. Under such conditions a '0' cache size may NOT reflect
-  // actual data length remaining in TsPlayer cache, therefore corresponding
-  // 'cur' is meaningless if data in TsPlayer cache is not considered, so it
-  // needs to be reset to 0. (JIRA issue: SWPL-68740)
-  uint64_t pts_a=0;
-  uint64_t pts_v=0;
-  AmTsPlayer_getPts(player->handle, TS_STREAM_AUDIO, &pts_a);
-  AmTsPlayer_getPts(player->handle, TS_STREAM_VIDEO, &pts_v);
-  if (cache == 0 && (int64_t)pts_a <= 0 && (int64_t)pts_v <= 0) {
-    cur = 0;
+  // The idea here is to work around a weakness of AmTsPlayer_getDelayTime
+  // at starting phase of a playback in a short period of 20ms or less. During
+  // the said period, getDelayTime does NOT work as expect to return real
+  // cache length because demux isn't actually running to provide valid pts to
+  // TsPlayer. "cache==0" implies the situation that playback is NOT actually
+  // started. Under such conditions a '0' cache size may NOT reflect actual
+  // data length remaining in TsPlayer cache, therefore corresponding libdvr
+  // 'cur' is useless if data in TsPlayer cache is not considered, so it needs
+  // to be reset to 0. To make the reset operation stricter, extra
+  // AmTsPlayer_getPts invocations on both video/audio are introduced to test
+  // if TsPlayer can get valid pts which indicates the actual running status
+  // of demux. (JIRA issue: SWPL-68740)
+  if (cache == 0) {
+    uint64_t pts_a=0;
+    uint64_t pts_v=0;
+    AmTsPlayer_getPts(player->handle, TS_STREAM_AUDIO, &pts_a);
+    AmTsPlayer_getPts(player->handle, TS_STREAM_VIDEO, &pts_v);
+    if ((int64_t)pts_a <= 0 && (int64_t)pts_v <= 0) {
+      cur = 0;
+    }
   }
 
   pthread_mutex_unlock(&player->segment_lock);
