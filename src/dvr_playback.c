@@ -953,7 +953,7 @@ static void* _dvr_playback_thread(void *arg)
   #define MAX_REACHEND_TIMEOUT (3000)
   int reach_end_timeout = 0;//ms
   int cache_time = 0;
-  int timeout = 100;//ms
+  int timeout = 200;//ms
   int check_no_data_time = 4;
   uint64_t write_timeout_ms = 50;
   uint8_t *buf = NULL;

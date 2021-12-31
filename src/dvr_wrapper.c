@@ -855,7 +855,7 @@ static int wrapper_removePlaybackSegment(DVR_WrapperCtx_t *ctx, DVR_RecordSegmen
 {
   int error = -1;
   DVR_WrapperPlaybackSegmentInfo_t *pseg = NULL, *pseg_tmp;
-
+  uint32_t off_set = 0;
   DVR_WRAPPER_DEBUG(1, "timeshift, remove playback(sn:%ld) segment(%lld) ...\n", ctx->sn, seg_info->id);
 
   list_for_each_entry_safe_reverse(pseg, pseg_tmp, &ctx->segments, head) {
@@ -871,8 +871,9 @@ static int wrapper_removePlaybackSegment(DVR_WrapperCtx_t *ctx, DVR_RecordSegmen
           error = dvr_playback_resume(ctx->playback.player);
           DVR_WRAPPER_DEBUG(1, "timeshift, playback(sn:%ld), resume for new start (%d)\n", ctx->sn, error);
         }
-
-        error = dvr_playback_seek(ctx->playback.player, next_seg->seg_info.id, 0);
+        if (ctx->playback.param_open.vendor == DVR_PLAYBACK_VENDOR_AMAZON)
+            off_set = 10 * 1000;
+        error = dvr_playback_seek(ctx->playback.player, next_seg->seg_info.id, off_set);
         DVR_WRAPPER_DEBUG(1, "timeshift, playback(sn:%ld), seek(seg:%llu 0) from new start (%d)\n", ctx->sn, next_seg->seg_info.id, error);
 
         if (ctx->playback.speed == 0.0f) {
