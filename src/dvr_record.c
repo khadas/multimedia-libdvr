@@ -515,7 +515,7 @@ int dvr_record_close(DVR_RecordHandle_t handle)
       DVR_DEBUG(1, "%s, failed", __func__);
     }
   }
-
+  memset(p_ctx, 0, sizeof(DVR_RecordContext_t));
   p_ctx->state = DVR_RECORD_STATE_CLOSED;
   return ret;
 }
@@ -789,6 +789,7 @@ int dvr_record_stop_segment(DVR_RecordHandle_t handle, DVR_RecordSegmentInfo_t *
 
 end:
   ret = segment_close(p_ctx->segment_handle);
+  p_ctx->segment_handle = NULL;
   DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
   return DVR_SUCCESS;
 }
