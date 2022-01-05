@@ -2757,10 +2757,10 @@ int dvr_playback_resume(DVR_PlaybackHandle_t handle) {
     if (player->has_audio)
       AmTsPlayer_resumeAudioDecoding(player->handle);
     DVR_PB_DG(1, "set start state cur cmd[%d]", player->cmd.cur_cmd);
-    player->cmd.state = DVR_PLAYBACK_STATE_START;
-    player->state = DVR_PLAYBACK_STATE_START;
     if (player->cmd.speed.speed.speed == PLAYBACK_SPEED_X1)
       _dvr_cmd(handle, player->cmd.cur_cmd);
+    player->cmd.state = DVR_PLAYBACK_STATE_START;
+    player->state = DVR_PLAYBACK_STATE_START;
   } else {
     if ((player->play_flag&DVR_PLAYBACK_STARTED_PAUSEDLIVE) == DVR_PLAYBACK_STARTED_PAUSEDLIVE)
     {
@@ -3105,19 +3105,24 @@ static int _dvr_get_play_cur_time(DVR_PlaybackHandle_t handle, uint64_t *id) {
       cur_time = (int)(cur - cache);
       *id =  player->cur_segment_id;
   } else if (player->last_segment_tatol > 0) {
+      //if at fb mode,we not used last id to replace cur id if cache > cur time.
+      //this case only used for normal speed or ff speed
+      if (!IS_FB(player->speed) && player->last_segment_id <= player->cur_segment_id) {
+        if (player->last_segment_tatol > (cache - cur))
+          cur_time = (int)(player->last_segment_tatol - (cache - cur));
+        else
+          cur_time = (int)(player->last_segment_tatol - cur);
 
-      if (player->last_segment_tatol > (cache - cur))
-        cur_time = (int)(player->last_segment_tatol - (cache - cur));
-      else
-        cur_time = (int)(player->last_segment_tatol - cur);
-
-      *id = player->last_segment_id;
+        *id = player->last_segment_id;
+      } else {//fb mode
+        cur_time = (int)(cur);
+        *id =  player->cur_segment_id;
+      }
       DVR_PB_DG(1, "get play cur time[%lld][%lld][%d]", player->last_segment_id, player->cur_segment_id, player->last_segment_tatol);
   } else {
       cur_time = 0;
       *id =  player->cur_segment_id;
   }
-
   return cur_time;
 }
 
