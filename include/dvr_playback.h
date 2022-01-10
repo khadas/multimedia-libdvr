@@ -346,6 +346,11 @@ typedef struct
   uint32_t                       limit;            /**< rec data limit time in ms*/
   //first play need seek to start time
   uint32_t                   first_start_time;
+  //The segment id where a playback is initially started
+  uint64_t                   first_start_id;
+  //Determine whether it is needed to check the cache value from AmTsPlayer_getDelayTime
+  //It is only allowed to check cache one time in a single playback
+  DVR_Bool_t                 check_cache_flag;
   DVR_Bool_t                 need_seek_start;
   //init fake pid
   int                         fake_pid;

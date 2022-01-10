@@ -692,6 +692,10 @@ retry:
     DVR_PB_DG(1, "open segment error");
     goto retry;
   }
+  // Keep the start segment_id when the first segment_open is called during a playback
+  if (player->first_start_id == UINT64_MAX) {
+    player->first_start_id = player->cur_segment.segment_id;
+  }
   pthread_mutex_unlock(&player->segment_lock);
   int total = _dvr_get_end_time( handle);
   pthread_mutex_lock(&player->segment_lock);
@@ -770,6 +774,10 @@ static int _dvr_open_segment(DVR_PlaybackHandle_t handle, uint64_t segment_id)
   ret = segment_open(&params, &(player->r_handle));
   if (ret == DVR_FAILURE) {
     DVR_PB_DG(1, "segment opne error");
+  }
+  // Keep the start segment_id when the first segment_open is called during a playback
+  if (player->first_start_id == UINT64_MAX) {
+    player->first_start_id = player->cur_segment.segment_id;
   }
   pthread_mutex_unlock(&player->segment_lock);
   player->dur = _dvr_get_end_time(handle);
@@ -1656,6 +1664,8 @@ int dvr_playback_open(DVR_PlaybackHandle_t *p_handle, DVR_PlaybackOpenParams_t *
   player->limit = 0;
   //need seek to start pos
   player->first_start_time = 0;
+  player->first_start_id = UINT64_MAX;
+  player->check_cache_flag = DVR_TRUE;
   player->need_seek_start = DVR_TRUE;
   //fake_pid init
   player->fake_pid = getFakePid();
@@ -2896,8 +2906,10 @@ int dvr_playback_seek(DVR_PlaybackHandle_t handle, uint64_t segment_id, uint32_t
       time_offset = time_offset -FB_DEFAULT_LEFT_TIME;
     }
   }
+  // Seek can be regarded as a new playback, so keep the start segment_id for it also
   if (player->need_seek_start == DVR_TRUE) {
     player->first_start_time = (uint64_t)time_offset + 1;//set first start time not eq 0
+    player->first_start_id = player->cur_segment.segment_id;
   }
   pthread_mutex_lock(&player->segment_lock);
   player->drop_ts = DVR_TRUE;
@@ -3089,6 +3101,37 @@ static int _dvr_get_play_cur_time(DVR_PlaybackHandle_t handle, uint64_t *id) {
   AmTsPlayer_getDelayTime(player->handle, &cache);
 
   pthread_mutex_unlock(&player->segment_lock);
+
+  // The idea here is to work around a weakness of AmTsPlayer_getDelayTime at
+  // starting phase of a playback in a short period of 20ms or less. During the
+  // said period, getDelayTime does NOT work as expect to return real cache
+  // length because demux isn't actually running to provide valid pts to
+  // TsPlayer. "cache==0" implies the situation that playback is NOT actually
+  // started. Under such conditions a '0' cache size may NOT reflect actual data
+  // length remaining in TsPlayer cache, therefore corresponding libdvr 'cur' is
+  // useless if data in TsPlayer cache is not considered, so it needs to be
+  // reset to a previos valid state. To make the reset operation stricter, extra
+  // AmTsPlayer_getPts invocations on both video/audio are introduced to test if
+  // TsPlayer can get valid pts which indicates the actual running status of
+  // demux. (JIRA issue: SWPL-68740)
+  if (player->first_start_id != UINT64_MAX && cache == 0
+          && player->check_cache_flag == DVR_TRUE ) {
+    uint64_t pts_a=0;
+    uint64_t pts_v=0;
+    AmTsPlayer_getPts(player->handle, TS_STREAM_AUDIO, &pts_a);
+    AmTsPlayer_getPts(player->handle, TS_STREAM_VIDEO, &pts_v);
+    if ((int64_t)pts_a <= 0 && (int64_t)pts_v <= 0) {
+      // Identified the wired situation and just return previous valid state
+      cur = player->first_start_time;
+      *id = player->first_start_id;
+      return cur;
+    }
+  }
+  if (cache != 0) {
+    // Do NOT permit to enter 'if' code block above any more
+    player->check_cache_flag=DVR_FALSE;
+  }
+
   DVR_PB_DG(1, "***get play cur time [%lld] cache:%lld cur id [%lld]\
               last id [%lld] pb cache len [%d] pos [%lld][%lld]",
                           cur,
