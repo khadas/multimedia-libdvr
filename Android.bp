@@ -9,14 +9,14 @@
 cc_library_shared {
     name: "libamdvr",
     vendor: true,
-    compile_multilib: "32",
+    compile_multilib: "both",
 
     arch: {
         arm: {
             instruction_set: "arm",
         },
         arm64: {
-            enabled: false,
+            enabled: true,
         },
         x86: {
             enabled: false,
@@ -74,7 +74,7 @@ cc_library_shared {
 
 cc_library_shared {
     name: "libamdvr.system",
-    compile_multilib: "32",
+    compile_multilib: "both",
     system_ext_specific: true,
 
     arch: {
@@ -82,7 +82,7 @@ cc_library_shared {
             instruction_set: "arm",
         },
         arm64: {
-            enabled: false,
+            enabled: true,
         },
         x86: {
             enabled: false,
