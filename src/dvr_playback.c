@@ -39,7 +39,8 @@
 #define MIN_TSPLAYER_DELAY_TIME (200)
 
 #define MAX_CACHE_TIME    (30000)
-
+//used pcr to control avsync,default not used
+//#define AVSYNC_USED_PCR 1
 static int write_success = 0;
 //
 static int _dvr_playback_fffb(DVR_PlaybackHandle_t handle);
@@ -1825,6 +1826,12 @@ int dvr_playback_start(DVR_PlaybackHandle_t handle, DVR_PlaybackFlag_t flag) {
       player->state = DVR_PLAYBACK_STATE_START;
     }
   }
+#ifdef AVSYNC_USED_PCR
+  if (player && VALID_PID(player->cur_segment.pids.pcr.pid)) {
+    DVR_PB_DG(1, "start set pcr [%d]", player->cur_segment.pids.pcr.pid);
+    AmTsPlayer_setPcrPid(player->handle, player->cur_segment.pids.pcr.pid);
+  }
+#endif
   DVR_PB_DG(1, "unlock");
   pthread_mutex_unlock(&player->lock);
   _start_playback_thread(handle);
@@ -2101,6 +2108,28 @@ static int _do_check_pid_info(DVR_PlaybackHandle_t handle, DVR_PlaybackPids_t  n
       if (!player->has_audio && !player->has_video) {
         player->state = DVR_PLAYBACK_STATE_STOP;
       }
+    } else if (type == 2) {
+      //case disable ad
+        DVR_PB_DG(1, "restart  audio when stop ad");
+      if (player->cmd.speed.speed.speed == PLAYBACK_SPEED_X1) {
+          if (VALID_PID(now_pids.audio.pid)) {
+            //stop audio if audio pid not change
+            DVR_PB_DG(1, "stop audio when stop ad pid [0x%x]", now_pids.audio.pid);
+            AmTsPlayer_stopAudioDecoding(player->handle);
+          }
+          if (now_pids.audio.pid) {
+              am_tsplayer_audio_params aparams;
+
+              memset(&aparams, 0, sizeof(aparams));
+
+              aparams.pid = now_pids.audio.pid;
+              aparams.codectype= _dvr_convert_stream_fmt(now_pids.audio.format, DVR_TRUE);
+              player->has_audio = DVR_TRUE;
+              DVR_PB_DG(1, "restart audio when stop ad");
+              AmTsPlayer_setAudioParams(player->handle,  &aparams);
+              AmTsPlayer_startAudioDecoding(player->handle);
+          }
+        }
     }
   }
   return 0;
@@ -3017,6 +3046,12 @@ int dvr_playback_seek(DVR_PlaybackHandle_t handle, uint64_t segment_id, uint32_t
       AmTsPlayer_startAudioDecoding(player->handle);
       player->has_audio = DVR_TRUE;
     }
+#ifdef AVSYNC_USED_PCR
+    if (player && VALID_PID(player->cur_segment.pids.pcr.pid)) {
+      DVR_PB_DG(1, "start set pcr [%d]", player->cur_segment.pids.pcr.pid);
+      AmTsPlayer_setPcrPid(player->handle, player->cur_segment.pids.pcr.pid);
+    }
+#endif
   }
   if (player->state == DVR_PLAYBACK_STATE_PAUSE) {
     player->cmd.state = DVR_PLAYBACK_STATE_PAUSE;
@@ -3615,6 +3650,12 @@ static int _dvr_playback_replay(DVR_PlaybackHandle_t handle, DVR_Bool_t trick) {
     player->cmd.speed.speed.speed = PLAYBACK_SPEED_X1;
     player->speed = (float)PLAYBACK_SPEED_X1/100.0f;
   }
+#ifdef AVSYNC_USED_PCR
+  if (player && VALID_PID(player->cur_segment.pids.pcr.pid)) {
+    DVR_PB_DG(1, "start set pcr [%d]", player->cur_segment.pids.pcr.pid);
+    AmTsPlayer_setPcrPid(player->handle, player->cur_segment.pids.pcr.pid);
+  }
+#endif
   player->cmd.last_cmd = player->cmd.cur_cmd;
   player->cmd.cur_cmd = DVR_PLAYBACK_CMD_START;
   player->cmd.state = DVR_PLAYBACK_STATE_START;
