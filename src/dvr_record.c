@@ -14,6 +14,8 @@
 
 #define CONTROL_SPEED_ENABLE 0
 
+#define CHECK_PTS_MAX_COUNT  (20)
+
 //#define DEBUG_PERFORMANCE
 #define MAX_DVR_RECORD_SESSION_COUNT 4
 #define RECORD_BLOCK_SIZE (256 * 1024)
@@ -71,6 +73,8 @@ typedef struct {
   DVR_Bool_t                      is_new_dmx;                           /**< DVR is used new dmx driver */
   int                             index_type;                           /**< DVR is used pcr or local time */
   uint64_t                        pts;                                  /**< The newest pcr or local time */
+  int                             check_pts_count;                      /**< The check count of pts */
+  int                             check_no_pts_count;                      /**< The check count of no pts */
 } DVR_RecordContext_t;
 
 extern ssize_t record_device_read_ext(Record_DeviceHandle_t handle, size_t *buf, size_t *len);
@@ -143,6 +147,11 @@ static int record_save_pcr(DVR_RecordContext_t *p_ctx, uint8_t *buf, loff_t pos)
 
   if (has_pcr && p_ctx->index_type == DVR_INDEX_TYPE_PCR) {
     //save newest pcr
+    if (p_ctx->pts == pcr/90 &&
+      p_ctx->check_pts_count < CHECK_PTS_MAX_COUNT) {
+      DVR_DEBUG(1, "parser pcr: [%llu]", pcr/90);
+      p_ctx->check_pts_count ++;
+    }
     p_ctx->pts = pcr/90;
     segment_update_pts(p_ctx->segment_handle, pcr/90, pos);
   }
@@ -186,9 +195,10 @@ void *record_thread(void *arg)
   uint32_t block_size = p_ctx->block_size;
   loff_t pos = 0;
   int ret;
-  struct timespec start_ts, end_ts;
+  struct timespec start_ts, end_ts, start_nopcr_ts, end_nopcr_ts;
   DVR_RecordStatus_t record_status;
   int has_pcr;
+  int pcr_rec_len = 0;
 
   time_t pre_time = 0;
   #define DVR_STORE_INFO_TIME (400)
@@ -221,10 +231,12 @@ void *record_thread(void *arg)
     DVR_DEBUG(1, "%s line %d notify record status, state:%d id=%lld",
           __func__,__LINE__, record_status.state, p_ctx->segment_info.id);
   }
-  DVR_DEBUG(1, "%s, secure_mode:%d, block_size:%d, cryptor:%p",
+  DVR_DEBUG(1, "%s, --secure_mode:%d, block_size:%d, cryptor:%p",
 	    __func__, p_ctx->is_secure_mode,
 	    block_size, p_ctx->cryptor);
   clock_gettime(CLOCK_MONOTONIC, &start_ts);
+  p_ctx->check_pts_count = 0;
+  p_ctx->check_no_pts_count++;
 
   struct timeval t1, t2, t3, t4, t5, t6, t7;
   while (p_ctx->state == DVR_RECORD_STATE_STARTED ||
@@ -354,8 +366,24 @@ void *record_thread(void *arg)
       p_ctx->index_type = DVR_INDEX_TYPE_PCR;
     }
     gettimeofday(&t5, NULL);
-
-    /* Update segment info */
+    if (p_ctx->index_type == DVR_INDEX_TYPE_PCR) {
+      if (has_pcr == 0) {
+        if (p_ctx->check_no_pts_count < 2 * CHECK_PTS_MAX_COUNT) {
+          if (p_ctx->check_no_pts_count == 0) {
+            DVR_DEBUG(1, "%s has pcr [%d]", __func__, has_pcr);
+            clock_gettime(CLOCK_MONOTONIC, &start_nopcr_ts);
+            clock_gettime(CLOCK_MONOTONIC, &start_ts);
+          }
+          DVR_DEBUG(1, "%s has pcr [%d] count[%d]", __func__, has_pcr, p_ctx->check_no_pts_count);
+          p_ctx->check_no_pts_count++;
+        }
+      } else {
+        DVR_DEBUG(1, "%s recovery has pcr [%d]", __func__, has_pcr);
+        clock_gettime(CLOCK_MONOTONIC, &start_nopcr_ts);
+        p_ctx->check_no_pts_count = 0;
+      }
+    }
+    /* Update segment i nfo */
     p_ctx->segment_info.size += len;
     /*Duration need use pcr to calculate, todo...*/
     if (p_ctx->index_type == DVR_INDEX_TYPE_PCR) {
@@ -365,12 +393,30 @@ void *record_thread(void *arg)
     } else if (p_ctx->index_type == DVR_INDEX_TYPE_LOCAL_CLOCK) {
       clock_gettime(CLOCK_MONOTONIC, &end_ts);
       p_ctx->segment_info.duration = (end_ts.tv_sec*1000 + end_ts.tv_nsec/1000000) -
-        (start_ts.tv_sec*1000 + start_ts.tv_nsec/1000000);
+        (start_ts.tv_sec*1000 + start_ts.tv_nsec/1000000) + pcr_rec_len;
             if (pre_time == 0)
        pre_time = p_ctx->segment_info.duration;
       segment_update_pts(p_ctx->segment_handle, p_ctx->segment_info.duration, pos);
     } else {
       DVR_DEBUG(1, "%s can NOT do time index", __func__);
+    }
+    if (p_ctx->index_type == DVR_INDEX_TYPE_PCR &&
+        p_ctx->check_pts_count == CHECK_PTS_MAX_COUNT) {
+       DVR_DEBUG(1, "%s change time from pcr to local time", __func__);
+       p_ctx->index_type = DVR_INDEX_TYPE_LOCAL_CLOCK;
+       clock_gettime(CLOCK_MONOTONIC, &start_ts);
+    }
+
+    if (p_ctx->index_type == DVR_INDEX_TYPE_PCR ) {
+       clock_gettime(CLOCK_MONOTONIC, &end_nopcr_ts);
+       int diff = (int)(end_nopcr_ts.tv_sec*1000 + end_nopcr_ts.tv_nsec/1000000) -
+        (int)(start_nopcr_ts.tv_sec*1000 + start_nopcr_ts.tv_nsec/1000000);
+       DVR_DEBUG(1, "%s no pcr change time from pcr to local time diff[%d]", __func__, diff);
+       if (diff > 3000) {
+          if (pcr_rec_len == 0)
+            pcr_rec_len = segment_tell_total_time(p_ctx->segment_handle);
+          p_ctx->index_type = DVR_INDEX_TYPE_LOCAL_CLOCK;
+       }
     }
     p_ctx->segment_info.nb_packets = p_ctx->segment_info.size/188;
 
