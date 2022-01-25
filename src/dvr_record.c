@@ -166,7 +166,9 @@ static int record_do_pcr_index(DVR_RecordContext_t *p_ctx, uint8_t *buf, int len
   int has_pcr = 0;
 
   pos = segment_tell_position(p_ctx->segment_handle);
-
+  if (pos >= len) {
+    pos = pos - len;
+  }
   while (left >= 188) {
     if (*p == 0x47) {
       has_pcr |= record_save_pcr(p_ctx, p, pos);
@@ -364,6 +366,7 @@ void *record_thread(void *arg)
     } else if (has_pcr && p_ctx->index_type == DVR_INDEX_TYPE_INVALID){
       DVR_DEBUG(1, "%s use pcr time index", __func__);
       p_ctx->index_type = DVR_INDEX_TYPE_PCR;
+      record_do_pcr_index(p_ctx, index_buf, len);
     }
     gettimeofday(&t5, NULL);
     if (p_ctx->index_type == DVR_INDEX_TYPE_PCR) {
