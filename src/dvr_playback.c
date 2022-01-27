@@ -447,7 +447,12 @@ static int _dvr_playback_sent_playtime(DVR_PlaybackHandle_t handle, DVR_Bool_t i
     else
       player->send_time = _dvr_time_getClock() + 20;
   } else if (player->send_time >= _dvr_time_getClock()) {
-    return DVR_SUCCESS;
+    if ((player->send_time - _dvr_time_getClock()) > 1000) {
+      player->send_time = _dvr_time_getClock() + 500;
+      DVR_PB_DG(1, "player send time occur system time changed!!!!!");
+    } else {
+      return DVR_SUCCESS;
+    }
   }
   if (CONTROL_SPEED_ENABLE == 0)
     player->send_time = _dvr_time_getClock() + 500;
@@ -979,6 +984,13 @@ static void* _dvr_playback_thread(void *arg)
   DVR_PB_DG(1, "---vendor.tv.libdvr.writetm get prop[%d][%s]block_size[%d]", atoi(prop_buf), prop_buf, player->openParams.block_size);
   if (atoi(prop_buf) > 0)
     write_timeout_ms = atoi(prop_buf);
+
+
+  memset(prop_buf, 0 ,sizeof(prop_buf));
+  dvr_prop_read("vendor.tv.libdvr.waittm", prop_buf, sizeof(prop_buf));
+  DVR_PB_DG(1, "---vendor.tv.libdvr.waittm get prop[%d][%s]block_size[%d]", atoi(prop_buf), prop_buf, player->openParams.block_size);
+  if (atoi(prop_buf) > 0)
+    timeout = atoi(prop_buf);
 
   if (player->is_secure_mode) {
     if (dec_buf_size > player->secure_buffer_size) {

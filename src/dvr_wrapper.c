@@ -85,6 +85,7 @@ typedef struct {
       DVR_Bool_t                      reach_end;
 
       DVR_WrapperInfo_t               obsolete;
+      DVR_Bool_t                      tf_full;
     } playback;
   };
 } DVR_WrapperCtx_t;
@@ -901,6 +902,7 @@ static int wrapper_removePlaybackSegment(DVR_WrapperCtx_t *ctx, DVR_RecordSegmen
       ctx->playback.obsolete.time += pseg->seg_info.duration;
       ctx->playback.obsolete.size += pseg->seg_info.size;
       ctx->playback.obsolete.pkts += pseg->seg_info.nb_packets;
+      DVR_WRAPPER_DEBUG(1, "timeshift, remove playback(sn:%ld) segment(%lld) ..obs(%d).\n", ctx->sn, seg_info->id, ctx->playback.obsolete.time);
       dvr_playback_set_obsolete(ctx->playback.player, ctx->playback.obsolete.time);
       free(pseg);
       break;
@@ -917,7 +919,7 @@ static int wrapper_removeRecordSegment(DVR_WrapperCtx_t *ctx, DVR_WrapperRecordS
   int error;
   DVR_WrapperRecordSegmentInfo_t *pseg, *pseg_tmp;
 
-  DVR_WRAPPER_DEBUG(1, "timeshift, remove record(sn:%ld) segment(%lld) ...\n", ctx->sn, seg_info->info.id);
+  DVR_WRAPPER_DEBUG(1, "---timeshift, remove record(sn:%ld) segment(%lld) ...\n", ctx->sn, seg_info->info.id);
 
   /*if timeshifting, notify the playback first, then deal with record*/
   if (ctx->record.param_open.is_timeshift) {
@@ -925,11 +927,20 @@ static int wrapper_removeRecordSegment(DVR_WrapperCtx_t *ctx, DVR_WrapperRecordS
 
     if (ctx_playback) {
       pthread_mutex_lock(&ctx_playback->lock);
+      if (ctx_playback->current_segment_id == seg_info->info.id && ctx_playback->playback.speed == 100.0f) {
+          ctx_playback->playback.tf_full = DVR_TRUE;
+          DVR_WRAPPER_DEBUG(1, "timeshift, not remove record(sn:%ld) segment(%lld) .(%d) (%f).isplaying.\n", ctx->sn, seg_info->info.id, DVR_TRUE, ctx_playback->playback.speed);
+          pthread_mutex_unlock(&ctx_playback->lock);
+          return DVR_SUCCESS;
+      } else {
+          DVR_WRAPPER_DEBUG(1, "timeshift, start remove record(sn:%ld) segment(%lld) (%lld).(%f)..\n", ctx->sn, seg_info->info.id, ctx_playback->current_segment_id,ctx_playback->playback.speed);
+      }
       if (ctx_valid(ctx_playback)
         && ctx_playback->sn == sn_timeshift_playback
         && !list_empty(&ctx_playback->segments)) {
         error = wrapper_removePlaybackSegment(ctx_playback, &seg_info->info);
       }
+      ctx_playback->playback.tf_full = DVR_FALSE;
       pthread_mutex_unlock(&ctx_playback->lock);
     }
   }
@@ -2573,7 +2584,21 @@ static int process_generatePlaybackStatus(DVR_WrapperCtx_t *ctx, DVR_WrapperPlay
     *status = ctx->playback.status;
     /*deal with current, lack size and pkts with the current*/
     status->info_cur.time += ctx->playback.seg_status.time_cur;
-    status->info_obsolete.time = ctx->playback.obsolete.time;
+    //get last segment id
+    DVR_WrapperRecordSegmentInfo_t *pseg;
+
+    pseg = list_last_entry(&ctx->segments, DVR_WrapperRecordSegmentInfo_t, head);
+    if (ctx->playback.tf_full == DVR_TRUE && pseg->info.id == ctx->current_segment_id) {
+      status->disguised_info_obsolete.time = ctx->playback.obsolete.time + ctx->playback.seg_status.time_cur;
+      status->info_obsolete.time = ctx->playback.obsolete.time;
+      DVR_WRAPPER_DEBUG(1, "warning change start time :id[%lld] [%d]cur[%d]\n", pseg->info.id, status->info_obsolete.time, status->info_cur.time);
+    }
+    else
+    {
+        DVR_WRAPPER_DEBUG(1, "warning not change start time :ctx->playback.tf_full[%d]id[%lld] [%lld] cur[%d]\n",ctx->playback.tf_full , pseg->info.id, ctx->current_segment_id, status->info_cur.time);
+        status->info_obsolete.time = ctx->playback.obsolete.time;
+        status->disguised_info_obsolete.time = ctx->playback.obsolete.time;
+    }
   }
 
   return DVR_SUCCESS;

@@ -58,6 +58,7 @@ typedef struct {
   float speed;                        /**< DVR playback current speed*/
   DVR_PlaybackSegmentFlag_t flags;    /**< DVR playback flags*/
   DVR_WrapperInfo_t info_obsolete;    /**< DVR playback obsolete information, take into account for timeshift*/
+  DVR_WrapperInfo_t disguised_info_obsolete;    /**< DVR playback disguised obsolete information, take into account for timeshift*/
 } DVR_WrapperPlaybackStatus_t;
 
 typedef struct {

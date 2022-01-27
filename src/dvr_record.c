@@ -149,7 +149,6 @@ static int record_save_pcr(DVR_RecordContext_t *p_ctx, uint8_t *buf, loff_t pos)
     //save newest pcr
     if (p_ctx->pts == pcr/90 &&
       p_ctx->check_pts_count < CHECK_PTS_MAX_COUNT) {
-      DVR_DEBUG(1, "parser pcr: [%llu]", pcr/90);
       p_ctx->check_pts_count ++;
     }
     p_ctx->pts = pcr/90;
@@ -373,15 +372,12 @@ void *record_thread(void *arg)
       if (has_pcr == 0) {
         if (p_ctx->check_no_pts_count < 2 * CHECK_PTS_MAX_COUNT) {
           if (p_ctx->check_no_pts_count == 0) {
-            DVR_DEBUG(1, "%s has pcr [%d]", __func__, has_pcr);
             clock_gettime(CLOCK_MONOTONIC, &start_nopcr_ts);
             clock_gettime(CLOCK_MONOTONIC, &start_ts);
           }
-          DVR_DEBUG(1, "%s has pcr [%d] count[%d]", __func__, has_pcr, p_ctx->check_no_pts_count);
           p_ctx->check_no_pts_count++;
         }
       } else {
-        DVR_DEBUG(1, "%s recovery has pcr [%d]", __func__, has_pcr);
         clock_gettime(CLOCK_MONOTONIC, &start_nopcr_ts);
         p_ctx->check_no_pts_count = 0;
       }
@@ -406,6 +402,8 @@ void *record_thread(void *arg)
     if (p_ctx->index_type == DVR_INDEX_TYPE_PCR &&
         p_ctx->check_pts_count == CHECK_PTS_MAX_COUNT) {
        DVR_DEBUG(1, "%s change time from pcr to local time", __func__);
+       if (pcr_rec_len == 0)
+            pcr_rec_len = segment_tell_total_time(p_ctx->segment_handle);
        p_ctx->index_type = DVR_INDEX_TYPE_LOCAL_CLOCK;
        clock_gettime(CLOCK_MONOTONIC, &start_ts);
     }
@@ -414,8 +412,8 @@ void *record_thread(void *arg)
        clock_gettime(CLOCK_MONOTONIC, &end_nopcr_ts);
        int diff = (int)(end_nopcr_ts.tv_sec*1000 + end_nopcr_ts.tv_nsec/1000000) -
         (int)(start_nopcr_ts.tv_sec*1000 + start_nopcr_ts.tv_nsec/1000000);
-       DVR_DEBUG(1, "%s no pcr change time from pcr to local time diff[%d]", __func__, diff);
        if (diff > 3000) {
+          DVR_DEBUG(1, "%s no pcr change time from pcr to local time diff[%d]", __func__, diff);
           if (pcr_rec_len == 0)
             pcr_rec_len = segment_tell_total_time(p_ctx->segment_handle);
           p_ctx->index_type = DVR_INDEX_TYPE_LOCAL_CLOCK;
