@@ -406,6 +406,8 @@ void *record_thread(void *arg)
        if (pcr_rec_len == 0)
             pcr_rec_len = segment_tell_total_time(p_ctx->segment_handle);
        p_ctx->index_type = DVR_INDEX_TYPE_LOCAL_CLOCK;
+      if (pcr_rec_len == 0)
+            pcr_rec_len = segment_tell_total_time(p_ctx->segment_handle);
        clock_gettime(CLOCK_MONOTONIC, &start_ts);
     }
 
@@ -424,7 +426,11 @@ void *record_thread(void *arg)
 
     if (p_ctx->segment_info.duration - pre_time > DVR_STORE_INFO_TIME) {
       pre_time = p_ctx->segment_info.duration + DVR_STORE_INFO_TIME;
+      time_t duration = p_ctx->segment_info.duration;
+      if (p_ctx->index_type == DVR_INDEX_TYPE_LOCAL_CLOCK)
+        p_ctx->segment_info.duration = segment_tell_total_time(p_ctx->segment_handle);
       segment_store_info(p_ctx->segment_handle, &(p_ctx->segment_info));
+      p_ctx->segment_info.duration = duration;
     }
     gettimeofday(&t6, NULL);
      /*Event notification*/
@@ -439,7 +445,10 @@ void *record_thread(void *arg)
       p_ctx->last_send_size = p_ctx->segment_info.size;
       record_status.state = p_ctx->state;
       record_status.info.id = p_ctx->segment_info.id;
-      record_status.info.duration = p_ctx->segment_info.duration;
+      if (p_ctx->index_type == DVR_INDEX_TYPE_LOCAL_CLOCK)
+        record_status.info.duration = segment_tell_total_time(p_ctx->segment_handle);
+      else
+        record_status.info.duration = p_ctx->segment_info.duration;
       record_status.info.size = p_ctx->segment_info.size;
       record_status.info.nb_packets = p_ctx->segment_info.size/188;
       p_ctx->event_notify_fn(DVR_RECORD_EVENT_STATUS, &record_status, p_ctx->event_userdata);
