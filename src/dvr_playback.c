@@ -2138,24 +2138,22 @@ static int _do_check_pid_info(DVR_PlaybackHandle_t handle, DVR_PlaybackPids_t  n
       //case disable ad
         DVR_PB_DG(1, "restart  audio when stop ad");
       if (player->cmd.speed.speed.speed == PLAYBACK_SPEED_X1) {
-          if (VALID_PID(now_pids.audio.pid)) {
-            //stop audio if audio pid not change
-            DVR_PB_DG(1, "stop audio when stop ad pid [0x%x]", now_pids.audio.pid);
-            AmTsPlayer_stopAudioDecoding(player->handle);
-          }
-          if (now_pids.audio.pid) {
-              am_tsplayer_audio_params aparams;
+        if (VALID_PID(now_pids.audio.pid)) {
+          //stop audio if audio pid not change
+          DVR_PB_DG(1, "stop audio when stop ad pid [0x%x]", now_pids.audio.pid);
+          AmTsPlayer_stopAudioDecoding(player->handle);
+          am_tsplayer_audio_params aparams;
 
-              memset(&aparams, 0, sizeof(aparams));
+          memset(&aparams, 0, sizeof(aparams));
 
-              aparams.pid = now_pids.audio.pid;
-              aparams.codectype= _dvr_convert_stream_fmt(now_pids.audio.format, DVR_TRUE);
-              player->has_audio = DVR_TRUE;
-              DVR_PB_DG(1, "restart audio when stop ad");
-              AmTsPlayer_setAudioParams(player->handle,  &aparams);
-              AmTsPlayer_startAudioDecoding(player->handle);
-          }
+          aparams.pid = now_pids.audio.pid;
+          aparams.codectype= _dvr_convert_stream_fmt(now_pids.audio.format, DVR_TRUE);
+          player->has_audio = DVR_TRUE;
+          DVR_PB_DG(1, "restart audio when stop ad");
+          AmTsPlayer_setAudioParams(player->handle,  &aparams);
+          AmTsPlayer_startAudioDecoding(player->handle);
         }
+      }
     }
   }
   return 0;
