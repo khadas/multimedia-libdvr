@@ -522,10 +522,11 @@ int dvr_record_open(DVR_RecordHandle_t *p_handle, DVR_RecordOpenParams_t *params
     p_ctx->is_vod = 0;
     /* data from dmx, normal dvr case */
     dev_open_params.dmx_dev_id = params->dmx_dev_id;
+    //set dvr flush size
     dev_open_params.buf_size = (params->flush_size > 0 ? params->flush_size : RECORD_BLOCK_SIZE);
+    //set dvbcore ringbuf size
     dev_open_params.ringbuf_size = params->ringbuf_size;
-    if (p_ctx->is_new_dmx)
-      dev_open_params.buf_size = NEW_DEVICE_RECORD_BLOCK_SIZE * 30;
+
     ret = record_device_open(&p_ctx->dev_handle, &dev_open_params);
     if (ret != DVR_SUCCESS) {
       DVR_DEBUG(1, "%s, open record devices failed", __func__);
@@ -534,8 +535,7 @@ int dvr_record_open(DVR_RecordHandle_t *p_handle, DVR_RecordOpenParams_t *params
   }
 
   p_ctx->block_size = (params->flush_size > 0 ? params->flush_size : RECORD_BLOCK_SIZE);
-  if (p_ctx->is_new_dmx)
-      p_ctx->block_size = NEW_DEVICE_RECORD_BLOCK_SIZE * 30;
+
   p_ctx->enc_func = NULL;
   p_ctx->enc_userdata = NULL;
   p_ctx->is_secure_mode = 0;

@@ -184,16 +184,9 @@ int record_device_open(Record_DeviceHandle_t *p_handle, Record_DeviceOpenParams_
         DVR_DEBUG(1, "%s secure demux init failed:%d", __func__, ret);
       }
     }
-
-    //set buf size
-    int buf_size = params->buf_size;
-    ret = ioctl(p_ctx->fd, DMX_SET_BUFFER_SIZE, buf_size);
-    if (ret == -1) {
-      DVR_DEBUG(1, "%s set dvr buf size failed\"%s\" (%s) buf_size:%d", __func__, dev_name, strerror(errno), buf_size);
-    } else {
-      DVR_DEBUG(1, "%s set dvr buf size success \"%s\" buf_size:%d", __func__, dev_name, buf_size);
-    }
-  } else {
+  }
+  //set dvbcore ringbuf size
+  {
       //set del buf size is 10 * 188 *1024
       int buf_size = params->ringbuf_size;
       if (buf_size > 0) {
@@ -548,6 +541,8 @@ int record_device_read(Record_DeviceHandle_t handle, void *buf, size_t len, int 
   if (ret <= 0) {
     if (ret < 0)
       DVR_DEBUG(1, "%s, %d failed: %s fd %d evfd %d", __func__, __LINE__, strerror(errno), p_ctx->fd, p_ctx->evtfd);
+    else
+      DVR_DEBUG(1, "%s, %d timeout", __func__, __LINE__);
     return DVR_FAILURE;
   }
 

@@ -17,6 +17,9 @@
 #define PTS_HEAD_DEVIATION     (40)
 #define PCR_JUMP_DUR     (5000)
 
+#define IDX_FILE_SYNC_TIME    (10)//10*PCR_RECORD_INTERVAL_MS
+#define TS_FILE_SYNC_TIME     (9)//9*PCR_RECORD_INTERVAL_MS
+
 
 /**\brief Segment context*/
 typedef struct {
@@ -35,7 +38,8 @@ typedef struct {
   loff_t          last_offset;
   loff_t          last_record_offset;
   float           avg_rate;
-} Segment_Context_t;
+  int             time;
+ } Segment_Context_t;
 
 /**\brief Segment file type*/
 typedef enum {
@@ -241,7 +245,8 @@ ssize_t segment_write(Segment_Handle_t handle, void *buf, size_t count)
   DVR_RETURN_IF_FALSE(buf);
   DVR_RETURN_IF_FALSE(p_ctx->ts_fd != -1);
   len = write(p_ctx->ts_fd, buf, count);
-  fsync(p_ctx->ts_fd);
+  if (p_ctx->time % TS_FILE_SYNC_TIME == 0)
+    fsync(p_ctx->ts_fd);
   return len;
 }
 
@@ -352,7 +357,12 @@ int segment_update_pts(Segment_Handle_t handle, uint64_t pts, loff_t offset)
       (record_diff > PCR_RECORD_INTERVAL_MS || p_ctx->last_record_pts == ULLONG_MAX)){
     fputs(buf, p_ctx->index_fp);
     fflush(p_ctx->index_fp);
-    fsync(fileno(p_ctx->index_fp));
+    p_ctx->time++;
+    //flush idx file 3s
+    if ((p_ctx->time > 0 && p_ctx->time % IDX_FILE_SYNC_TIME == 0))
+      fsync(fileno(p_ctx->index_fp));
+    if (p_ctx->time > IDX_FILE_SYNC_TIME)
+      p_ctx->time = 0;
     p_ctx->last_record_pts = pts;
     p_ctx->last_record_offset = offset;
     if (p_ctx->cur_time > 0)
