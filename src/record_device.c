@@ -228,7 +228,7 @@ int record_device_open(Record_DeviceHandle_t *p_handle, Record_DeviceOpenParams_
 
   if (params->fend_dev_id > MAX_FEND_DEVICE_COUNT -1) {
     DVR_DEBUG(0, "invalid frontend devicie id:%d, will use default.\n",
-	      params->fend_dev_id);
+          params->fend_dev_id);
     p_ctx->fend_dev_id = 0;
   } else {
     p_ctx->fend_dev_id = params->fend_dev_id;
@@ -267,17 +267,17 @@ int record_device_close(Record_DeviceHandle_t handle)
     }
     if (p_ctx->dvr_buf) {
       if (SECDMX_FreeDVRBuffer_Ptr != NULL) {
-	for (i = 0; i < MAX_RECORD_DEVICE_COUNT; i++) {
-	  if (&record_ctx[i] != p_ctx &&
-	      record_ctx[i].fend_dev_id == p_ctx->fend_dev_id &&
-	      record_ctx[i].dvr_buf == p_ctx->dvr_buf) {
-		break;
-	  }
-	}
-	if (i >= MAX_RECORD_DEVICE_COUNT) {
+    for (i = 0; i < MAX_RECORD_DEVICE_COUNT; i++) {
+      if (&record_ctx[i] != p_ctx &&
+          record_ctx[i].fend_dev_id == p_ctx->fend_dev_id &&
+          record_ctx[i].dvr_buf == p_ctx->dvr_buf) {
+        break;
+      }
+    }
+    if (i >= MAX_RECORD_DEVICE_COUNT) {
           SECDMX_FreeDVRBuffer_Ptr(p_ctx->fend_dev_id);
-	}
-	p_ctx->dvr_buf = (size_t)NULL;
+    }
+    p_ctx->dvr_buf = (size_t)NULL;
       }
     }
   }
@@ -317,7 +317,7 @@ int record_device_add_pid(Record_DeviceHandle_t handle, int pid)
 
   p_ctx->streams[i].pid = pid;
   DVR_DEBUG(1, "%s add pid:%#x", __func__, pid);
-	snprintf(dev_name, sizeof(dev_name), "/dev/dvb0.demux%d", p_ctx->dmx_dev_id);
+    snprintf(dev_name, sizeof(dev_name), "/dev/dvb0.demux%d", p_ctx->dmx_dev_id);
   fd = open(dev_name, O_RDWR);
   if (fd == -1) {
     DVR_DEBUG(1, "%s cannot open \"%s\" (%s)", __func__, dev_name, strerror(errno));
@@ -647,28 +647,28 @@ int record_device_set_secure_buffer(Record_DeviceHandle_t handle, uint8_t *sec_b
     fd = open(node, O_RDONLY);
     //DVR_DEBUG(1, "%s libdvrFilterTrace open2 \"%s\",p_ctx->dmx_dev_id: 0x%x, fd: 0x%x ", __func__,node, p_ctx->dmx_dev_id, fd);
     if (SECDMX_AllocateDVRBuffer_Ptr != NULL) {
-	for (i = 0; i < MAX_RECORD_DEVICE_COUNT; i++) {
-	  if (record_ctx[i].state != RECORD_DEVICE_STATE_CLOSED &&
-	      &record_ctx[i] != p_ctx &&
-	      record_ctx[i].fend_dev_id == p_ctx->fend_dev_id &&
-	      record_ctx[i].dvr_buf != 0) {
-		break;
-	  }
-	}
-	if (i >= MAX_RECORD_DEVICE_COUNT) {
-	  result = SECDMX_AllocateDVRBuffer_Ptr(sid, len, &dvr_buf);
-	  if (result != DVR_SUCCESS) {
-	  //DVR_DEBUG(1, "%s libdvrFilterTrace close2-1. fd: 0x%x ", __func__, fd);
-	     close(fd);
-	  }
-	  DVR_RETURN_IF_FALSE_WITH_UNLOCK(result == DVR_SUCCESS, &p_ctx->lock);
-	} else {
-	  dvr_buf = record_ctx[i].dvr_buf;
-	}
-
-	p_ctx->dvr_buf = dvr_buf;
+    for (i = 0; i < MAX_RECORD_DEVICE_COUNT; i++) {
+      if (record_ctx[i].state != RECORD_DEVICE_STATE_CLOSED &&
+          &record_ctx[i] != p_ctx &&
+          record_ctx[i].fend_dev_id == p_ctx->fend_dev_id &&
+          record_ctx[i].dvr_buf != 0) {
+        break;
+      }
+    }
+    if (i >= MAX_RECORD_DEVICE_COUNT) {
+      result = SECDMX_AllocateDVRBuffer_Ptr(sid, len, &dvr_buf);
+      if (result != DVR_SUCCESS) {
+      //DVR_DEBUG(1, "%s libdvrFilterTrace close2-1. fd: 0x%x ", __func__, fd);
+         close(fd);
+      }
+      DVR_RETURN_IF_FALSE_WITH_UNLOCK(result == DVR_SUCCESS, &p_ctx->lock);
     } else {
-	p_ctx->dvr_buf = (size_t)sec_buf;
+      dvr_buf = record_ctx[i].dvr_buf;
+    }
+
+    p_ctx->dvr_buf = dvr_buf;
+    } else {
+    p_ctx->dvr_buf = (size_t)sec_buf;
     }
 
     struct dmx_sec_mem sec_mem;

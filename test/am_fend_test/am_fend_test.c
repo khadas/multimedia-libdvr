@@ -62,7 +62,7 @@
   * \endcode
   * Lock DVB-T:
   * \code
-  *   am_fend_test [fe=fontend_idx] [mode=2] [freq=frequency] [bw=bandwidth] [tran_mode=transmission_mode]	[timer=check_tune_time]
+  *   am_fend_test [fe=fontend_idx] [mode=2] [freq=frequency] [bw=bandwidth] [tran_mode=transmission_mode]    [timer=check_tune_time]
   * \endcode
   * Lock DVB-T2:
   * \code

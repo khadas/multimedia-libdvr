@@ -65,163 +65,163 @@ const AM_SMC_Driver_t aml_smc_drv =
 
 AM_ErrorCode_t aml_open (AM_SMC_Device_t *dev, const AM_SMC_OpenPara_t *para)
 {
-	char name[PATH_MAX];
-	int fd;
-	
-	snprintf(name, sizeof(name), "/dev/smc%d", dev->dev_no);
-	fd = open(name, O_RDWR);
-	if(fd==-1)
-	{
-		printf("cannot open device \"%s\"", name);
-		return AM_SMC_ERR_CANNOT_OPEN_DEV;
-	}
-	
-	dev->drv_data = (void*)fd;
-	return AM_SUCCESS;
+    char name[PATH_MAX];
+    int fd;
+
+    snprintf(name, sizeof(name), "/dev/smc%d", dev->dev_no);
+    fd = open(name, O_RDWR);
+    if (fd == -1)
+    {
+        printf("cannot open device \"%s\"", name);
+        return AM_SMC_ERR_CANNOT_OPEN_DEV;
+    }
+
+    dev->drv_data = (void*)fd;
+    return AM_SUCCESS;
 }
 
 AM_ErrorCode_t aml_close (AM_SMC_Device_t *dev)
 {
-	int fd = (int)dev->drv_data;
-	
-	close(fd);
-	return AM_SUCCESS;
+    int fd = (int)dev->drv_data;
+
+    close(fd);
+    return AM_SUCCESS;
 }
 
 AM_ErrorCode_t aml_get_status (AM_SMC_Device_t *dev, AM_SMC_CardStatus_t *status)
 {
-	int fd = (int)dev->drv_data;
-	int ds;
-	
-	if(ioctl(fd, AMSMC_IOC_GET_STATUS, &ds))
-	{
-		printf("get card status failed \"%s\"", strerror(errno));
-		return AM_SMC_ERR_IO;
-	}
-	
-	*status = ds ? AM_SMC_CARD_IN : AM_SMC_CARD_OUT;
-	
-	return AM_SUCCESS;
+    int fd = (int)dev->drv_data;
+    int ds;
+
+    if (ioctl(fd, AMSMC_IOC_GET_STATUS, &ds))
+    {
+        printf("get card status failed \"%s\"", strerror(errno));
+        return AM_SMC_ERR_IO;
+    }
+
+    *status = ds ? AM_SMC_CARD_IN : AM_SMC_CARD_OUT;
+
+    return AM_SUCCESS;
 }
 
 AM_ErrorCode_t aml_reset (AM_SMC_Device_t *dev, uint8_t *atr, int *len)
 {
-	int fd = (int)dev->drv_data;
-	struct am_smc_atr abuf;
-	
-	if(ioctl(fd, AMSMC_IOC_RESET, &abuf))
-	{
-		printf("reset the card failed \"%s\"", strerror(errno));
-		return AM_SMC_ERR_IO;
-	}
-	
-	memcpy(atr, abuf.atr, abuf.atr_len);
-	*len = abuf.atr_len;
-	
-	return AM_SUCCESS;
+    int fd = (int)dev->drv_data;
+    struct am_smc_atr abuf;
+
+    if (ioctl(fd, AMSMC_IOC_RESET, &abuf))
+    {
+        printf("reset the card failed \"%s\"", strerror(errno));
+        return AM_SMC_ERR_IO;
+    }
+
+    memcpy(atr, abuf.atr, abuf.atr_len);
+    *len = abuf.atr_len;
+
+    return AM_SUCCESS;
 }
 
 AM_ErrorCode_t aml_read (AM_SMC_Device_t *dev, uint8_t *data, int *len, int timeout)
 {
-	struct pollfd pfd;
-	int fd = (int)dev->drv_data;
-	int ret;
-	
-	pfd.fd = fd;
-	pfd.events = POLLIN;
-	
-	ret = poll(&pfd, 1, timeout);
-	if(ret!=1)
-	{
-		return AM_SMC_ERR_TIMEOUT;
-	}
-	
-	ret = read(fd, data, *len);
-	if(ret<0)
-	{
-		printf("card read error %s", strerror(errno));
-		return AM_SMC_ERR_IO;
-	}
-	
-	*len = ret;
-	return AM_SUCCESS;
+    struct pollfd pfd;
+    int fd = (int)dev->drv_data;
+    int ret;
+
+    pfd.fd = fd;
+    pfd.events = POLLIN;
+
+    ret = poll(&pfd, 1, timeout);
+    if (ret != 1)
+    {
+        return AM_SMC_ERR_TIMEOUT;
+    }
+
+    ret = read(fd, data, *len);
+    if (ret < 0)
+    {
+        printf("card read error %s", strerror(errno));
+        return AM_SMC_ERR_IO;
+    }
+
+    *len = ret;
+    return AM_SUCCESS;
 }
 
 AM_ErrorCode_t aml_write (AM_SMC_Device_t *dev, const uint8_t *data, int *len, int timeout)
 {
-	struct pollfd pfd;
-	int fd = (int)dev->drv_data;
-	int ret;
-	
-	pfd.fd = fd;
-	pfd.events = POLLOUT;
-	
-	ret = poll(&pfd, 1, timeout);
-	if(ret!=1)
-	{
-		return AM_SMC_ERR_TIMEOUT;
-	}
-	
-	ret = write(fd, data, *len);
-	if(ret<0)
-	{
-		printf("card write error %s", strerror(errno));
-		return AM_SMC_ERR_IO;
-	}
-	
-	*len = ret;
-	return AM_SUCCESS;
+    struct pollfd pfd;
+    int fd = (int)dev->drv_data;
+    int ret;
+
+    pfd.fd = fd;
+    pfd.events = POLLOUT;
+
+    ret = poll(&pfd, 1, timeout);
+    if (ret != 1)
+    {
+        return AM_SMC_ERR_TIMEOUT;
+    }
+
+    ret = write(fd, data, *len);
+    if (ret < 0)
+    {
+        printf("card write error %s", strerror(errno));
+        return AM_SMC_ERR_IO;
+    }
+
+    *len = ret;
+    return AM_SUCCESS;
 }
 
 AM_ErrorCode_t aml_get_param (AM_SMC_Device_t *dev, AM_SMC_Param_t *para)
 {
-	int fd = (int)dev->drv_data;
-	
-	if(ioctl(fd, AMSMC_IOC_GET_PARAM, para))
-	{
-		printf("get card params failed \"%s\"", strerror(errno));
-		return AM_SMC_ERR_IO;
-	}
-	
-	return AM_SUCCESS;
+    int fd = (int)dev->drv_data;
+
+    if (ioctl(fd, AMSMC_IOC_GET_PARAM, para))
+    {
+        printf("get card params failed \"%s\"", strerror(errno));
+        return AM_SMC_ERR_IO;
+    }
+
+    return AM_SUCCESS;
 }
 
 AM_ErrorCode_t aml_set_param (AM_SMC_Device_t *dev, const AM_SMC_Param_t *para)
 {
-	int fd = (int)dev->drv_data;
-	
-	if(ioctl(fd, AMSMC_IOC_SET_PARAM, para))
-	{
-		printf("set card params failed \"%s\"", strerror(errno));
-		return AM_SMC_ERR_IO;
-	}
-	
-	return AM_SUCCESS;
+    int fd = (int)dev->drv_data;
+
+    if (ioctl(fd, AMSMC_IOC_SET_PARAM, para))
+    {
+        printf("set card params failed \"%s\"", strerror(errno));
+        return AM_SMC_ERR_IO;
+    }
+
+    return AM_SUCCESS;
 }
 
 AM_ErrorCode_t aml_active (AM_SMC_Device_t *dev)
 {
-	int fd = (int)dev->drv_data;
-	
-	if(ioctl(fd, AMSMC_IOC_ACTIVE, 0))
-	{
-		printf("active card failed \"%s\"", strerror(errno));
-		return AM_SMC_ERR_IO;
-	}
-	
-	return AM_SUCCESS;
+    int fd = (int)dev->drv_data;
+
+    if (ioctl(fd, AMSMC_IOC_ACTIVE, 0))
+    {
+        printf("active card failed \"%s\"", strerror(errno));
+        return AM_SMC_ERR_IO;
+    }
+
+    return AM_SUCCESS;
 }
 
 AM_ErrorCode_t aml_deactive (AM_SMC_Device_t *dev)
 {
-	int fd = (int)dev->drv_data;
-	
-	if(ioctl(fd, AMSMC_IOC_DEACTIVE, 0))
-	{
-		printf("deactive card failed \"%s\"", strerror(errno));
-		return AM_SMC_ERR_IO;
-	}
-	
-	return AM_SUCCESS;
+    int fd = (int)dev->drv_data;
+
+    if (ioctl(fd, AMSMC_IOC_DEACTIVE, 0))
+    {
+        printf("deactive card failed \"%s\"", strerror(errno));
+        return AM_SMC_ERR_IO;
+    }
+
+    return AM_SUCCESS;
 }
 

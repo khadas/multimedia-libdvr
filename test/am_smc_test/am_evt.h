@@ -32,10 +32,10 @@ extern "C"
 /**\brief 事件模块错误代码*/
 enum AM_EVT_ErrorCode
 {
-	AM_EVT_ERROR_BASE=AM_ERROR_BASE(AM_MOD_EVT),
-	AM_EVT_ERR_NO_MEM,                  /**< 空闲内存不足*/
-	AM_EVT_ERR_NOT_SUBSCRIBED,          /**< 事件还没有注册*/
-	AM_EVT_ERR_END
+    AM_EVT_ERROR_BASE=AM_ERROR_BASE(AM_MOD_EVT),
+    AM_EVT_ERR_NO_MEM,                  /**< 空闲内存不足*/
+    AM_EVT_ERR_NOT_SUBSCRIBED,          /**< 事件还没有注册*/
+    AM_EVT_ERR_END
 };
 
 /****************************************************************************
@@ -46,7 +46,7 @@ enum AM_EVT_ErrorCode
 typedef void (*AM_EVT_Callback_t)(int dev_no, int event_type, void *param, void *data);
 
 /****************************************************************************
- * Function prototypes  
+ * Function prototypes
  ***************************************************************************/
 
 /**\brief 注册一个事件回调函数

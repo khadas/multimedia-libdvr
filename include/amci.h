@@ -11,16 +11,16 @@
 
 
 enum AM_CI_IO_MODE {
-	AM_CI_IOR = 0,
-	AM_CI_IOW,
-	AM_CI_MEMR,
-	AM_CI_MEMW
+    AM_CI_IOR = 0,
+    AM_CI_IOW,
+    AM_CI_MEMR,
+    AM_CI_MEMW
 };
 
 struct ci_rw_param {
-	enum AM_CI_IO_MODE mode;
-	int addr;
-	u_int8_t value;
+    enum AM_CI_IO_MODE mode;
+    int addr;
+    u_int8_t value;
 };
 
 

@@ -37,47 +37,47 @@ extern "C"
 
 /**\brief 内存缓冲区分配*/
 #define AM_MEM_Alloc(_size) \
-	({\
-	void *_ptr = malloc(_size);\
-	if (!_ptr) {\
-		AM_MEM_ERROR_DEBUG(_size);\
-	}\
-	_ptr;\
-	})
+    ({\
+    void *_ptr = malloc(_size);\
+    if (!_ptr) {\
+        AM_MEM_ERROR_DEBUG(_size);\
+    }\
+    _ptr;\
+    })
 
 /**\brief 重新设定缓冲区大小*/
 #define AM_MEM_Realloc(_old,_size) \
-	({\
-	void *_ptr=realloc(_old,_size);\
-	if (!_ptr) {\
-		AM_MEM_ERROR_DEBUG(_size);\
-	}\
-	_ptr;\
-	})
+    ({\
+    void *_ptr=realloc(_old,_size);\
+    if (!_ptr) {\
+        AM_MEM_ERROR_DEBUG(_size);\
+    }\
+    _ptr;\
+    })
 
 /**\brief 内存缓冲区释放*/
 #define AM_MEM_Free(_ptr) \
-	AM_MACRO_BEGIN\
-	if (_ptr) free(_ptr);\
-	AM_MACRO_END
+    AM_MACRO_BEGIN\
+    if (_ptr) free(_ptr);\
+    AM_MACRO_END
 
 /**\brief 分配内存并复制字符串*/
 #define AM_MEM_Strdup(_str) \
-	({\
-	void *_ptr = strdup(_str);\
-	if (!_ptr) {\
-		AM_MEM_ERROR_DEBUG(strlen(_str));\
-	}\
-	_ptr;\
-	})
+    ({\
+    void *_ptr = strdup(_str);\
+    if (!_ptr) {\
+        AM_MEM_ERROR_DEBUG(strlen(_str));\
+    }\
+    _ptr;\
+    })
 
 /**\brief 分配内存并将缓冲区清0*/
 #define AM_MEM_Alloc0(_size) \
-	({\
-	void *_ptr = AM_MEM_Alloc((_size));\
-	if(_ptr) memset(_ptr, 0, (_size));\
-	_ptr;\
-	})
+    ({\
+    void *_ptr = AM_MEM_Alloc((_size));\
+    if(_ptr) memset(_ptr, 0, (_size));\
+    _ptr;\
+    })
 
 /**\brief 根据类型_type的大小分配内存*/
 #define AM_MEM_ALLOC_TYPE(_type)       AM_MEM_Alloc(sizeof(_type))
@@ -93,11 +93,11 @@ extern "C"
 
 /**\brief 从内存池分配一个缓冲区并清0*/
 #define AM_MEM_PoolAlloc0(_pool,_size) \
-	({\
-	void *_ptr = AM_MEM_PoolAlloc(_pool,_size);\
-	if(_ptr) memset(_ptr, 0, _size);\
-	_ptr;\
-	})
+    ({\
+    void *_ptr = AM_MEM_PoolAlloc(_pool,_size);\
+    if(_ptr) memset(_ptr, 0, _size);\
+    _ptr;\
+    })
 
 /**\brief 根据类型_type的大小从内存池分配内存*/
 #define AM_MEM_POOL_ALLOC_TYPE(_pool,_type)       AM_MEM_PoolAlloc(_pool,sizeof(_type))
@@ -121,8 +121,8 @@ extern "C"
  */
 typedef struct
 {
-	int        pool_size;   /**< 每次分配的内存大小*/
-	void      *pools;       /**< 内存块链表*/
+    int        pool_size;   /**< 每次分配的内存大小*/
+    void      *pools;       /**< 内存块链表*/
 } AM_MEM_Pool_t;
 
 /****************************************************************************

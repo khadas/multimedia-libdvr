@@ -86,13 +86,13 @@
 #define KEY_FROM_REE_HOST    (0)
 
 typedef struct key_info_s {
-	int key_userid;
-	int key_algo;
-	int key_flag;
-	int key_level;
-	int tee_priv;
-	int key_source;
-	uint8_t key_data[16];
+    int key_userid;
+    int key_algo;
+    int key_flag;
+    int key_level;
+    int tee_priv;
+    int key_source;
+    uint8_t key_data[16];
 }key_info_t;
 
 int keytable_alloc(int key_source, int *kte);

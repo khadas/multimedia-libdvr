@@ -32,18 +32,18 @@ extern "C"
 /**\brief 智能卡模块错误代码*/
 enum AM_SMC_ErrorCode
 {
-	AM_SMC_ERROR_BASE=AM_ERROR_BASE(AM_MOD_SMC),
-	AM_SMC_ERR_INVALID_DEV_NO,           /**< 无效的设备号*/
-	AM_SMC_ERR_BUSY,                     /**< 设备已经打开*/
-	AM_SMC_ERR_NOT_OPENNED,              /**< 设备还没有打开*/
-	AM_SMC_ERR_CANNOT_OPEN_DEV,          /**< 打开设备失败*/
-	AM_SMC_ERR_CANNOT_CREATE_THREAD,     /**< 创建设备失败*/
-	AM_SMC_ERR_TIMEOUT,                  /**< 超时*/
-	AM_SMC_ERR_NOT_SUPPORTED,            /**< 设备不支持此功能*/
-	AM_SMC_ERR_IO,                       /**< 设备输入输出错误*/
-	AM_SMC_ERR_BUF_TOO_SMALL,            /**< 缓冲区太小*/
-	AM_SMC_ERR_NO_CARD,                  /**< 智能卡没有插入*/
-	AM_SMC_ERR_END
+    AM_SMC_ERROR_BASE=AM_ERROR_BASE(AM_MOD_SMC),
+    AM_SMC_ERR_INVALID_DEV_NO,           /**< 无效的设备号*/
+    AM_SMC_ERR_BUSY,                     /**< 设备已经打开*/
+    AM_SMC_ERR_NOT_OPENNED,              /**< 设备还没有打开*/
+    AM_SMC_ERR_CANNOT_OPEN_DEV,          /**< 打开设备失败*/
+    AM_SMC_ERR_CANNOT_CREATE_THREAD,     /**< 创建设备失败*/
+    AM_SMC_ERR_TIMEOUT,                  /**< 超时*/
+    AM_SMC_ERR_NOT_SUPPORTED,            /**< 设备不支持此功能*/
+    AM_SMC_ERR_IO,                       /**< 设备输入输出错误*/
+    AM_SMC_ERR_BUF_TOO_SMALL,            /**< 缓冲区太小*/
+    AM_SMC_ERR_NO_CARD,                  /**< 智能卡没有插入*/
+    AM_SMC_ERR_END
 };
 
 /****************************************************************************
@@ -53,10 +53,10 @@ enum AM_SMC_ErrorCode
 /**\brief 智能卡模块事件类型*/
 enum AM_SMC_EventType
 {
-	AM_SMC_EVT_BASE=AM_EVT_TYPE_BASE(AM_MOD_SMC),
-	AM_SMC_EVT_CARD_IN,                  /**< 智能卡插入*/
-	AM_SMC_EVT_CARD_OUT,                 /**< 智能卡拔出*/
-	AM_SMC_EVT_END
+    AM_SMC_EVT_BASE=AM_EVT_TYPE_BASE(AM_MOD_SMC),
+    AM_SMC_EVT_CARD_IN,                  /**< 智能卡插入*/
+    AM_SMC_EVT_CARD_OUT,                 /**< 智能卡拔出*/
+    AM_SMC_EVT_END
 };
 
 
@@ -67,14 +67,14 @@ enum AM_SMC_EventType
 /**\brief 智能卡设备开启参数*/
 typedef struct
 {
-	int  enable_thread;                  /**< 创建智能卡状态检测线程*/
+    int  enable_thread;                  /**< 创建智能卡状态检测线程*/
 } AM_SMC_OpenPara_t;
 
 /**\brief 智能卡插入状态*/
 typedef enum
 {
-	AM_SMC_CARD_OUT, /**< 智能卡没有插入*/
-	AM_SMC_CARD_IN   /**< 智能卡已经插入*/
+    AM_SMC_CARD_OUT, /**< 智能卡没有插入*/
+    AM_SMC_CARD_IN   /**< 智能卡已经插入*/
 } AM_SMC_CardStatus_t;
 
 /**\brief 智能卡状态回调*/
@@ -83,24 +83,24 @@ typedef void (*AM_SMC_StatusCb_t) (int dev_no, AM_SMC_CardStatus_t status, void 
 /** brief 智能卡参数*/
 typedef struct
 {
-	int     f;                 /**<时钟频率转换系数*/
-	int     d;                 /**<波特率系数*/
-	int     n;                 /**<*/
-	int     bwi;               /**<*/
-	int     cwi;               /**<*/
-	int     bgt;               /**<*/
-	int     freq;              /**<时钟频率*/
-	int     recv_invert;       /**<*/
-	int     recv_lsb_msb;      /**<*/
-	int     recv_no_parity;    /**<*/
-	int     xmit_invert;       /**<*/
-	int     xmit_lsb_msb;      /**<*/
-	int     xmit_retries;      /**<*/
-	int     xmit_repeat_dis;   /**<*/
+    int     f;                 /**<时钟频率转换系数*/
+    int     d;                 /**<波特率系数*/
+    int     n;                 /**<*/
+    int     bwi;               /**<*/
+    int     cwi;               /**<*/
+    int     bgt;               /**<*/
+    int     freq;              /**<时钟频率*/
+    int     recv_invert;       /**<*/
+    int     recv_lsb_msb;      /**<*/
+    int     recv_no_parity;    /**<*/
+    int     xmit_invert;       /**<*/
+    int     xmit_lsb_msb;      /**<*/
+    int     xmit_retries;      /**<*/
+    int     xmit_repeat_dis;   /**<*/
 }AM_SMC_Param_t;
 
 /****************************************************************************
- * Function prototypes  
+ * Function prototypes
  ***************************************************************************/
 
 /**\brief 打开智能卡设备

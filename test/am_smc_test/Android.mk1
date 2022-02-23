@@ -13,7 +13,7 @@ LOCAL_MODULE_TAGS := optional
 
 LOCAL_CFLAGS+=-DANDROID -DAMLINUX -DCHIP_8226M -DLINUX_DVB_FEND
 #LOCAL_C_INCLUDES :=  $(LOCAL_PATH)/../../android/ndk/include
-				
+                
 LOCAL_SHARED_LIBRARIES :=  libc
 
 include $(BUILD_EXECUTABLE)

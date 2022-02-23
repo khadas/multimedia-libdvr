@@ -34,11 +34,11 @@
 typedef struct AM_Event AM_Event_t;
 struct AM_Event
 {
-	AM_Event_t        *next;    /**< 指向链表中的下一个事件*/
-	AM_EVT_Callback_t  cb;      /**< 回调函数*/
-	int                type;    /**< 事件类型*/
-	int                dev_no;  /**< 设备号*/
-	void              *data;    /**< 用户回调参数*/
+    AM_Event_t        *next;    /**< 指向链表中的下一个事件*/
+    AM_EVT_Callback_t  cb;      /**< 回调函数*/
+    int                type;    /**< 事件类型*/
+    int                dev_no;  /**< 设备号*/
+    void              *data;    /**< 用户回调参数*/
 };
 
 /****************************************************************************
@@ -71,35 +71,35 @@ static pthread_mutex_t lock = PTHREAD_RECURSIVE_MUTEX_INITIALIZER;
  */
 AM_ErrorCode_t AM_EVT_Subscribe(int dev_no, int event_type, AM_EVT_Callback_t cb, void *data)
 {
-	AM_Event_t *evt;
-	int pos;
-	
-	assert(cb);
-	
-	/*分配事件*/
-	evt = malloc(sizeof(AM_Event_t));
-	if(!evt)
-	{
-		printf("not enough memory");
-		return AM_EVT_ERR_NO_MEM;
-	}
-	
-	evt->dev_no = dev_no;
-	evt->type   = event_type;
-	evt->cb     = cb;
-	evt->data   = data;
-	
-	pos = event_type%AM_EVT_BUCKET_COUNT;
-	
-	/*加入事件哈希表中*/
-	pthread_mutex_lock(&lock);
-	
-	evt->next   = events[pos];
-	events[pos] = evt;
-	
-	pthread_mutex_unlock(&lock);
-	
-	return AM_SUCCESS;
+    AM_Event_t *evt;
+    int pos;
+
+    assert(cb);
+
+    /*分配事件*/
+    evt = malloc(sizeof(AM_Event_t));
+    if (!evt)
+    {
+        printf("not enough memory");
+        return AM_EVT_ERR_NO_MEM;
+    }
+
+    evt->dev_no = dev_no;
+    evt->type   = event_type;
+    evt->cb     = cb;
+    evt->data   = data;
+
+    pos = event_type%AM_EVT_BUCKET_COUNT;
+
+    /*加入事件哈希表中*/
+    pthread_mutex_lock(&lock);
+
+    evt->next   = events[pos];
+    events[pos] = evt;
+
+    pthread_mutex_unlock(&lock);
+
+    return AM_SUCCESS;
 }
 
 /**\brief 反注册一个事件回调函数
@@ -113,37 +113,37 @@ AM_ErrorCode_t AM_EVT_Subscribe(int dev_no, int event_type, AM_EVT_Callback_t cb
  */
 AM_ErrorCode_t AM_EVT_Unsubscribe(int dev_no, int event_type, AM_EVT_Callback_t cb, void *data)
 {
-	AM_Event_t *evt, *eprev;
-	int pos;
-	
-	assert(cb);
-	
-	pos = event_type%AM_EVT_BUCKET_COUNT;
-	
-	pthread_mutex_lock(&lock);
-	
-	for(eprev=NULL,evt=events[pos]; evt; eprev=evt,evt=evt->next)
-	{
-		if((evt->dev_no==dev_no) && (evt->type==event_type) && (evt->cb==cb) &&
-				(evt->data==data))
-		{
-			if(eprev)
-				eprev->next = evt->next;
-			else
-				events[pos] = evt->next;
-			break;
-		}
-	}
-	
-	pthread_mutex_unlock(&lock);
-	
-	if(evt)
-	{
-		free(evt);
-		return AM_SUCCESS;
-	}
-	
-	return AM_EVT_ERR_NOT_SUBSCRIBED;
+    AM_Event_t *evt, *eprev;
+    int pos;
+
+    assert(cb);
+
+    pos = event_type%AM_EVT_BUCKET_COUNT;
+
+    pthread_mutex_lock(&lock);
+
+    for (eprev = NULL, evt = events[pos]; evt; eprev = evt,evt = evt->next)
+    {
+        if ((evt->dev_no == dev_no) && (evt->type == event_type) && (evt->cb == cb) &&
+                (evt->data == data))
+        {
+            if (eprev)
+                eprev->next = evt->next;
+            else
+                events[pos] = evt->next;
+            break;
+        }
+    }
+
+    pthread_mutex_unlock(&lock);
+
+    if (evt)
+    {
+        free(evt);
+        return AM_SUCCESS;
+    }
+
+    return AM_EVT_ERR_NOT_SUBSCRIBED;
 }
 
 /**\brief 触发一个事件
@@ -153,21 +153,21 @@ AM_ErrorCode_t AM_EVT_Unsubscribe(int dev_no, int event_type, AM_EVT_Callback_t 
  */
 AM_ErrorCode_t AM_EVT_Signal(int dev_no, int event_type, void *param)
 {
-	AM_Event_t *evt;
-	int pos = event_type%AM_EVT_BUCKET_COUNT;
-	
-	pthread_mutex_lock(&lock);
-	
-	for(evt=events[pos]; evt; evt=evt->next)
-	{
-		if((evt->dev_no==dev_no) && (evt->type==event_type))
-		{
-			evt->cb(dev_no, event_type, param, evt->data);
-		}
-	}
-	
-	pthread_mutex_unlock(&lock);
-	
-	return AM_SUCCESS;
+    AM_Event_t *evt;
+    int pos = event_type%AM_EVT_BUCKET_COUNT;
+
+    pthread_mutex_lock(&lock);
+
+    for (evt = events[pos]; evt; evt = evt->next)
+    {
+        if ((evt->dev_no == dev_no) && (evt->type == event_type))
+        {
+            evt->cb(dev_no, event_type, param, evt->data);
+        }
+    }
+
+    pthread_mutex_unlock(&lock);
+
+    return AM_SUCCESS;
 }
 

@@ -93,6 +93,7 @@ typedef struct {
   uint8_t                     *cleariv;           /**< iv for encrpted PVR on FTA.*/
   uint32_t                    keylen;             /**< key/iv length.*/
   int                         ringbuf_size;       /**< DVR record ring buf size*/
+  int                         notification_time;  /**< DVR record notification time, record moudle would send a notifaction when the size of current segment is multiple of this value. Put 0 in this argument if you don't want to receive the notification*/
 } DVR_RecordOpenParams_t;
 
 /**\brief DVR record segment start parameters*/

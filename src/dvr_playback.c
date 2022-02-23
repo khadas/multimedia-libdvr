@@ -1655,8 +1655,8 @@ int dvr_playback_open(DVR_PlaybackHandle_t *p_handle, DVR_PlaybackOpenParams_t *
   //allocate cryptor if have clearkey
   if (params->keylen > 0) {
     player->cryptor = am_crypt_des_open((uint8_t *)params->clearkey,
-				(uint8_t *)params->cleariv,
-				params->keylen * 8);
+                (uint8_t *)params->cleariv,
+                params->keylen * 8);
     if (!player->cryptor) {
       DVR_DEBUG(1, "%s , open des cryptor failed!!!\n", __func__);
     }

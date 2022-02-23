@@ -14,10 +14,10 @@ LDFLAGS := -lpthread
 all : $(OBJS) $(OUTPUT)
 
 $(OBJS) : %.o : %.c
-	$(CC) $(CFLAGS) -c $< -o $@
+    $(CC) $(CFLAGS) -c $< -o $@
 
 $(OUTPUT) : $(OBJS)
-	$(CC) $(LDFLAGS) -o $@ $^
+    $(CC) $(LDFLAGS) -o $@ $^
 
 clean:
-	@rm -f $(OBJS)
+    @rm -f $(OBJS)

@@ -24,30 +24,30 @@
 #define AMSMC_MAX_ATR_LEN    33
 
 enum {
-	AMSMC_CARDOUT = 0,
-	AMSMC_CARDIN = 1
+    AMSMC_CARDOUT = 0,
+    AMSMC_CARDIN = 1
 };
 
 struct am_smc_atr {
-	char    atr[AMSMC_MAX_ATR_LEN];
-	int     atr_len;
+    char    atr[AMSMC_MAX_ATR_LEN];
+    int     atr_len;
 };
 
 struct am_smc_param {
-	int     f;
-	int     d;
-	int     n;
-	int     bwi;
-	int     cwi;
-	int     bgt;
-	int     freq;
-	int     recv_invert;
-	int     recv_lsb_msb;
-	int     recv_no_parity;
-	int     xmit_invert;
-	int     xmit_lsb_msb;
-	int     xmit_retries;
-	int     xmit_repeat_dis;
+    int     f;
+    int     d;
+    int     n;
+    int     bwi;
+    int     cwi;
+    int     bgt;
+    int     freq;
+    int     recv_invert;
+    int     recv_lsb_msb;
+    int     recv_no_parity;
+    int     xmit_invert;
+    int     xmit_lsb_msb;
+    int     xmit_retries;
+    int     xmit_repeat_dis;
 };
 
 #define AMSMC_IOC_MAGIC  'C'

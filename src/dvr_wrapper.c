@@ -1006,6 +1006,7 @@ int dvr_wrapper_open_record (DVR_WrapperRecord_t *rec, DVR_WrapperRecordOpenPara
   } else {
     open_param.notification_size = 64*1024;
   }
+  open_param.notification_time = 400;//ms
   open_param.flush_size = params->flush_size;
   open_param.ringbuf_size = params->ringbuf_size;
   open_param.event_fn = wrapper_record_event_handler;
@@ -1719,6 +1720,59 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
   }
   pthread_mutex_unlock(&ctx->lock);
 
+  return error;
+}
+//stop record and playback
+int dvr_wrapper_stop_timeshift (DVR_WrapperPlayback_t playback)
+{
+  DVR_WrapperCtx_t *ctx_record = NULL;/*for timeshift*/
+  int error;
+  DVR_WRAPPER_DEBUG(1, "stop timeshift record\n");
+
+  //stop timeshift record
+  ctx_record = ctx_getRecord(sn_timeshift_record);
+  error = dvr_wrapper_stop_record((DVR_WrapperRecord_t)sn_timeshift_record);
+
+  DVR_WRAPPER_DEBUG(1, "stop timeshift ...stop play\n");
+  //stop play
+  error = dvr_wrapper_stop_playback(playback);
+  //del timeshift file
+  if (ctx_record != NULL) {
+    DVR_WRAPPER_DEBUG(1, "del timeshift(sn:%ld) ...3\n", ctx_record->sn);
+    error = dvr_segment_del_by_location(ctx_record->record.param_open.location);
+  }
+  return error;
+}
+//start record and start playback
+int dvr_wrapper_restart_timeshift(DVR_WrapperPlayback_t playback, DVR_PlaybackFlag_t flags, DVR_PlaybackPids_t *p_pids)
+{
+  DVR_WrapperCtx_t *ctx;
+  DVR_RecordStartParams_t *start_param;
+  int error;
+
+  ctx = ctx_getRecord((unsigned long)sn_timeshift_record);
+  DVR_RETURN_IF_FALSE(ctx);
+
+  pthread_mutex_lock(&ctx->lock);
+  DVR_WRAPPER_DEBUG(1, "restart record(sn:%ld, location:%s)...\n", ctx->sn, ctx->record.param_open.location);
+  DVR_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->lock);
+
+  start_param = &ctx->record.param_start;
+
+  error = dvr_record_start_segment(ctx->record.recorder, start_param);
+  {
+    DVR_RecordSegmentInfo_t new_seg_info =
+      { .id = start_param->segment.segment_id, };
+    wrapper_addRecordSegment(ctx, &new_seg_info);
+  }
+
+  DVR_WRAPPER_DEBUG(1, "re record(sn:%ld) started = (%d)\n", ctx->sn, error);
+
+  pthread_mutex_unlock(&ctx->lock);
+
+  //start play
+  DVR_WRAPPER_DEBUG(1, "re start play\n");
+  error = dvr_wrapper_start_playback(playback, flags, p_pids);
   return error;
 }
 

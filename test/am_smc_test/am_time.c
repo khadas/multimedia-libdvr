@@ -22,7 +22,7 @@
  ***************************************************************************/
 #ifdef ANDROID
 #undef CLOCK_REALTIME
-#define CLOCK_REALTIME	CLOCK_MONOTONIC
+#define CLOCK_REALTIME    CLOCK_MONOTONIC
 #endif
 
 /****************************************************************************
@@ -37,16 +37,16 @@
  */
 AM_ErrorCode_t AM_TIME_GetClock(int *clock)
 {
-	struct timespec ts;
-	int ms;
-	
-	assert(clock);
-	
-	clock_gettime(CLOCK_REALTIME, &ts);
-	ms = ts.tv_sec*1000+ts.tv_nsec/1000000;
-	*clock = ms;
-	
-	return AM_SUCCESS;
+    struct timespec ts;
+    int ms;
+
+    assert(clock);
+
+    clock_gettime(CLOCK_REALTIME, &ts);
+    ms = ts.tv_sec*1000+ts.tv_nsec/1000000;
+    *clock = ms;
+
+    return AM_SUCCESS;
 }
 
 /**\brief 得到开机到当前系统运行的时间，格式为struct timespec
@@ -57,11 +57,11 @@ AM_ErrorCode_t AM_TIME_GetClock(int *clock)
  */
 AM_ErrorCode_t AM_TIME_GetTimeSpec(struct timespec *ts)
 {
-	assert(ts);
-	
-	clock_gettime(CLOCK_REALTIME, ts);
-	
-	return AM_SUCCESS;
+    assert(ts);
+
+    clock_gettime(CLOCK_REALTIME, ts);
+
+    return AM_SUCCESS;
 }
 
 /**\brief 得到若干毫秒后的timespec值
@@ -74,30 +74,30 @@ AM_ErrorCode_t AM_TIME_GetTimeSpec(struct timespec *ts)
  */
 AM_ErrorCode_t AM_TIME_GetTimeSpecTimeout(int timeout, struct timespec *ts)
 {
-	struct timespec ots;
-	int left, diff;
-	
-	assert(ts);
-	
-	clock_gettime(CLOCK_REALTIME, &ots);
-	
-	ts->tv_sec  = ots.tv_sec + timeout/1000;
-	ts->tv_nsec = ots.tv_nsec;
-	
-	left = timeout % 1000;
-	left *= 1000000;
-	diff = 1000000000-ots.tv_nsec;
+    struct timespec ots;
+    int left, diff;
 
-	if(diff<=left)
-	{
-		ts->tv_sec++;
-		ts->tv_nsec = left-diff;
-	}
-	else
-	{
-		ts->tv_nsec += left;
-	}
+    assert(ts);
 
-	return AM_SUCCESS;
+    clock_gettime(CLOCK_REALTIME, &ots);
+
+    ts->tv_sec  = ots.tv_sec + timeout/1000;
+    ts->tv_nsec = ots.tv_nsec;
+
+    left = timeout % 1000;
+    left *= 1000000;
+    diff = 1000000000-ots.tv_nsec;
+
+    if (diff <= left)
+    {
+        ts->tv_sec++;
+        ts->tv_nsec = left-diff;
+    }
+    else
+    {
+        ts->tv_nsec += left;
+    }
+
+    return AM_SUCCESS;
 }
 

@@ -356,7 +356,22 @@ int dvr_wrapper_segment_del_by_location (const char *location);
  */
 int dvr_wrapper_segment_get_info_by_location (const char *location, DVR_WrapperInfo_t *p_info);
 
-
+/**
+ * Stop timeshit.
+ * \param playback The playback handle.
+ * \retval DVR_SUCCESS On success.
+ * \return Error code.
+ */
+int dvr_wrapper_stop_timeshift (DVR_WrapperPlayback_t playback);
+/**
+ * reStart timeshift.
+ * \param playback The playback handle.
+ * \param flags Playback flags.
+ * \param p_pids playback pids info
+ * \retval DVR_SUCCESS On success.
+ * \return Error code.
+ */
+int dvr_wrapper_restart_timeshift(DVR_WrapperPlayback_t playback, DVR_PlaybackFlag_t flags, DVR_PlaybackPids_t *p_pids);
 
 #ifdef __cplusplus
 }

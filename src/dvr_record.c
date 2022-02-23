@@ -74,7 +74,9 @@ typedef struct {
   int                             index_type;                           /**< DVR is used pcr or local time */
   uint64_t                        pts;                                  /**< The newest pcr or local time */
   int                             check_pts_count;                      /**< The check count of pts */
-  int                             check_no_pts_count;                      /**< The check count of no pts */
+  int                             check_no_pts_count;                   /**< The check count of no pts */
+  int                             notification_time;                    /**< DVR record nogification time*/
+  time_t                          last_send_time;                       /**< Last send notify segment duration */
 } DVR_RecordContext_t;
 
 extern ssize_t record_device_read_ext(Record_DeviceHandle_t handle, size_t *buf, size_t *len);
@@ -233,12 +235,13 @@ void *record_thread(void *arg)
           __func__,__LINE__, record_status.state, p_ctx->segment_info.id);
   }
   DVR_DEBUG(1, "%s, --secure_mode:%d, block_size:%d, cryptor:%p",
-	    __func__, p_ctx->is_secure_mode,
-	    block_size, p_ctx->cryptor);
+        __func__, p_ctx->is_secure_mode,
+        block_size, p_ctx->cryptor);
   clock_gettime(CLOCK_MONOTONIC, &start_ts);
   p_ctx->check_pts_count = 0;
   p_ctx->check_no_pts_count++;
-
+  p_ctx->last_send_size = 0;
+  p_ctx->last_send_time = 0;
   struct timeval t1, t2, t3, t4, t5, t6, t7;
   while (p_ctx->state == DVR_RECORD_STATE_STARTED ||
     p_ctx->state == DVR_RECORD_STATE_PAUSE) {
@@ -257,19 +260,19 @@ void *record_thread(void *arg)
           /* We resolve the below invoke for dvbcore to be under safety status */
           memset(&new_dmx_secure_buf, 0, sizeof(new_dmx_secure_buf));
           len = record_device_read(p_ctx->dev_handle, &new_dmx_secure_buf, sizeof(new_dmx_secure_buf), 10);
-	  if (len == DVR_FAILURE) {
-	    DVR_DEBUG(1, "handle[%p] ret:%d\n", p_ctx->dev_handle, ret);
-	    /*For the second recording, poll always failed which we should check
-	     * dvbcore further. For now, Just ignore the fack poll fail, I think
-	     * it won't influce anything. But we need adjust the poll timeout
-	     * from 1000ms to 10ms.
-	     */
-	    //continue;
-	  }
+      if (len == DVR_FAILURE) {
+        DVR_DEBUG(1, "handle[%p] ret:%d\n", p_ctx->dev_handle, ret);
+        /*For the second recording, poll always failed which we should check
+         * dvbcore further. For now, Just ignore the fack poll fail, I think
+         * it won't influce anything. But we need adjust the poll timeout
+         * from 1000ms to 10ms.
+         */
+        //continue;
+      }
 
-	  /* Read data from secure demux TA */
-	  len = record_device_read_ext(p_ctx->dev_handle, &secure_buf.addr,
-				       &secure_buf.len);
+      /* Read data from secure demux TA */
+      len = record_device_read_ext(p_ctx->dev_handle, &secure_buf.addr,
+                       &secure_buf.len);
 
       } else {
           memset(&secure_buf, 0, sizeof(secure_buf));
@@ -434,15 +437,16 @@ void *record_thread(void *arg)
     }
     gettimeofday(&t6, NULL);
      /*Event notification*/
-    if (p_ctx->notification_size &&
-        p_ctx->event_notify_fn &&
+    if (((p_ctx->notification_size > 0 && (p_ctx->segment_info.size -p_ctx->last_send_size) >= p_ctx->notification_size) ||
         /*!(p_ctx->segment_info.size % p_ctx->notification_size)*/
-    (p_ctx->segment_info.size -p_ctx->last_send_size) >= p_ctx->notification_size&&
+        ( p_ctx->notification_time > 0 && (p_ctx->segment_info.duration -p_ctx->last_send_time) >= p_ctx->notification_time))&&
+        p_ctx->event_notify_fn &&
         p_ctx->segment_info.duration > 0  &&
         p_ctx->state == DVR_RECORD_STATE_STARTED) {
       memset(&record_status, 0, sizeof(record_status));
       //clock_gettime(CLOCK_MONOTONIC, &end_ts);
       p_ctx->last_send_size = p_ctx->segment_info.size;
+      p_ctx->last_send_time = p_ctx->segment_info.duration;
       record_status.state = p_ctx->state;
       record_status.info.id = p_ctx->segment_info.id;
       if (p_ctx->index_type == DVR_INDEX_TYPE_LOCAL_CLOCK)
@@ -459,9 +463,10 @@ void *record_thread(void *arg)
     }
     gettimeofday(&t7, NULL);
 #ifdef DEBUG_PERFORMANCE
-    DVR_DEBUG(1, "record count, read:%dms, encrypt:%dms, write:%dms, index:%dms, store:%dms, notify:%dms total:%dms read len:%zd ",
+    DVR_DEBUG(1, "record count, read:%dms, encrypt:%dms, write:%dms, index:%dms, store:%dms, notify:%dms total:%dms read len:%zd notify [%d]diff[%d]",
         get_diff_time(t1, t2), get_diff_time(t2, t3), get_diff_time(t3, t4), get_diff_time(t4, t5),
-        get_diff_time(t5, t6), get_diff_time(t6, t7), get_diff_time(t1, t5), len);
+        get_diff_time(t5, t6), get_diff_time(t6, t7), get_diff_time(t1, t5), len,
+        p_ctx->notification_time,p_ctx->segment_info.duration -p_ctx->last_send_time);
 #endif
   }
 end:
@@ -491,20 +496,23 @@ int dvr_record_open(DVR_RecordHandle_t *p_handle, DVR_RecordOpenParams_t *params
   p_ctx = &record_ctx[i];
   DVR_DEBUG(1, "%s , current state:%d, dmx_id:%d, notification_size:%zu, flags:%d, keylen:%d ",
         __func__, p_ctx->state, params->dmx_dev_id,
-	params->notification_size,
-	params->flags, params->keylen);
+    params->notification_size,
+    params->flags, params->keylen);
 
   /*Process event params*/
   p_ctx->notification_size = params->notification_size;
+  p_ctx->notification_time = params->notification_time;
+
   p_ctx->event_notify_fn = params->event_fn;
   p_ctx->event_userdata = params->event_userdata;
   p_ctx->last_send_size = 0;
+  p_ctx->last_send_time = 0;
   p_ctx->pts = ULLONG_MAX;
 
   if (params->keylen > 0) {
     p_ctx->cryptor = am_crypt_des_open(params->clearkey,
-				params->cleariv,
-				params->keylen * 8);
+                params->cleariv,
+                params->keylen * 8);
     if (!p_ctx->cryptor)
       DVR_DEBUG(1, "%s , open des cryptor failed!!!\n", __func__);
   } else {
@@ -745,7 +753,8 @@ int dvr_record_next_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t *
   open_params.segment_id = params->segment.segment_id;
   open_params.mode = SEGMENT_MODE_WRITE;
   DVR_DEBUG(1, "%s: p_ctx->location:%s  params->location:%s", __func__, p_ctx->location,params->location);
-
+  p_ctx->last_send_size = 0;
+  p_ctx->last_send_time = 0;
   ret = segment_open(&open_params, &p_ctx->segment_handle);
   DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
   /*process params*/
@@ -990,6 +999,7 @@ int dvr_record_is_secure_mode(DVR_RecordHandle_t handle)
     if (p_ctx == &record_ctx[i])
       break;
   }
+
   DVR_RETURN_IF_FALSE(p_ctx == &record_ctx[i]);
 
   if (p_ctx->is_secure_mode == 1)
