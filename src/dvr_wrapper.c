@@ -787,6 +787,7 @@ static int wrapper_addPlaybackSegment(DVR_WrapperCtx_t *ctx,
   pseg->playback_info.pids = *p_pids;
   pseg->playback_info.flags = flags;
   list_add(&pseg->head, &ctx->segments);
+  DVR_WRAPPER_DEBUG(1, "start to add segment %lld\n", pseg->playback_info.segment_id);
   pseg->playback_info.duration = pseg->seg_info.duration;
 
   error = dvr_playback_add_segment(ctx->playback.player, &pseg->playback_info);
@@ -838,11 +839,17 @@ static int wrapper_addRecordSegment(DVR_WrapperCtx_t *ctx, DVR_RecordSegmentInfo
           if (ctx->record.param_open.flags & DVR_RECORD_FLAG_SCRAMBLED)
             flags |= DVR_PLAYBACK_SEGMENT_ENCRYPTED;
           wrapper_addPlaybackSegment(ctx_playback, seg_info, &ctx_playback->playback.pids_req, flags);
+        } else {
+          DVR_WRAPPER_DEBUG(1, "ctx_playback list_empty(&ctx_playback->segments) true\n");
         }
       } else {
             DVR_WRAPPER_DEBUG(1, "ctx_playback ---- not valid\n");
       }
       pthread_mutex_unlock(&ctx_playback->lock);
+    }
+    else
+    {
+      DVR_WRAPPER_DEBUG(1, "ctx_playback ---- not valid 1\n");
     }
   } else {
     DVR_WRAPPER_DEBUG(1, "ctx_playback -sn[%d]-\n", sn);
@@ -1707,6 +1714,8 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
           ctx->sn, seg_info_1st.id, error);
       }
       DVR_WRAPPER_DEBUG(1, "playback(sn:%ld) started (%d)\n", ctx->sn, error);
+    } else {
+      DVR_WRAPPER_DEBUG(1, "playback(sn:%ld) started (%d)got_1st_seg:%d\n", ctx->sn, error, got_1st_seg);
     }
   }
 
@@ -1757,6 +1766,28 @@ int dvr_wrapper_restart_timeshift(DVR_WrapperPlayback_t playback, DVR_PlaybackFl
   DVR_WRAPPER_DEBUG(1, "restart record(sn:%ld, location:%s)...\n", ctx->sn, ctx->record.param_open.location);
   DVR_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->lock);
 
+  {
+    //clear old record status
+    //   struct {
+    //   DVR_WrapperRecordOpenParams_t   param_open;
+    //   DVR_RecordStartParams_t         param_start;
+    //   DVR_RecordStartParams_t         param_update;
+    //   DVR_RecordHandle_t              recorder;
+    //   DVR_RecordEventFunction_t       event_fn;
+    //   void                            *event_userdata;
+
+    //   /*total status = seg_status + status + obsolete*/
+    //   DVR_RecordStatus_t              seg_status;            /**<status of current segment*/
+    //   DVR_WrapperRecordStatus_t       status;                /**<status of remaining segments*/
+    //   uint64_t                        next_segment_id;
+
+    //   DVR_WrapperInfo_t               obsolete;             /**<data obsolete due to the max limit*/
+    // } record;
+    memset(&(ctx->record.seg_status), 0, sizeof(DVR_RecordStatus_t));
+    memset(&(ctx->record.status), 0, sizeof(DVR_WrapperRecordStatus_t));
+    memset(&(ctx->record.obsolete), 0, sizeof(DVR_WrapperInfo_t));
+  }
+
   start_param = &ctx->record.param_start;
 
   error = dvr_record_start_segment(ctx->record.recorder, start_param);
@@ -1764,6 +1795,14 @@ int dvr_wrapper_restart_timeshift(DVR_WrapperPlayback_t playback, DVR_PlaybackFl
     DVR_RecordSegmentInfo_t new_seg_info =
       { .id = start_param->segment.segment_id, };
     wrapper_addRecordSegment(ctx, &new_seg_info);
+    DVR_WRAPPER_DEBUG(1, "re record(sn:%ld) started = (%d)start id[%lld]id+[%lld]update id[%lld]\n", ctx->sn, error, start_param->segment.segment_id, ctx->record.next_segment_id, ctx->record.param_update.segment.segment_id);
+    ctx->record.next_segment_id = start_param->segment.segment_id + 1;
+    DVR_RecordStartParams_t *update_param;
+    update_param = &ctx->record.param_update;
+    memcpy(update_param, start_param, sizeof(*update_param));
+    int i = 0;
+    for (i = 0; i < update_param->segment.nb_pids; i++)
+      update_param->segment.pid_action[i] = DVR_RECORD_PID_KEEP;
   }
 
   DVR_WRAPPER_DEBUG(1, "re record(sn:%ld) started = (%d)\n", ctx->sn, error);
@@ -1771,7 +1810,35 @@ int dvr_wrapper_restart_timeshift(DVR_WrapperPlayback_t playback, DVR_PlaybackFl
   pthread_mutex_unlock(&ctx->lock);
 
   //start play
-  DVR_WRAPPER_DEBUG(1, "re start play\n");
+  DVR_WRAPPER_DEBUG(1, "re start play and clear old status\n");
+  //clear play statue
+  ctx = ctx_getPlayback((unsigned long)playback);
+  if (ctx) {
+    //clear old playback status
+    //     struct {
+    //   DVR_WrapperPlaybackOpenParams_t param_open;
+    //   DVR_PlaybackHandle_t            player;
+    //   DVR_PlaybackEventFunction_t     event_fn;
+    //   void                            *event_userdata;
+
+    //   /*total status = seg_status + status*/
+    //   DVR_PlaybackStatus_t            seg_status;
+    //   DVR_WrapperPlaybackStatus_t     status;
+    //   DVR_PlaybackPids_t              pids_req;
+    //   DVR_PlaybackEvent_t             last_event;
+    //   float                           speed;
+    //   DVR_Bool_t                      reach_end;
+
+    //   DVR_WrapperInfo_t               obsolete;
+    //   DVR_Bool_t                      tf_full;
+    // } playback;
+    ctx->playback.tf_full == DVR_FALSE;
+    ctx->playback.reach_end == DVR_FALSE;
+    memset(&(ctx->playback.last_event), 0, sizeof(DVR_PlaybackEvent_t));
+    memset(&(ctx->playback.seg_status), 0, sizeof(DVR_PlaybackStatus_t));
+    memset(&(ctx->playback.status), 0, sizeof(DVR_WrapperPlaybackStatus_t));
+    memset(&(ctx->playback.obsolete), 0, sizeof(DVR_WrapperInfo_t));
+  }
   error = dvr_wrapper_start_playback(playback, flags, p_pids);
   return error;
 }
@@ -2622,8 +2689,11 @@ static int process_generatePlaybackStatus(DVR_WrapperCtx_t *ctx, DVR_WrapperPlay
   ctx->current_segment_id = ctx->playback.seg_status.segment_id;
 
   list_for_each_entry_reverse(pseg, &ctx->segments, head) {
-    if (pseg->seg_info.id == ctx->playback.seg_status.segment_id)
+    if (pseg->seg_info.id == ctx->playback.seg_status.segment_id) {
+        DVR_WRAPPER_DEBUG(1, "caulate cur time :[%lld]time[%d]\n", pseg->seg_info.id, pseg->seg_info.duration);
         break;
+    }
+
     ctx->playback.status.info_cur.time += pseg->seg_info.duration;
     ctx->playback.status.info_cur.size += pseg->seg_info.size;
     ctx->playback.status.info_cur.pkts += pseg->seg_info.nb_packets;
@@ -2632,6 +2702,7 @@ static int process_generatePlaybackStatus(DVR_WrapperCtx_t *ctx, DVR_WrapperPlay
     ctx->playback.status.info_full.time += pseg->seg_info.duration;
     ctx->playback.status.info_full.size += pseg->seg_info.size;
     ctx->playback.status.info_full.pkts += pseg->seg_info.nb_packets;
+    DVR_WRAPPER_DEBUG(1, "caulate full time :[%lld]time[%d]\n", pseg->seg_info.id, pseg->seg_info.duration);
   }
 
   if (status) {

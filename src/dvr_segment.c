@@ -131,6 +131,7 @@ int dvr_segment_get_list(const char *location, uint32_t *p_segment_nb, uint64_t 
       pclose(fp);
     } else {
       pclose(fp);
+      DVR_DEBUG(1, "%s location:%s get null",  __func__, location);
       return DVR_FAILURE;
     }
     //DVR_DEBUG(1, "%s location:%s   i: %d ls buf:%s", __func__, location, i, buf);

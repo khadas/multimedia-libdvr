@@ -286,7 +286,7 @@ void *record_thread(void *arg)
     }
     if (len == DVR_FAILURE) {
       //usleep(10*1000);
-      DVR_DEBUG(1, "%s, start_read error", __func__);
+      //DVR_DEBUG(1, "%s, start_read error", __func__);
       continue;
     }
     gettimeofday(&t2, NULL);
