@@ -88,6 +88,7 @@ typedef struct {
   void                        *event_userdata;           /**< DVR event userdata.*/
   int                   flush_size;                      /**< DVR flush size.*/
   int                   ringbuf_size;                    /**< DVR ringbuf size.*/
+  DVR_Bool_t            force_sysclock;                  /**< If ture, force to use system clock as PVR index time source. If false, libdvr can determine index time source based on actual situation*/
 } DVR_WrapperRecordOpenParams_t;
 
 typedef struct {

@@ -27,6 +27,7 @@ typedef struct Segment_OpenParams_s {
   char                  location[DVR_MAX_LOCATION_SIZE];        /**< Segment file location*/
   uint64_t              segment_id;                             /**< Segment index*/
   Segment_OpenMode_t    mode;                                   /**< Segment open mode*/
+  DVR_Bool_t            force_sysclock;                         /**< If ture, force to use system clock as PVR index time source. If false, libdvr can determine index time source based on actual situation*/
 } Segment_OpenParams_t;
 
 /**\brief Open a segment for a target giving some open parameters

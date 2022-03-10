@@ -39,6 +39,7 @@ typedef struct {
   loff_t          last_record_offset;
   float           avg_rate;
   int             time;
+  DVR_Bool_t      force_sysclock;                     /**< If ture, force to use system clock as PVR index time source. If false, libdvr can determine index time source based on actual situation*/
  } Segment_Context_t;
 
 /**\brief Segment file type*/
@@ -184,6 +185,7 @@ int segment_open(Segment_OpenParams_t *params, Segment_Handle_t *p_handle)
   }
   p_ctx->segment_id = params->segment_id;
   strncpy(p_ctx->location, params->location, strlen(params->location));
+  p_ctx->force_sysclock = params->force_sysclock;
 
   //DVR_DEBUG(1, "%s, open file success p_ctx->location [%s]", __func__, p_ctx->location, params->mode);
   *p_handle = (Segment_Handle_t)p_ctx;
@@ -322,34 +324,42 @@ int segment_update_pts(Segment_Handle_t handle, uint64_t pts, loff_t offset)
     sprintf(buf, "{time=%llu, offset=%lld}", pts - p_ctx->first_pts, offset);
     p_ctx->cur_time = pts - p_ctx->first_pts;
   } else {
-    /*Last pts has valid value*/
-    int diff = pts - p_ctx->last_pts;
-    if ((diff > MAX_PTS_THRESHOLD) || (diff < 0)) {
-      /*Current pts has a transition*/
-      DVR_DEBUG(1, "Current pts has a transition, [%llu, %llu, %llu]",
-          p_ctx->first_pts, p_ctx->last_pts, pts);
-      p_ctx->last_record_pts = pts;
-      //p_ctx->cur_time = p_ctx->cur_time + PTS_DISCONTINE_DEVIATION;
-    } else {
-      /*This is a normal pts, record it*/
-      loff_t off_diff = offset - p_ctx->last_offset;
-      float rate = (float) (off_diff) / (float)(diff);
-      if (p_ctx->avg_rate == 0.0) {
-            p_ctx->avg_rate = (float) offset / (float)(p_ctx->cur_time + diff);
-      }
-      if (diff >= PCR_JUMP_DUR) {
-        DVR_DEBUG(1, "PTS TRANSITION ERROR last pcr[%llu]pts[%llu]pcr diff[%d]off[%llu]off_diff[%llu]rate[%f]avg rate[%f]4*rate[%d]av_diff[%d]",p_ctx->last_pts, pts, diff, offset,off_diff, rate, p_ctx->avg_rate, (int)(rate * 4), (int)(off_diff / p_ctx->avg_rate));
-        if (p_ctx->avg_rate != 0 && (int)(p_ctx->avg_rate) >= (int)(rate * 4)) {
-          diff = off_diff / p_ctx->avg_rate;
-          p_ctx->cur_time += diff;
-        } else {
-          p_ctx->cur_time += diff;
-        }
+    if (!p_ctx->force_sysclock) {
+      /* if force_sysclock is off, we follow old manner. Please refer to
+       * SWPL-75327*/
+      /*Last pts has valid value*/
+      int diff = pts - p_ctx->last_pts;
+      if ((diff > MAX_PTS_THRESHOLD) || (diff < 0)) {
+        /*Current pts has a transition*/
+        DVR_DEBUG(1, "Current pts has a transition, [%llu, %llu, %llu]",
+            p_ctx->first_pts, p_ctx->last_pts, pts);
+        p_ctx->last_record_pts = pts;
+        //p_ctx->cur_time = p_ctx->cur_time + PTS_DISCONTINE_DEVIATION;
       } else {
-         p_ctx->cur_time += diff;
+        /*This is a normal pts, record it*/
+        loff_t off_diff = offset - p_ctx->last_offset;
+        float rate = (float) (off_diff) / (float)(diff);
+        if (p_ctx->avg_rate == 0.0) {
+              p_ctx->avg_rate = (float) offset / (float)(p_ctx->cur_time + diff);
+        }
+        if (diff >= PCR_JUMP_DUR) {
+          DVR_DEBUG(1, "PTS TRANSITION ERROR last pcr[%llu]pts[%llu]pcr diff[%d]off[%llu]off_diff[%llu]rate[%f]avg rate[%f]4*rate[%d]av_diff[%d]",p_ctx->last_pts, pts, diff, offset,off_diff, rate, p_ctx->avg_rate, (int)(rate * 4), (int)(off_diff / p_ctx->avg_rate));
+          if (p_ctx->avg_rate != 0 && (int)(p_ctx->avg_rate) >= (int)(rate * 4)) {
+            diff = off_diff / p_ctx->avg_rate;
+            p_ctx->cur_time += diff;
+          } else {
+            p_ctx->cur_time += diff;
+          }
+        } else {
+           p_ctx->cur_time += diff;
+        }
       }
-      sprintf(buf, "\n{time=%llu, offset=%lld}", p_ctx->cur_time, offset);
+    } else {
+      /* if force_sysclock is on, we simply calculate cur_time based on system
+       * time. Please refer to SWPL-75327*/
+      p_ctx->cur_time = pts - p_ctx->first_pts;
     }
+    sprintf(buf, "\n{time=%llu, offset=%lld}", p_ctx->cur_time, offset);
   }
 
   record_diff = pts - p_ctx->last_record_pts;

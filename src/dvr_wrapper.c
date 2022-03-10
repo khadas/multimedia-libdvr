@@ -1023,6 +1023,7 @@ int dvr_wrapper_open_record (DVR_WrapperRecord_t *rec, DVR_WrapperRecordOpenPara
     open_param.cleariv = params->cleariv;
     open_param.keylen = params->keylen;
   }
+  open_param.force_sysclock = params->force_sysclock;
 
   error = dvr_record_open(&ctx->record.recorder, &open_param);
   if (error) {

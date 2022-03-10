@@ -484,6 +484,9 @@ static int start_recording()
     if (!(vpid > 0 && vpid < 0x1fff))
       rec_open_params.flush_size = 1024;
 
+    /* Give it false to follow old manner. Please refer to SWPL-75327*/
+    rec_open_params.force_sysclock = DVR_FALSE;
+
     error = dvr_wrapper_open_record(&recorder, &rec_open_params);
     if (error) {
       ERR( "recorder open fail = (0x%x)\n", error);

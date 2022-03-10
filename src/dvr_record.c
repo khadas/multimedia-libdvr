@@ -72,6 +72,7 @@ typedef struct {
   uint32_t                        block_size;                           /**< DVR record block size */
   DVR_Bool_t                      is_new_dmx;                           /**< DVR is used new dmx driver */
   int                             index_type;                           /**< DVR is used pcr or local time */
+  DVR_Bool_t                      force_sysclock;                       /**< If ture, force to use system clock as PVR index time source. If false, libdvr can determine index time source based on actual situation*/
   uint64_t                        pts;                                  /**< The newest pcr or local time */
   int                             check_pts_count;                      /**< The check count of pts */
   int                             check_no_pts_count;                   /**< The check count of no pts */
@@ -213,6 +214,10 @@ void *record_thread(void *arg)
   else
     p_ctx->index_type = DVR_INDEX_TYPE_LOCAL_CLOCK;
 
+  // Force to use LOCAL_CLOCK as index type if force_sysclock is on. Please
+  // refer to SWPL-75327
+  if (p_ctx->force_sysclock)
+    p_ctx->index_type = DVR_INDEX_TYPE_LOCAL_CLOCK;
   buf = (uint8_t *)malloc(block_size);
   if (!buf) {
     DVR_DEBUG(1, "%s, malloc failed", __func__);
@@ -371,6 +376,8 @@ void *record_thread(void *arg)
       p_ctx->index_type = DVR_INDEX_TYPE_PCR;
       record_do_pcr_index(p_ctx, index_buf, len);
     }
+    DVR_DEBUG(1, "%s effective index_type:%d (0:PCR,1:LOCAL_CLOCK,2:INVALID)", __func__,
+        p_ctx->index_type);
     gettimeofday(&t5, NULL);
     if (p_ctx->index_type == DVR_INDEX_TYPE_PCR) {
       if (has_pcr == 0) {
@@ -397,8 +404,8 @@ void *record_thread(void *arg)
       clock_gettime(CLOCK_MONOTONIC, &end_ts);
       p_ctx->segment_info.duration = (end_ts.tv_sec*1000 + end_ts.tv_nsec/1000000) -
         (start_ts.tv_sec*1000 + start_ts.tv_nsec/1000000) + pcr_rec_len;
-            if (pre_time == 0)
-       pre_time = p_ctx->segment_info.duration;
+      if (pre_time == 0)
+        pre_time = p_ctx->segment_info.duration;
       segment_update_pts(p_ctx->segment_handle, p_ctx->segment_info.duration, pos);
     } else {
       DVR_DEBUG(1, "%s can NOT do time index", __func__);
@@ -548,6 +555,7 @@ int dvr_record_open(DVR_RecordHandle_t *p_handle, DVR_RecordOpenParams_t *params
   p_ctx->enc_userdata = NULL;
   p_ctx->is_secure_mode = 0;
   p_ctx->state = DVR_RECORD_STATE_OPENED;
+  p_ctx->force_sysclock = params->force_sysclock;
   DVR_DEBUG(1, "%s, block_size:%d is_new:%d", __func__, p_ctx->block_size, p_ctx->is_new_dmx);
   *p_handle = p_ctx;
   return DVR_SUCCESS;
@@ -667,6 +675,7 @@ int dvr_record_start_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t 
   memcpy(open_params.location, params->location, sizeof(params->location));
   open_params.segment_id = params->segment.segment_id;
   open_params.mode = SEGMENT_MODE_WRITE;
+  open_params.force_sysclock = p_ctx->force_sysclock;
 
   ret = segment_open(&open_params, &p_ctx->segment_handle);
   DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
@@ -752,6 +761,7 @@ int dvr_record_next_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t *
   memcpy(open_params.location, p_ctx->location, sizeof(p_ctx->location));
   open_params.segment_id = params->segment.segment_id;
   open_params.mode = SEGMENT_MODE_WRITE;
+  open_params.force_sysclock = p_ctx->force_sysclock;
   DVR_DEBUG(1, "%s: p_ctx->location:%s  params->location:%s", __func__, p_ctx->location,params->location);
   p_ctx->last_send_size = 0;
   p_ctx->last_send_time = 0;
