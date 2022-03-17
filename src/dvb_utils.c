@@ -271,6 +271,30 @@ int dvb_get_demux_source(int dmx_idx, DVB_DemuxSource_t *src)
                 case DMA_7:
                     *src = DVB_DEMUX_SOURCE_DMA7;
                     break;
+                case FRONTEND_TS0_1:
+                    *src = DVB_DEMUX_SOURCE_TS0_1;
+                    break;
+                case FRONTEND_TS1_1:
+                    *src = DVB_DEMUX_SOURCE_TS1_1;
+                    break;
+                case FRONTEND_TS2_1:
+                    *src = DVB_DEMUX_SOURCE_TS2_1;
+                    break;
+                case FRONTEND_TS3_1:
+                    *src = DVB_DEMUX_SOURCE_TS3_1;
+                    break;
+                case FRONTEND_TS4_1:
+                    *src = DVB_DEMUX_SOURCE_TS4_1;
+                    break;
+                case FRONTEND_TS5_1:
+                    *src = DVB_DEMUX_SOURCE_TS5_1;
+                    break;
+                case FRONTEND_TS6_1:
+                    *src = DVB_DEMUX_SOURCE_TS6_1;
+                    break;
+                case FRONTEND_TS7_1:
+                    *src = DVB_DEMUX_SOURCE_TS7_1;
+                    break;
                 default:
                     assert(0);
                 }
