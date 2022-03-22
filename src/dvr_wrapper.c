@@ -952,8 +952,10 @@ static int wrapper_removeRecordSegment(DVR_WrapperCtx_t *ctx, DVR_WrapperRecordS
     }
   }
 
+  uint64_t id = seg_info->info.id;
+
   list_for_each_entry_safe_reverse(pseg, pseg_tmp, &ctx->segments, head) {
-    if (pseg->info.id == seg_info->info.id) {
+    if (pseg->info.id == id) {
       list_del(&pseg->head);
 
       /*record the obsolete*/
@@ -966,9 +968,9 @@ static int wrapper_removeRecordSegment(DVR_WrapperCtx_t *ctx, DVR_WrapperRecordS
     }
   }
 
-  error = dvr_segment_delete(ctx->record.param_open.location, seg_info->info.id);
+  error = dvr_segment_delete(ctx->record.param_open.location, id);
 
-  DVR_WRAPPER_DEBUG(1, "timeshift, remove record(sn:%ld) segment(%lld) =(%d)\n", ctx->sn, seg_info->info.id, error);
+  DVR_WRAPPER_DEBUG(1, "timeshift, remove record(sn:%ld) segment(%lld) =(%d)\n", ctx->sn, id, error);
 
   return error;
 }
