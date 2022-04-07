@@ -1207,11 +1207,57 @@ int dvr_wrapper_resume_record (DVR_WrapperRecord_t rec)
   return error;
 }
 
+static DVR_Bool_t pids_equal(const DVR_RecordSegmentStartParams_t* p1,
+                             const DVR_WrapperUpdatePidsParams_t* p2)
+{
+  int i=0;
+  int j=0;
+  DVR_Bool_t found=DVR_FALSE;
+  DVR_Bool_t is_equal=DVR_TRUE;
+  char buf[128]={0};
+  int cnt=0;
+
+  DVR_RETURN_IF_FALSE(p1 != NULL && p2 != NULL);
+  DVR_RETURN_IF_FALSE(p1->nb_pids>0 && p2->nb_pids>0);
+
+  for (i=0;i<p1->nb_pids;i++)
+  {
+      cnt+=snprintf(buf+cnt,sizeof(buf)-cnt,"0x%hx,",p1->pids[i].pid);
+  }
+  dvr_log_print("%s nb_pids1:%d, pids1: %s",__func__,p1->nb_pids,buf);
+  memset(buf,0,sizeof(buf));
+
+  for (i=0,cnt=0;i<p2->nb_pids;i++)
+  {
+      cnt+=snprintf(buf+cnt,sizeof(buf)-cnt,"0x%hx,",p2->pids[i].pid);
+  }
+  dvr_log_print("%s nb_pids2:%d, pids2: %s",__func__,p2->nb_pids,buf);
+
+  for (i=0,found=DVR_FALSE;i<p1->nb_pids;i++,found=DVR_FALSE)
+  {
+    for (j=0;j<p2->nb_pids;j++)
+    {
+      if (p1->pids[i].pid == p2->pids[j].pid)
+      {
+        found=DVR_TRUE;
+        break;
+      }
+    }
+    if (found == DVR_FALSE)
+    {
+      is_equal=DVR_FALSE;
+      break;
+    }
+  }
+  dvr_log_print("%s is_equal:%d",__func__,is_equal);
+  return is_equal;
+}
+
 int dvr_wrapper_update_record_pids (DVR_WrapperRecord_t rec, DVR_WrapperUpdatePidsParams_t *params)
 {
   DVR_WrapperCtx_t *ctx;
   DVR_RecordStartParams_t *start_param;
-  DVR_RecordSegmentInfo_t seg_info;;
+  DVR_RecordSegmentInfo_t seg_info;
   int i;
   int error;
 
@@ -1226,6 +1272,12 @@ int dvr_wrapper_update_record_pids (DVR_WrapperRecord_t rec, DVR_WrapperUpdatePi
   DVR_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->lock);
 
   start_param = &ctx->record.param_update;
+  if (pids_equal(&(start_param->segment),params))
+  {
+    pthread_mutex_unlock(&ctx->lock);
+    return DVR_TRUE;
+  }
+
   memset(start_param, 0, sizeof(*start_param));
   strncpy(start_param->location, ctx->record.param_open.location, sizeof(start_param->location));
   start_param->segment.segment_id = ctx->record.next_segment_id++;
