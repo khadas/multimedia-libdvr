@@ -376,8 +376,6 @@ void *record_thread(void *arg)
       p_ctx->index_type = DVR_INDEX_TYPE_PCR;
       record_do_pcr_index(p_ctx, index_buf, len);
     }
-    DVR_DEBUG(1, "%s effective index_type:%d (0:PCR,1:LOCAL_CLOCK,2:INVALID)", __func__,
-        p_ctx->index_type);
     gettimeofday(&t5, NULL);
     if (p_ctx->index_type == DVR_INDEX_TYPE_PCR) {
       if (has_pcr == 0) {

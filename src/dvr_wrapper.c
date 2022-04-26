@@ -1207,37 +1207,17 @@ int dvr_wrapper_resume_record (DVR_WrapperRecord_t rec)
   return error;
 }
 
-static DVR_Bool_t pids_equal(const DVR_RecordSegmentStartParams_t* p1,
-                             const DVR_WrapperUpdatePidsParams_t* p2)
+/* Return true if arr1 contains all elements in arr2 */
+static DVR_Bool_t pids_test_include( DVR_StreamPid_t* arr1, int size1,
+                  DVR_StreamPid_t* arr2, int size2)
 {
-  int i=0;
-  int j=0;
-  DVR_Bool_t found=DVR_FALSE;
-  DVR_Bool_t is_equal=DVR_TRUE;
-  char buf[128]={0};
-  int cnt=0;
-
-  DVR_RETURN_IF_FALSE(p1 != NULL && p2 != NULL);
-  DVR_RETURN_IF_FALSE(p1->nb_pids>0 && p2->nb_pids>0);
-
-  for (i=0;i<p1->nb_pids;i++)
-  {
-      cnt+=snprintf(buf+cnt,sizeof(buf)-cnt,"0x%hx,",p1->pids[i].pid);
-  }
-  dvr_log_print("%s nb_pids1:%d, pids1: %s",__func__,p1->nb_pids,buf);
-  memset(buf,0,sizeof(buf));
-
-  for (i=0,cnt=0;i<p2->nb_pids;i++)
-  {
-      cnt+=snprintf(buf+cnt,sizeof(buf)-cnt,"0x%hx,",p2->pids[i].pid);
-  }
-  dvr_log_print("%s nb_pids2:%d, pids2: %s",__func__,p2->nb_pids,buf);
-
-  for (i=0,found=DVR_FALSE;i<p1->nb_pids;i++,found=DVR_FALSE)
-  {
-    for (j=0;j<p2->nb_pids;j++)
+  DVR_Bool_t ret = DVR_TRUE;
+  for (int i=0;i<size2;i++)
+  { // iterate all elements in arr2 to check if they exist in arr1
+    DVR_Bool_t found=DVR_FALSE;
+    for (int j=0;j<size1;j++)
     {
-      if (p1->pids[i].pid == p2->pids[j].pid)
+      if (arr2[i].pid == arr1[j].pid)
       {
         found=DVR_TRUE;
         break;
@@ -1245,10 +1225,50 @@ static DVR_Bool_t pids_equal(const DVR_RecordSegmentStartParams_t* p1,
     }
     if (found == DVR_FALSE)
     {
-      is_equal=DVR_FALSE;
+      ret=DVR_FALSE;
       break;
     }
   }
+  return ret;
+}
+
+static DVR_Bool_t pids_equal(const DVR_RecordSegmentStartParams_t* p1,
+                             const DVR_WrapperUpdatePidsParams_t* p2)
+{
+  int i=0;
+  char buf[128]={0};
+  int cnt=0;
+  int chars=0;
+
+  DVR_RETURN_IF_FALSE(p1 != NULL && p2 != NULL);
+  DVR_RETURN_IF_FALSE(p1->nb_pids>0 && p2->nb_pids>0);
+
+  DVR_Bool_t cond1 = pids_test_include(p1->pids,p1->nb_pids,p2->pids,p2->nb_pids);
+  DVR_Bool_t cond2 = pids_test_include(p2->pids,p2->nb_pids,p1->pids,p1->nb_pids);
+  DVR_Bool_t is_equal = (cond1 && cond2);
+
+  for (i=0;i<p1->nb_pids;i++)
+  {
+    chars = snprintf(buf+cnt,sizeof(buf)-cnt,"0x%hx,",p1->pids[i].pid);
+    if (chars<0)
+    {
+      break;
+    }
+    cnt += chars;
+  }
+  dvr_log_print("%s nb_pids1:%d, pids1: %s",__func__,p1->nb_pids,buf);
+  memset(buf,0,sizeof(buf));
+
+  for (i=0,cnt=0;i<p2->nb_pids;i++)
+  {
+    chars = snprintf(buf+cnt,sizeof(buf)-cnt,"0x%hx,",p2->pids[i].pid);
+    if (chars<0)
+    {
+      break;
+    }
+    cnt += chars;
+  }
+  dvr_log_print("%s nb_pids2:%d, pids2: %s",__func__,p2->nb_pids,buf);
   dvr_log_print("%s is_equal:%d",__func__,is_equal);
   return is_equal;
 }
