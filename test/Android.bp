@@ -1,6 +1,7 @@
 subdirs = [
   "dvr_write_test",
   "dvr_wrapper_test",
+  "dvr_dump_test"
 ]
 
 
