@@ -2806,6 +2806,8 @@ int dvr_playback_resume(DVR_PlaybackHandle_t handle) {
     DVR_PB_DG(1, "unlock");
     pthread_mutex_unlock(&player->lock);
   } else if (player->state == DVR_PLAYBACK_STATE_PAUSE){
+    DVR_PB_DG(1, "lock");
+    pthread_mutex_lock(&player->lock);
     player->first_frame = 0;
     if (player->has_video)
           AmTsPlayer_pauseVideoDecoding(player->handle);
@@ -2824,6 +2826,8 @@ int dvr_playback_resume(DVR_PlaybackHandle_t handle) {
       _dvr_cmd(handle, player->cmd.cur_cmd);
     player->cmd.state = DVR_PLAYBACK_STATE_START;
     player->state = DVR_PLAYBACK_STATE_START;
+    DVR_PB_DG(1, "unlock");
+    pthread_mutex_unlock(&player->lock);
   } else {
     if ((player->play_flag&DVR_PLAYBACK_STARTED_PAUSEDLIVE) == DVR_PLAYBACK_STARTED_PAUSEDLIVE)
     {
