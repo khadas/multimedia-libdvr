@@ -40,6 +40,7 @@ cc_library_shared {
         "src/segment.c",
         "src/am_crypt.c",
         "src/des.c",
+        "src/dvr_mutex.c",
     ],
     shared_libs: [
         "libcutils",
@@ -106,6 +107,7 @@ cc_library_shared {
         "src/segment.c",
         "src/am_crypt.c",
         "src/des.c",
+        "src/dvr_mutex.c",
     ],
     shared_libs: [
         "libcutils",

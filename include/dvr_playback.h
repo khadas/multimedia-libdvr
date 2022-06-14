@@ -11,6 +11,7 @@
 #include "AmTsPlayer.h"
 #include "dvr_types.h"
 #include "dvr_crypto.h"
+#include "dvr_mutex.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -295,7 +296,7 @@ typedef struct
   DVR_PlaybackSegmentInfo_t  last_segment;          /**< last playing segment*/
   struct list_head           segment_list;         /**< segment list head*/
   pthread_t                  playback_thread;    /**< playback thread*/
-  pthread_mutex_t            lock;               /**< playback lock*/
+  dvr_mutex_t                lock;               /**< playback lock*/
   pthread_mutex_t            segment_lock;      /**< playback segment lock*/
   pthread_cond_t             cond;               /**< playback cond*/
   void                       *user_data;         /**< playback userdata, used to send event*/
