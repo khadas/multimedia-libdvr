@@ -112,29 +112,29 @@ int dvb_set_demux_source(int dmx_idx, DVB_DemuxSource_t src)
 
             if (ioctl(fd, DMX_SET_INPUT, input) == -1)
             {
-                 DVR_DEBUG(1, "dvb_set_demux_source ioctl DMX_SET_INPUT:%d error:%d", input, errno);
+                 DVR_INFO("dvb_set_demux_source ioctl DMX_SET_INPUT:%d error:%d", input, errno);
                  r = -1;
             }
             else
             {
-                 DVR_DEBUG(1, "dvb_set_demux_source ioctl sucesss src:%d DMX_SET_INPUT:%d dmx_idx:%d", src, input, dmx_idx);
+                 DVR_INFO("dvb_set_demux_source ioctl sucesss src:%d DMX_SET_INPUT:%d dmx_idx:%d", src, input, dmx_idx);
                  r = 0;
             }
             if (ioctl(fd, DMX_SET_HW_SOURCE, source) == -1)
             {
-                DVR_DEBUG(1, "dvb_set_demux_source ioctl DMX_SET_HW_SOURCE:%d error:%d", source, errno);
+                DVR_INFO("dvb_set_demux_source ioctl DMX_SET_HW_SOURCE:%d error:%d", source, errno);
                 r = -1;
             }
             else
             {
-                DVR_DEBUG(1, "dvb_set_demux_source ioctl sucesss src:%d DMX_SET_HW_SOURCE:%d dmx_idx:%d", src, source, dmx_idx);
+                DVR_INFO("dvb_set_demux_source ioctl sucesss src:%d DMX_SET_HW_SOURCE:%d dmx_idx:%d", src, source, dmx_idx);
                 r = 0;
             }
             close(fd);
         }
         else
         {
-            DVR_DEBUG(1, "dvb_set_demux_source open \"%s\" failed, error:%d", node, errno);
+            DVR_INFO("dvb_set_demux_source open \"%s\" failed, error:%d", node, errno);
         }
     }
     else
@@ -301,13 +301,13 @@ int dvb_get_demux_source(int dmx_idx, DVB_DemuxSource_t *src)
             }
             else
             {
-                DVR_DEBUG(1, "ioctl DMX_GET_HW_SOURCE:%d error:%d", source, errno);
+                DVR_INFO("ioctl DMX_GET_HW_SOURCE:%d error:%d", source, errno);
             }
             close(fd);
         }
         else
         {
-            DVR_DEBUG(1, "open \"%s\" failed, error:%d", node, errno);
+            DVR_INFO("open \"%s\" failed, error:%d", node, errno);
         }
     }
     else
@@ -330,7 +330,7 @@ int dvb_get_demux_source(int dmx_idx, DVB_DemuxSource_t *src)
                     *src = DVB_DEMUX_SOURCE_TS2;
                     break;
                 default:
-                    DVR_DEBUG(1, "do not support demux source:%s", buf);
+                    DVR_INFO("do not support demux source:%s", buf);
                     r = -1;
                     break;
                 }
@@ -343,7 +343,7 @@ int dvb_get_demux_source(int dmx_idx, DVB_DemuxSource_t *src)
             {
                 r = -1;
             }
-            DVR_DEBUG(1, "dvb_get_demux_source \"%s\" :%s", node, buf);
+            DVR_INFO("dvb_get_demux_source \"%s\" :%s", node, buf);
         }
     }
 

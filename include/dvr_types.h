@@ -34,7 +34,6 @@ extern "C"
 {
 #endif
 
-
 /*****************************************************************************
 * Global Definitions
 *****************************************************************************/
@@ -44,34 +43,36 @@ extern "C"
 /**Maximum path size.*/
 #define DVR_MAX_LOCATION_SIZE     512
 
-/**Logcat TAG of libdvr*/
+/**Log facilities.*/
+#define LOG_LV_DEFAULT 1
+#define LOG_LV_VERBOSE 2
+#define LOG_LV_DEBUG 3
+#define LOG_LV_INFO 4
+#define LOG_LV_WARN 5
+#define LOG_LV_ERROR 6
+#define LOG_LV_FATAL 7
+
 #define DVR_LOG_TAG "libdvr"
-/**Default debug level*/
-#define DVR_DEBUG_LEVEL 1
+#define DVR_DEBUG(...) DVR_LOG_PRINT(LOG_LV_DEBUG, DVR_LOG_TAG, __VA_ARGS__)
+#define DVR_INFO(...) DVR_LOG_PRINT(LOG_LV_INFO, DVR_LOG_TAG, __VA_ARGS__)
+#define DVR_WARN(...) DVR_LOG_PRINT(LOG_LV_WARN, DVR_LOG_TAG, __VA_ARGS__)
+#define DVR_ERROR(...) DVR_LOG_PRINT(LOG_LV_ERROR, DVR_LOG_TAG, __VA_ARGS__)
+#define DVR_FATAL(...) DVR_LOG_PRINT(LOG_LV_FATAL, DVR_LOG_TAG, __VA_ARGS__)
 
-/**Log output*/
-#define dvr_log_print(...) __android_log_print(ANDROID_LOG_INFO, DVR_LOG_TAG, __VA_ARGS__)
-#define dvr_log_print_fl(tag, fmt, ...)\
-  __android_log_print(ANDROID_LOG_INFO, DVR_LOG_TAG, tag " %s %d: " fmt, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+extern int g_dvr_log_level;
 
-/**Output debug message.*/
-#define DVR_DEBUG(_level,_fmt...) \
-  do {\
-    if (_level <= DVR_DEBUG_LEVEL)\
-      dvr_log_print(_fmt);\
-  } while (0)
-
-#define DVR_DEBUG_FL(_level, _tag, _fmt...) \
-  do {\
-    if (_level <= DVR_DEBUG_LEVEL)\
-      dvr_log_print_fl(_tag, _fmt);\
-  } while (0)
+#define DVR_LOG_PRINT(level,tag,...) \
+  do { \
+    if (level>=g_dvr_log_level) { \
+      __android_log_print(level,tag,__VA_ARGS__); \
+    } \
+  }while(0)
 
 /**Abort the program if assertion is false.*/
 #define DVR_ASSERT(expr) \
   do {\
     if (!(expr)) {\
-      DVR_DEBUG(1, "%s-%d failed", __func__, __LINE__);\
+      DVR_FATAL("%s-%d failed", __func__, __LINE__);\
       assert(expr);\
     }\
   } while (0)
@@ -80,7 +81,7 @@ extern "C"
 #define DVR_RETURN_IF_FALSE(expr)\
   do {\
     if (!(expr)) {\
-      DVR_DEBUG(1, "%s-%d failed", __func__, __LINE__);\
+      DVR_ERROR("%s-%d failed", __func__, __LINE__);\
       return DVR_FAILURE;\
     }\
   } while (0);
@@ -89,7 +90,7 @@ extern "C"
 #define DVR_RETURN_IF_FALSE_WITH_UNLOCK(expr, lock)\
   do {\
     if (!(expr)) {\
-      DVR_DEBUG(1, "%s-%d failed", __func__, __LINE__);\
+      DVR_ERROR("%s-%d failed", __func__, __LINE__);\
       pthread_mutex_unlock(lock);\
       return DVR_FAILURE;\
     }\

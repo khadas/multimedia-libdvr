@@ -149,8 +149,6 @@ typedef struct
 #define DVR_STREAM_TYPE_TO_FMT(_t)  ((_t) & 0xFFFFFF)
 
 
-#define rec_log_printf(...) __android_log_print(ANDROID_LOG_INFO, "rec" TAG_EXT, __VA_ARGS__)
-
 #define TSP_EVT(fmt, ...)   fprintf(stdout, "TsPlayer:" fmt, ##__VA_ARGS__)
 #define REC_EVT(fmt, ...)   fprintf(stdout, "recorder:" fmt, ##__VA_ARGS__)
 #define PLAY_EVT(fmt, ...)  fprintf(stdout, "player:" fmt, ##__VA_ARGS__)

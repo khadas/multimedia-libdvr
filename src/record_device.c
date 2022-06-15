@@ -87,12 +87,12 @@ int load_secdmx_api(void)
   handle = dlopen("libdmx_client_sys.so", RTLD_NOW);//RTLD_NOW  RTLD_LAZY
 
   if (handle == NULL) {
-    DVR_DEBUG(0, "load_secdmx_api load libdmx_client_sys error[%s] no:%d", strerror(errno), errno);
+    DVR_ERROR("load_secdmx_api load libdmx_client_sys error[%s] no:%d", strerror(errno), errno);
     handle = dlopen("libdmx_client.so", RTLD_NOW);//RTLD_NOW  RTLD_LAZY
   }
 
   if (handle == NULL) {
-    DVR_DEBUG(0, "load_secdmx_api load libdmx_client error[%s] no:%d", strerror(errno), errno);
+    DVR_ERROR("load_secdmx_api load libdmx_client error[%s] no:%d", strerror(errno), errno);
     return 0;
   }
 
@@ -121,7 +121,7 @@ int add_dvr_pids(Record_DeviceContext_t *p_ctx)
     for (i = 0; i < DVR_MAX_RECORD_PIDS_COUNT; i++) {
       if (p_ctx->streams[i].pid != DVR_INVALID_PID) {
         pids[cnt++] = p_ctx->streams[i].pid;
-        DVR_DEBUG(0, "dvr pid:%#x, cnt:%#x", pids[cnt-1], cnt);
+        DVR_DEBUG("dvr pid:%x, cnt:%x", pids[cnt-1], cnt);
       }
     }
     if (SECDMX_AddDVRPids_Ptr != NULL && p_ctx->output_handle)
@@ -166,14 +166,14 @@ int record_device_open(Record_DeviceHandle_t *p_handle, Record_DeviceOpenParams_
   p_ctx->fd = open(dev_name, O_RDONLY);
   if (p_ctx->fd == -1)
   {
-    DVR_DEBUG(1, "%s cannot open \"%s\" (%s)", __func__, dev_name, strerror(errno));
+    DVR_INFO("%s cannot open \"%s\" (%s)", __func__, dev_name, strerror(errno));
     pthread_mutex_unlock(&p_ctx->lock);
     return DVR_FAILURE;
   }
   fcntl(p_ctx->fd, F_SETFL, fcntl(p_ctx->fd, F_GETFL, 0) | O_NONBLOCK, 0);
 
   p_ctx->evtfd = eventfd(0, 0);
-  DVR_DEBUG(1, "%s, %d fd: %d %p %d %p", __func__, __LINE__, p_ctx->fd, &(p_ctx->fd), p_ctx->evtfd, &(p_ctx->evtfd));
+  DVR_INFO("%s, %d fd: %d %p %d %p", __func__, __LINE__, p_ctx->fd, &(p_ctx->fd), p_ctx->evtfd, &(p_ctx->evtfd));
   load_secdmx_api();
   /*Configure flush size*/
   if (dvr_check_dmx_isNew() == 1) {
@@ -181,7 +181,7 @@ int record_device_open(Record_DeviceHandle_t *p_handle, Record_DeviceOpenParams_
     if (SECDMX_Init_Ptr != NULL) {
       ret = SECDMX_Init_Ptr();
       if (ret != DVR_SUCCESS) {
-        DVR_DEBUG(1, "%s secure demux init failed:%d", __func__, ret);
+        DVR_INFO("%s secure demux init failed:%d", __func__, ret);
       }
     }
   }
@@ -192,9 +192,9 @@ int record_device_open(Record_DeviceHandle_t *p_handle, Record_DeviceOpenParams_
       if (buf_size > 0) {
           ret = ioctl(p_ctx->fd, DMX_SET_BUFFER_SIZE, buf_size);
           if (ret == -1) {
-            DVR_DEBUG(1, "%s set dvr ringbuf size failed\"%s\" (%s) buf_size:%d", __func__, dev_name, strerror(errno), buf_size);
+            DVR_INFO("%s set dvr ringbuf size failed\"%s\" (%s) buf_size:%d", __func__, dev_name, strerror(errno), buf_size);
           } else {
-            DVR_DEBUG(1, "%s set dvr ringbuf size success \"%s\" buf_size:%d", __func__, dev_name, buf_size);
+            DVR_INFO("%s set dvr ringbuf size success \"%s\" buf_size:%d", __func__, dev_name, buf_size);
           }
       }
   }
@@ -227,7 +227,7 @@ int record_device_open(Record_DeviceHandle_t *p_handle, Record_DeviceOpenParams_
   dvr_file_echo(buf, "0");
 
   if (params->fend_dev_id > MAX_FEND_DEVICE_COUNT -1) {
-    DVR_DEBUG(0, "invalid frontend devicie id:%d, will use default.\n",
+    DVR_ERROR("invalid frontend devicie id:%d, will use default.\n",
           params->fend_dev_id);
     p_ctx->fend_dev_id = 0;
   } else {
@@ -316,15 +316,15 @@ int record_device_add_pid(Record_DeviceHandle_t handle, int pid)
   DVR_RETURN_IF_FALSE_WITH_UNLOCK(p_ctx->streams[i].pid == DVR_INVALID_PID, &p_ctx->lock);
 
   p_ctx->streams[i].pid = pid;
-  DVR_DEBUG(1, "%s add pid:%#x", __func__, pid);
+  DVR_INFO("%s add pid:%#x", __func__, pid);
     snprintf(dev_name, sizeof(dev_name), "/dev/dvb0.demux%d", p_ctx->dmx_dev_id);
   fd = open(dev_name, O_RDWR);
   if (fd == -1) {
-    DVR_DEBUG(1, "%s cannot open \"%s\" (%s)", __func__, dev_name, strerror(errno));
+    DVR_INFO("%s cannot open \"%s\" (%s)", __func__, dev_name, strerror(errno));
     pthread_mutex_unlock(&p_ctx->lock);
     return DVR_FAILURE;
   }
-  //DVR_DEBUG(1, "%s libdvrFilterTrace open1 \"%s\" p_ctx->dmx_dev_id: 0x%x, fd: 0x%x ", __func__,dev_name,p_ctx->dmx_dev_id, fd);
+  //DVR_INFO("%s libdvrFilterTrace open1 \"%s\" p_ctx->dmx_dev_id: 0x%x, fd: 0x%x ", __func__,dev_name,p_ctx->dmx_dev_id, fd);
   p_ctx->streams[i].fid = fd;
 
   //DVR_RETURN_IF_FALSE_WITH_UNLOCK(DVR_SUCCESS == add_dvr_pids(p_ctx), &p_ctx->lock);
@@ -339,13 +339,13 @@ int record_device_add_pid(Record_DeviceHandle_t handle, int pid)
     params.pes_type = DMX_PES_OTHER;
     ret = ioctl(fd, DMX_SET_PES_FILTER, &params);
     if (ret == -1) {
-      DVR_DEBUG(1, "%s set pes filter failed\"%s\" (%s)", __func__, dev_name, strerror(errno));
+      DVR_INFO("%s set pes filter failed\"%s\" (%s)", __func__, dev_name, strerror(errno));
       pthread_mutex_unlock(&p_ctx->lock);
       return DVR_FAILURE;
     }
     ret = ioctl(fd, DMX_START, 0);
     if (ret == -1) {
-      DVR_DEBUG(1, "%s start pes filter failed:\"%s\" (%s)", __func__, dev_name, strerror(errno));
+      DVR_INFO("%s start pes filter failed:\"%s\" (%s)", __func__, dev_name, strerror(errno));
       pthread_mutex_unlock(&p_ctx->lock);
       return DVR_FAILURE;
     }
@@ -387,7 +387,7 @@ int record_device_remove_pid(Record_DeviceHandle_t handle, int pid)
   if (p_ctx->streams[i].is_start == DVR_TRUE) {
     ret = ioctl(fd, DMX_STOP, 0);
     if (ret == -1) {
-      DVR_DEBUG(1, "%s stop pes filter failed (%s)", __func__, strerror(errno));
+      DVR_INFO("%s stop pes filter failed (%s)", __func__, strerror(errno));
       pthread_mutex_unlock(&p_ctx->lock);
       return DVR_FAILURE;
     }
@@ -396,7 +396,7 @@ int record_device_remove_pid(Record_DeviceHandle_t handle, int pid)
   p_ctx->streams[i].pid = DVR_INVALID_PID;
   //DVR_RETURN_IF_FALSE_WITH_UNLOCK(DVR_SUCCESS == add_dvr_pids(p_ctx), &p_ctx->lock);
   add_dvr_pids(p_ctx);
-  //DVR_DEBUG(1, "%s libdvrFilterTrace close1-1. pid: 0x%x, fd: 0x%x ", __func__,pid, fd);
+  //DVR_INFO("%s libdvrFilterTrace close1-1. pid: 0x%x, fd: 0x%x ", __func__,pid, fd);
   close(fd);
   p_ctx->streams[i].fid = -1;
   p_ctx->streams[i].is_start = DVR_FALSE;
@@ -425,7 +425,7 @@ int record_device_start(Record_DeviceHandle_t handle)
   if (p_ctx->state != RECORD_DEVICE_STATE_OPENED &&
       p_ctx->state != RECORD_DEVICE_STATE_STOPPED) {
     pthread_mutex_unlock(&p_ctx->lock);
-    DVR_DEBUG(1, "%s, %d, wrong state:%d", __func__, __LINE__,p_ctx->state);
+    DVR_INFO("%s, %d, wrong state:%d", __func__, __LINE__,p_ctx->state);
     return DVR_FAILURE;
   }
 
@@ -446,13 +446,13 @@ int record_device_start(Record_DeviceHandle_t handle)
       params.pes_type = DMX_PES_OTHER;
       ret = ioctl(fd, DMX_SET_PES_FILTER, &params);
       if (ret == -1) {
-        DVR_DEBUG(1, "%s set pes filter failed (%s)", __func__, strerror(errno));
+        DVR_INFO("%s set pes filter failed (%s)", __func__, strerror(errno));
         pthread_mutex_unlock(&p_ctx->lock);
         return DVR_FAILURE;
       }
       ret = ioctl(fd, DMX_START, 0);
       if (ret == -1) {
-        DVR_DEBUG(1, "%s start pes filter failed (%s)", __func__, strerror(errno));
+        DVR_INFO("%s start pes filter failed (%s)", __func__, strerror(errno));
         pthread_mutex_unlock(&p_ctx->lock);
         return DVR_FAILURE;
       }
@@ -482,7 +482,7 @@ int record_device_stop(Record_DeviceHandle_t handle)
 
   pthread_mutex_lock(&p_ctx->lock);
   if (p_ctx->state != RECORD_DEVICE_STATE_STARTED) {
-    DVR_DEBUG(1, "%s, %d, wrong state:%d", __func__, __LINE__,p_ctx->state);
+    DVR_INFO("%s, %d, wrong state:%d", __func__, __LINE__,p_ctx->state);
     pthread_mutex_unlock(&p_ctx->lock);
     return DVR_FAILURE;
   }
@@ -495,13 +495,13 @@ int record_device_stop(Record_DeviceHandle_t handle)
       fd = p_ctx->streams[i].fid;
       ret = ioctl(fd, DMX_STOP, 0);
       if (ret == -1) {
-        DVR_DEBUG(1, "%s stop pes filter failed (%s)", __func__, strerror(errno));
+        DVR_INFO("%s stop pes filter failed (%s)", __func__, strerror(errno));
         pthread_mutex_unlock(&p_ctx->lock);
         return DVR_FAILURE;
       }
       /*Close the filter*/
       p_ctx->streams[i].pid = DVR_INVALID_PID;
-      //DVR_DEBUG(1, "%s libdvrFilterTrace close1-2. fd: 0x%x ", __func__, fd);
+      //DVR_INFO("%s libdvrFilterTrace close1-2. fd: 0x%x ", __func__, fd);
       close(fd);
       p_ctx->streams[i].fid = -1;
       p_ctx->streams[i].is_start = DVR_FALSE;
@@ -540,9 +540,9 @@ int record_device_read(Record_DeviceHandle_t handle, void *buf, size_t len, int 
   ret = poll(fds, 2, timeout);
   if (ret <= 0) {
     if (ret < 0)
-      DVR_DEBUG(1, "%s, %d failed: %s fd %d evfd %d", __func__, __LINE__, strerror(errno), p_ctx->fd, p_ctx->evtfd);
+      DVR_INFO("%s, %d failed: %s fd %d evfd %d", __func__, __LINE__, strerror(errno), p_ctx->fd, p_ctx->evtfd);
     else
-      DVR_DEBUG(1, "%s, %d timeout", __func__, __LINE__);
+      DVR_INFO("%s, %d timeout", __func__, __LINE__);
     return DVR_FAILURE;
   }
 
@@ -553,7 +553,7 @@ int record_device_read(Record_DeviceHandle_t handle, void *buf, size_t len, int 
   if (p_ctx->state == RECORD_DEVICE_STATE_STARTED) {
     ret = read(fds[0].fd, buf, len);
     if (ret <= 0) {
-      DVR_DEBUG(1, "%s, %d failed: %s", __func__, __LINE__, strerror(errno));
+      DVR_INFO("%s, %d failed: %s", __func__, __LINE__, strerror(errno));
       pthread_mutex_unlock(&p_ctx->lock);
       return DVR_FAILURE;
     }
@@ -587,20 +587,20 @@ ssize_t record_device_read_ext(Record_DeviceHandle_t handle, size_t *buf, size_t
   pthread_mutex_lock(&secdmx_lock[sid]);
   memset(&info, 0, sizeof(info));
   result = ioctl(p_ctx->fd, DMX_GET_DVR_MEM, &info);
-  //DVR_DEBUG(1, "sid[%d] fd[%d] wp:%#x\n", sid, p_ctx->fd, info.wp_offset);
+  //DVR_INFO("sid[%d] fd[%d] wp:%#x\n", sid, p_ctx->fd, info.wp_offset);
   if (result == DVR_SUCCESS) {
     if (SECDMX_ProcessData_Ptr != NULL)
       result = SECDMX_ProcessData_Ptr(sid, info.wp_offset);
   }
   if (result) {
-    DVR_DEBUG(1, "result:%#x\n", result);
+    DVR_INFO("result:%#x\n", result);
   }
   pthread_mutex_unlock(&secdmx_lock[sid]);
 
   DVR_RETURN_IF_FALSE_WITH_UNLOCK(result == DVR_SUCCESS, &p_ctx->lock);
   if (SECDMX_GetOutputBufferStatus_Ptr != NULL)
     result = SECDMX_GetOutputBufferStatus_Ptr(p_ctx->output_handle, buf, len);
-  //DVR_DEBUG(1, "addr:%#x, len:%#x\n", *buf, *len);
+  //DVR_INFO("addr:%#x, len:%#x\n", *buf, *len);
   DVR_RETURN_IF_FALSE_WITH_UNLOCK(result == DVR_SUCCESS, &p_ctx->lock);
 
   pthread_mutex_unlock(&p_ctx->lock);
@@ -630,7 +630,7 @@ int record_device_set_secure_buffer(Record_DeviceHandle_t handle, uint8_t *sec_b
   if (p_ctx->state != RECORD_DEVICE_STATE_OPENED &&
       p_ctx->state != RECORD_DEVICE_STATE_STOPPED) {
     pthread_mutex_unlock(&p_ctx->lock);
-    DVR_DEBUG(1, "%s, %d, wrong state:%d", __func__, __LINE__,p_ctx->state);
+    DVR_INFO("%s, %d, wrong state:%d", __func__, __LINE__,p_ctx->state);
     return DVR_FAILURE;
   }
 
@@ -645,7 +645,7 @@ int record_device_set_secure_buffer(Record_DeviceHandle_t handle, uint8_t *sec_b
     memset(node, 0, sizeof(node));
     snprintf(node, sizeof(node), "/dev/dvb0.demux%d", p_ctx->dmx_dev_id);
     fd = open(node, O_RDONLY);
-    //DVR_DEBUG(1, "%s libdvrFilterTrace open2 \"%s\",p_ctx->dmx_dev_id: 0x%x, fd: 0x%x ", __func__,node, p_ctx->dmx_dev_id, fd);
+    //DVR_INFO("%s libdvrFilterTrace open2 \"%s\",p_ctx->dmx_dev_id: 0x%x, fd: 0x%x ", __func__,node, p_ctx->dmx_dev_id, fd);
     if (SECDMX_AllocateDVRBuffer_Ptr != NULL) {
     for (i = 0; i < MAX_RECORD_DEVICE_COUNT; i++) {
       if (record_ctx[i].state != RECORD_DEVICE_STATE_CLOSED &&
@@ -658,7 +658,7 @@ int record_device_set_secure_buffer(Record_DeviceHandle_t handle, uint8_t *sec_b
     if (i >= MAX_RECORD_DEVICE_COUNT) {
       result = SECDMX_AllocateDVRBuffer_Ptr(sid, len, &dvr_buf);
       if (result != DVR_SUCCESS) {
-      //DVR_DEBUG(1, "%s libdvrFilterTrace close2-1. fd: 0x%x ", __func__, fd);
+      //DVR_INFO("%s libdvrFilterTrace close2-1. fd: 0x%x ", __func__, fd);
          close(fd);
       }
       DVR_RETURN_IF_FALSE_WITH_UNLOCK(result == DVR_SUCCESS, &p_ctx->lock);
@@ -675,22 +675,22 @@ int record_device_set_secure_buffer(Record_DeviceHandle_t handle, uint8_t *sec_b
     sec_mem.buff = p_ctx->dvr_buf;
     sec_mem.size = len;
     if (ioctl(fd, DMX_SET_SEC_MEM, &sec_mem) == -1) {
-      DVR_DEBUG(1, "record_device_set_secure_buffer ioctl DMX_SET_SEC_MEM error:%d", errno);
+      DVR_INFO("record_device_set_secure_buffer ioctl DMX_SET_SEC_MEM error:%d", errno);
     }
     else
     {
-      DVR_DEBUG(1, "record_device_set_secure_buffer ioctl sucesss DMX_SET_SEC_MEM: fd:%d, buf:%#x\n", fd, p_ctx->dvr_buf);
+      DVR_INFO("record_device_set_secure_buffer ioctl sucesss DMX_SET_SEC_MEM: fd:%d, buf:%#x\n", fd, p_ctx->dvr_buf);
     }
     if (SECDMX_AddOutputBuffer_Ptr != NULL)
       result = SECDMX_AddOutputBuffer_Ptr(sid, (size_t)sec_buf, len, &op_handle);
     if (result != DVR_SUCCESS) {
-    //DVR_DEBUG(1, "%s libdvrFilterTrace close2-2. fd: 0x%x ", __func__, fd);
+    //DVR_INFO("%s libdvrFilterTrace close2-2. fd: 0x%x ", __func__, fd);
       close(fd);
     }
     DVR_RETURN_IF_FALSE_WITH_UNLOCK(result == DVR_SUCCESS, &p_ctx->lock);
     p_ctx->output_handle = op_handle;
 
-    //DVR_DEBUG(1, "%s libdvrFilterTrace close2-3. fd: 0x%x ", __func__, fd);
+    //DVR_INFO("%s libdvrFilterTrace close2-3. fd: 0x%x ", __func__, fd);
     close(fd);
     pthread_mutex_unlock(&p_ctx->lock);
     return DVR_SUCCESS;

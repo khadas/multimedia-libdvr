@@ -9,6 +9,7 @@
 #include <android/log.h>
 #include <stdio.h>
 #include <inttypes.h>
+#include "dvr_types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -20,25 +21,18 @@ extern "C" {
     DVB_SUCCESS = 0
   } DVB_RESULT;
 
-/**Logcat TAG of dvb*/
-#define DVB_LOG_TAG "dvb_debug"
-/**Default debug level*/
-#define DVB_DEBUG_LEVEL 1
-
-/**Log output*/
-#define dvb_log_print(...) __android_log_print(ANDROID_LOG_INFO, DVB_LOG_TAG, __VA_ARGS__)
 
 #ifndef __ANDROID_API__
 typedef unsigned int uint_t;
 #endif
 
-/**Output debug message.*/
-#define DVB_DEBUG(_level, _fmt...) \
-  do                               \
-  {                                \
-    if (_level <= DVB_DEBUG_LEVEL) \
-      dvb_log_print(_fmt);         \
-  } while (0)
+/**Log facilities*/
+#define DVB_LOG_TAG "libdvr-dvb"
+#define DVB_DEBUG(...) DVR_LOG_PRINT(LOG_LV_DEBUG, DVB_LOG_TAG, __VA_ARGS__)
+#define DVB_INFO(...) DVR_LOG_PRINT(LOG_LV_INFO, DVB_LOG_TAG, __VA_ARGS__)
+#define DVB_WARN(...) DVR_LOG_PRINT(LOG_LV_WARN, DVB_LOG_TAG, __VA_ARGS__)
+#define DVB_ERROR(...) DVR_LOG_PRINT(LOG_LV_ERROR, DVB_LOG_TAG, __VA_ARGS__)
+#define DVB_FATAL(...) DVR_LOG_PRINT(LOG_LV_FATAL, DVB_LOG_TAG, __VA_ARGS__)
 
   /**Demux input source.*/
   typedef enum

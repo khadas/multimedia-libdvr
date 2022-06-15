@@ -111,7 +111,7 @@ int segment_open(Segment_OpenParams_t *params, Segment_Handle_t *p_handle)
   DVR_RETURN_IF_FALSE(params);
   DVR_RETURN_IF_FALSE(p_handle);
 
-  //DVR_DEBUG(1, "%s, location:%s, id:%llu", __func__, params->location, params->segment_id);
+  //DVR_INFO("%s, location:%s, id:%llu", __func__, params->location, params->segment_id);
 
   p_ctx = (void*)malloc(sizeof(Segment_Context_t));
   DVR_RETURN_IF_FALSE(p_ctx);
@@ -136,7 +136,7 @@ int segment_open(Segment_OpenParams_t *params, Segment_Handle_t *p_handle)
   memset(dir_name, 0, sizeof(dir_name));
   segment_get_dirname(dir_name, params->location);
   if (access(dir_name, F_OK) == -1) {
-    DVR_DEBUG(1, "%s dir %s is not exist, create it", __func__, dir_name);
+    DVR_INFO("%s dir %s is not exist, create it", __func__, dir_name);
     mkdir(dir_name, 0666);
   }
 
@@ -151,14 +151,14 @@ int segment_open(Segment_OpenParams_t *params, Segment_Handle_t *p_handle)
     p_ctx->index_fp = fopen(index_fname, "w+");
     p_ctx->dat_fp = fopen(dat_fname, "w+");
     p_ctx->all_dat_fp = fopen(all_dat_fname, "a+");
-    DVR_DEBUG(1, "%s dir %s is opened", __func__, all_dat_fname);
+    DVR_INFO("%s dir %s is opened", __func__, all_dat_fname);
     p_ctx->ongoing_fp = fopen(going_name, "w+");
     p_ctx->first_pts = ULLONG_MAX;
     p_ctx->last_pts = ULLONG_MAX;
     p_ctx->last_record_pts = ULLONG_MAX;
     p_ctx->avg_rate = 0.0;
   } else {
-    DVR_DEBUG(1, "%s, unknow mode use default", __func__);
+    DVR_INFO("%s, unknow mode use default", __func__);
     p_ctx->ts_fd = open(ts_fname, O_RDONLY);
     p_ctx->index_fp = fopen(index_fname, "r");
     p_ctx->dat_fp = fopen(dat_fname, "r");
@@ -167,7 +167,7 @@ int segment_open(Segment_OpenParams_t *params, Segment_Handle_t *p_handle)
   }
 
   if (p_ctx->ts_fd == -1 || !p_ctx->index_fp || !p_ctx->dat_fp) {
-    DVR_DEBUG(1, "%s open file failed [%s, %s, %s], reason:%s", __func__,
+    DVR_INFO("%s open file failed [%s, %s, %s], reason:%s", __func__,
         ts_fname, index_fname, dat_fname, strerror(errno));
     if (p_ctx->ts_fd != -1)
       close(p_ctx->ts_fd);
@@ -187,7 +187,7 @@ int segment_open(Segment_OpenParams_t *params, Segment_Handle_t *p_handle)
   strncpy(p_ctx->location, params->location, strlen(params->location));
   p_ctx->force_sysclock = params->force_sysclock;
 
-  //DVR_DEBUG(1, "%s, open file success p_ctx->location [%s]", __func__, p_ctx->location, params->mode);
+  //DVR_INFO("%s, open file success p_ctx->location [%s]", __func__, p_ctx->location, params->mode);
   *p_handle = (Segment_Handle_t)p_ctx;
   return DVR_SUCCESS;
 }
@@ -218,7 +218,7 @@ int segment_close(Segment_Handle_t handle)
     char going_name[MAX_SEGMENT_PATH_SIZE];
     memset(going_name, 0, sizeof(going_name));
     segment_get_fname(going_name, p_ctx->location, p_ctx->segment_id, SEGMENT_FILE_TYPE_ONGOING);
-    DVR_DEBUG(1, "segment close del [%s]", going_name);
+    DVR_INFO("segment close del [%s]", going_name);
     unlink(going_name);
   }
 
@@ -263,7 +263,7 @@ int segment_update_pts_force(Segment_Handle_t handle, uint64_t pts, loff_t offse
   DVR_RETURN_IF_FALSE(p_ctx->index_fp);
 
   if (p_ctx->first_pts == ULLONG_MAX) {
-    DVR_DEBUG(1, "%s first pcr:%llu", __func__, pts);
+    DVR_INFO("%s first pcr:%llu", __func__, pts);
     p_ctx->first_pts = pts;
     p_ctx->first_offset = offset;
   }
@@ -272,13 +272,13 @@ int segment_update_pts_force(Segment_Handle_t handle, uint64_t pts, loff_t offse
     /*Last pts is init value*/
     sprintf(buf, "{time=%llu, offset=%lld}", pts - p_ctx->first_pts, offset);
     p_ctx->cur_time = pts - p_ctx->first_pts;
-    DVR_DEBUG(1, "%s force pcr:%llu -1", __func__, pts);
+    DVR_INFO("%s force pcr:%llu -1", __func__, pts);
   } else {
     /*Last pts has valid value*/
     int diff = pts - p_ctx->last_pts;
     if ((diff > MAX_PTS_THRESHOLD) || (diff < 0)) {
       /*Current pts has a transition*/
-      DVR_DEBUG(1, "[%s]force update Current pts has a transition, [%llu, %llu, %llu]",__func__,
+      DVR_INFO("[%s]force update Current pts has a transition, [%llu, %llu, %llu]",__func__,
           p_ctx->first_pts, p_ctx->last_pts, pts);
       sprintf(buf, "\n{time=%llu, offset=%lld}", p_ctx->cur_time, offset);
     } else {
@@ -286,14 +286,14 @@ int segment_update_pts_force(Segment_Handle_t handle, uint64_t pts, loff_t offse
       //check if this pcr is transition.if true,add 200ms
       //other case normal.
       p_ctx->cur_time += diff;
-      DVR_DEBUG(1, "%s force pcr:%llu -1 diff [%d]", __func__, pts, diff);
+      DVR_INFO("%s force pcr:%llu -1 diff [%d]", __func__, pts, diff);
       sprintf(buf, "\n{time=%llu, offset=%lld}", p_ctx->cur_time, offset);
     }
   }
 
   record_diff = pts - p_ctx->last_record_pts;
   if (strlen(buf) > 0) {
-    DVR_DEBUG(1, "%s force pcr:%llu buf:%s", __func__, pts, buf);
+    DVR_INFO("%s force pcr:%llu buf:%s", __func__, pts, buf);
     fputs(buf, p_ctx->index_fp);
     fflush(p_ctx->index_fp);
     fsync(fileno(p_ctx->index_fp));
@@ -314,7 +314,7 @@ int segment_update_pts(Segment_Handle_t handle, uint64_t pts, loff_t offset)
   DVR_RETURN_IF_FALSE(p_ctx->index_fp);
 
   if (p_ctx->first_pts == ULLONG_MAX) {
-    DVR_DEBUG(1, "%s first pcr:%llu", __func__, pts);
+    DVR_INFO("%s first pcr:%llu", __func__, pts);
     p_ctx->first_pts = pts;
     //p_ctx->cur_time = p_ctx->cur_time + PTS_HEAD_DEVIATION;
   }
@@ -331,7 +331,7 @@ int segment_update_pts(Segment_Handle_t handle, uint64_t pts, loff_t offset)
       int diff = pts - p_ctx->last_pts;
       if ((diff > MAX_PTS_THRESHOLD) || (diff < 0)) {
         /*Current pts has a transition*/
-        DVR_DEBUG(1, "Current pts has a transition, [%llu, %llu, %llu]",
+        DVR_INFO("Current pts has a transition, [%llu, %llu, %llu]",
             p_ctx->first_pts, p_ctx->last_pts, pts);
         p_ctx->last_record_pts = pts;
         //p_ctx->cur_time = p_ctx->cur_time + PTS_DISCONTINE_DEVIATION;
@@ -343,7 +343,7 @@ int segment_update_pts(Segment_Handle_t handle, uint64_t pts, loff_t offset)
               p_ctx->avg_rate = (float) offset / (float)(p_ctx->cur_time + diff);
         }
         if (diff >= PCR_JUMP_DUR) {
-          DVR_DEBUG(1, "PTS TRANSITION ERROR last pcr[%llu]pts[%llu]pcr diff[%d]off[%llu]off_diff[%llu]rate[%f]avg rate[%f]4*rate[%d]av_diff[%d]",p_ctx->last_pts, pts, diff, offset,off_diff, rate, p_ctx->avg_rate, (int)(rate * 4), (int)(off_diff / p_ctx->avg_rate));
+          DVR_INFO("PTS TRANSITION ERROR last pcr[%llu]pts[%llu]pcr diff[%d]off[%llu]off_diff[%llu]rate[%f]avg rate[%f]4*rate[%d]av_diff[%d]",p_ctx->last_pts, pts, diff, offset,off_diff, rate, p_ctx->avg_rate, (int)(rate * 4), (int)(off_diff / p_ctx->avg_rate));
           if (p_ctx->avg_rate != 0 && (int)(p_ctx->avg_rate) >= (int)(rate * 4)) {
             diff = off_diff / p_ctx->avg_rate;
             p_ctx->cur_time += diff;
@@ -392,7 +392,7 @@ loff_t segment_seek(Segment_Handle_t handle, uint64_t time, int block_size)
   loff_t offset = 0;
   char *p1, *p2;
 
-  DVR_DEBUG(1, "into seek time=%llu, offset=%lld time--%llu\n", pts, offset, time);
+  DVR_INFO("into seek time=%llu, offset=%lld time--%llu\n", pts, offset, time);
 
   p_ctx = (Segment_Context_t *)handle;
   DVR_RETURN_IF_FALSE(p_ctx);
@@ -401,7 +401,7 @@ loff_t segment_seek(Segment_Handle_t handle, uint64_t time, int block_size)
 
   if (time == 0) {
     offset = 0;
-    DVR_DEBUG(1, "seek time=%llu, offset=%lld time--%llu\n", pts, offset, time);
+    DVR_INFO("seek time=%llu, offset=%lld time--%llu\n", pts, offset, time);
     DVR_RETURN_IF_FALSE(lseek(p_ctx->ts_fd, offset, SEEK_SET) != -1);
     return offset;
   }
@@ -430,15 +430,15 @@ loff_t segment_seek(Segment_Handle_t handle, uint64_t time, int block_size)
     }
     if (0)
     {
-      DVR_DEBUG(1, "seek buf[%s]", buf);
-      DVR_DEBUG(1, "seek time=%llu, offset=%lld\n", pts, offset);
+      DVR_INFO("seek buf[%s]", buf);
+      DVR_INFO("seek time=%llu, offset=%lld\n", pts, offset);
     }
     memset(buf, 0, sizeof(buf));
     if (time <= pts) {
       if (block_size > 0) {
         offset = offset - offset%block_size;
       }
-      //DVR_DEBUG(1, "seek time=%llu, offset=%lld time--%llu line %d\n", pts, offset, time, line);
+      //DVR_INFO("seek time=%llu, offset=%lld time--%llu line %d\n", pts, offset, time, line);
       DVR_RETURN_IF_FALSE(lseek(p_ctx->ts_fd, offset, SEEK_SET) != -1);
       return offset;
     }
@@ -447,11 +447,11 @@ loff_t segment_seek(Segment_Handle_t handle, uint64_t time, int block_size)
     if (block_size > 0) {
       offset = offset - offset%block_size;
     }
-    DVR_DEBUG(1, "seek time=%llu, offset=%lld time--%llu line %d end\n", pts, offset, time, line);
+    DVR_INFO("seek time=%llu, offset=%lld time--%llu line %d end\n", pts, offset, time, line);
     DVR_RETURN_IF_FALSE(lseek(p_ctx->ts_fd, offset, SEEK_SET) != -1);
     return offset;
   }
-  DVR_DEBUG(1, "seek error line [%d]", line);
+  DVR_INFO("seek error line [%d]", line);
   return DVR_FAILURE;
 }
 
@@ -507,18 +507,18 @@ uint64_t segment_tell_position_time(Segment_Handle_t handle, loff_t position)
     }
 
     memset(buf, 0, sizeof(buf));
-    //DVR_DEBUG(1, "tell cur time=%llu, offset=%lld, position=%lld\n", pts, offset, position);
+    //DVR_INFO("tell cur time=%llu, offset=%lld, position=%lld\n", pts, offset, position);
     if (position <= offset
         &&position >= offset_p
         && offset - offset_p > 0) {
       ret = pts_p + (pts - pts_p) * (position - offset_p) / (offset - offset_p);
-      //DVR_DEBUG(1, "tell cur time=%llu, pts_p = %llu, offset=%lld, position=%lld offset_p+%lld\n", pts, pts_p, offset, position, offset_p);
+      //DVR_INFO("tell cur time=%llu, pts_p = %llu, offset=%lld, position=%lld offset_p+%lld\n", pts, pts_p, offset, position, offset_p);
       return ret;
     }
     offset_p = offset;
     pts_p = pts;
   }
-  //DVR_DEBUG(1, "tell cur time=%llu, offset=%lld, position=%lld\n", pts, offset, position);
+  //DVR_INFO("tell cur time=%llu, offset=%lld, position=%lld\n", pts, offset, position);
   return pts;
 }
 
@@ -562,12 +562,12 @@ uint64_t segment_tell_current_time(Segment_Handle_t handle)
     }
 
     memset(buf, 0, sizeof(buf));
-    //DVR_DEBUG(1, "tell cur time=%llu, offset=%lld, position=%lld\n", pts, offset, position);
+    //DVR_INFO("tell cur time=%llu, offset=%lld, position=%lld\n", pts, offset, position);
     if (position <= offset) {
       return pts;
     }
   }
-  //DVR_DEBUG(1, "tell cur time=%llu, offset=%lld, position=%lld\n", pts, offset, position);
+  //DVR_INFO("tell cur time=%llu, offset=%lld, position=%lld\n", pts, offset, position);
   return pts;
 }
 
@@ -600,7 +600,7 @@ uint64_t segment_tell_total_time(Segment_Handle_t handle)
   /* Save last line buffer */
   while (fgets(buf, sizeof(buf), p_ctx->index_fp) != NULL) {
     if (strlen(buf) <= 0) {
-      DVR_DEBUG(1, "read index buf is len 0");
+      DVR_INFO("read index buf is len 0");
       continue;
     }
     memset(last_buf, 0, sizeof(last_buf));
@@ -628,7 +628,7 @@ uint64_t segment_tell_total_time(Segment_Handle_t handle)
     offset = strtoull(value, NULL, 10);
   }
   //if (line < 2)
-  //DVR_DEBUG(1, "totle time=%llu, offset=%lld, position=%lld, line:%d\n", pts, offset, position, line);
+  //DVR_INFO("totle time=%llu, offset=%lld, position=%lld, line:%d\n", pts, offset, position, line);
   return (pts == ULLONG_MAX ? DVR_FAILURE : pts);
 }
 
@@ -665,7 +665,7 @@ int segment_store_info(Segment_Handle_t handle, Segment_StoreInfo_t *p_info)
 
   /*Save segment duration*/
   memset(buf, 0, sizeof(buf));
-  DVR_DEBUG(1, "duration store:[%ld]", p_info->duration);
+  DVR_INFO("duration store:[%ld]", p_info->duration);
   sprintf(buf, "duration=%ld\n", p_info->duration);
   fputs(buf, p_ctx->dat_fp);
 
@@ -717,7 +717,7 @@ int segment_store_allInfo(Segment_Handle_t handle, Segment_StoreInfo_t *p_info)
 
   /*Save segment duration*/
   memset(buf, 0, sizeof(buf));
-  DVR_DEBUG(1, "duration store:[%ld]", p_info->duration);
+  DVR_INFO("duration store:[%ld]", p_info->duration);
   sprintf(buf, "duration=%ld\n", p_info->duration);
   fputs(buf, p_ctx->all_dat_fp);
 
@@ -796,7 +796,7 @@ int segment_load_info(Segment_Handle_t handle, Segment_StoreInfo_t *p_info)
   p1 = strstr(buf, "duration=");
   DVR_RETURN_IF_FALSE(p1);
   p_info->duration = strtoull(p1 + 9, NULL, 10);
-  //DVR_DEBUG(1, "load info p_info->duration:%lld", p_info->duration);
+  //DVR_INFO("load info p_info->duration:%lld", p_info->duration);
 
   /*Save segment size*/
   p1 = fgets(buf, sizeof(buf), p_ctx->dat_fp);
@@ -828,7 +828,7 @@ int segment_load_allInfo(Segment_Handle_t handle, struct list_head *list)
   DVR_RETURN_IF_FALSE(p_ctx);
   DVR_RETURN_IF_FALSE(list);
   if (p_ctx->all_dat_fp == NULL) {
-    DVR_DEBUG(1, "all dat file not open\n");
+    DVR_INFO("all dat file not open\n");
     return DVR_FAILURE;
   }
   //first get
@@ -890,7 +890,7 @@ int segment_load_allInfo(Segment_Handle_t handle, struct list_head *list)
     p1 = strstr(buf, "duration=");
     DVR_RETURN_IF_FALSE(p1);
     p_info->duration = strtoull(p1 + 9, NULL, 10);
-    //DVR_DEBUG(1, "load info p_info->duration:%lld", p_info->duration);
+    //DVR_INFO("load info p_info->duration:%lld", p_info->duration);
 
     /*Save segment size*/
     p1 = fgets(buf, sizeof(buf), p_ctx->all_dat_fp);
@@ -923,21 +923,21 @@ int segment_delete(const char *location, uint64_t segment_id)
   memset(fname, 0, sizeof(fname));
   segment_get_fname(fname, location, segment_id, SEGMENT_FILE_TYPE_TS);
   ret = unlink(fname);
-  DVR_DEBUG(1, "%s, [%s] return:%s", __func__, fname, strerror(errno));
+  DVR_INFO("%s, [%s] return:%s", __func__, fname, strerror(errno));
   DVR_RETURN_IF_FALSE(ret == 0);
 
   /*delete index file*/
   memset(fname, 0, sizeof(fname));
   segment_get_fname(fname, location, segment_id, SEGMENT_FILE_TYPE_INDEX);
   unlink(fname);
-  DVR_DEBUG(1, "%s, [%s] return:%s", __func__, fname, strerror(errno));
+  DVR_INFO("%s, [%s] return:%s", __func__, fname, strerror(errno));
   DVR_RETURN_IF_FALSE(ret == 0);
 
   /*delete store information file*/
   memset(fname, 0, sizeof(fname));
   segment_get_fname(fname, location, segment_id, SEGMENT_FILE_TYPE_DAT);
   unlink(fname);
-  DVR_DEBUG(1, "%s, [%s] return:%s", __func__, fname, strerror(errno));
+  DVR_INFO("%s, [%s] return:%s", __func__, fname, strerror(errno));
   DVR_RETURN_IF_FALSE(ret == 0);
 
   return DVR_SUCCESS;
@@ -953,7 +953,7 @@ int segment_ongoing(Segment_Handle_t handle)
   memset(going_name, 0, sizeof(going_name));
   segment_get_fname(going_name, p_ctx->location, p_ctx->segment_id, SEGMENT_FILE_TYPE_ONGOING);
   int ret = stat(going_name, &mstat);
-  DVR_DEBUG(1, "segment check ongoing  [%s] ret [%d]", going_name, ret);
+  DVR_INFO("segment check ongoing  [%s] ret [%d]", going_name, ret);
   if (ret != 0) {
     return DVR_FAILURE;
   }

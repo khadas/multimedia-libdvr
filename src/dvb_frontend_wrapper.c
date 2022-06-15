@@ -37,7 +37,7 @@ DVB_RESULT AML_FE_Open(const char *name, int *frontend_fd)
 
     if ((*frontend_fd = open(name, O_RDWR | O_NONBLOCK)) < 0)
     {
-        DVB_DEBUG(1, "Failed to open tune:%s, errno[%d]:%s", name, errno, strerror(errno));
+        DVB_INFO("Failed to open tune:%s, errno[%d]:%s", name, errno, strerror(errno));
         retval = DVB_FAILURE;
     }
 
@@ -55,7 +55,7 @@ DVB_RESULT AML_FE_Colse(int frontend_fd)
     if (close(frontend_fd) < 0)
     {
         retval = DVB_FAILURE;
-        DVB_DEBUG(1, "Failed to close frontend_fd:%d, errno[%d]:%s", frontend_fd, errno, strerror(errno));
+        DVB_INFO("Failed to close frontend_fd:%d, errno[%d]:%s", frontend_fd, errno, strerror(errno));
     }
 
     return retval;
@@ -72,21 +72,21 @@ dmd_tuner_event_t AML_FE_GetTuneStatus(int frontend_fd)
 
     if (ioctl(frontend_fd, FE_READ_STATUS, &fe_event.status) >= 0)
     {
-        DVB_DEBUG(1, "current tuner status=0x%02x \n", fe_event.status);
+        DVB_INFO("current tuner status=0x%02x \n", fe_event.status);
         if ((fe_event.status & FE_HAS_LOCK) != 0)
         {
             tune_event = TUNER_STATE_LOCKED;
-            DVB_DEBUG(1, "[ LOCKED ]\n");
+            DVB_INFO("[ LOCKED ]\n");
         }
         else if ((fe_event.status & FE_TIMEDOUT) != 0)
         {
             tune_event = TUNER_STATE_TIMEOUT;
-            DVB_DEBUG(1, "[ UNLOCKED ]\n");
+            DVB_INFO("[ UNLOCKED ]\n");
         }
     }
     else
     {
-        DVB_DEBUG(1, "frontend_fd:%d FE_READ_STATUS errno[%d]:%s", frontend_fd, errno, strerror(errno));
+        DVB_INFO("frontend_fd:%d FE_READ_STATUS errno[%d]:%s", frontend_fd, errno, strerror(errno));
     }
 
     return tune_event;
@@ -191,9 +191,8 @@ DVB_RESULT AML_FE_TuneDVB_T(int frontend_fd, const dmd_terrestrial_desc_t *terr)
         p[cmd_num].u.data = terr->desc.dvbt2.frequency * 1000;
     else
         p[cmd_num].u.data = terr->desc.dtmb.frequency * 1000;
-    DVB_DEBUG(1, "%s, type:%s, freq:%d", __func__,
-             (terr->dvb_type == DMD_DVBTYPE_DVBT) ? "DVB-T" : ((terr->dvb_type == DMD_DVBTYPE_DVBT2) ? "DVB-T2" : "DTMB"),
-             p[cmd_num].u.data);
+    char* dvb_type = ((terr->dvb_type == DMD_DVBTYPE_DVBT) ? "DVB-T" : ((terr->dvb_type == DMD_DVBTYPE_DVBT2) ? "DVB-T2" : "DTMB"));
+    DVB_INFO("%s, type:%s, freq:%d", __func__, dvb_type, p[cmd_num].u.data);
 
     p[cmd_num].cmd = DTV_FREQUENCY;
     cmd_num++;
@@ -292,9 +291,9 @@ DVB_RESULT AML_FE_TuneDVB_S(int frontend_fd, const dmd_satellite_desc_t *sate)
     struct dtv_properties props;
     struct dtv_property p[DTV_IOCTL_MAX_MSGS];
 
-    DVB_DEBUG(1, "lock S, freq:%d, symbol rate:%d,  DVB-%s\n",
-             sate->frequency, sate->symbol_rate,
-             sate->modulation_system == DMD_MODSYS_DVBS2 ? "S2" : "S");
+    char* modulation_system = (sate->modulation_system == DMD_MODSYS_DVBS2 ? "S2" : "S");
+    DVB_INFO("lock S, freq:%d, symbol rate:%d,  DVB-%s\n",
+            sate->frequency, sate->symbol_rate, modulation_system);
 
     p[cmd_num].cmd = DTV_DELIVERY_SYSTEM;
     p[cmd_num].u.data = sate->modulation_system == DMD_MODSYS_DVBS2 ? SYS_DVBS2 : SYS_DVBS;
@@ -385,7 +384,7 @@ DVB_RESULT AML_FE_LnbVoltage(int frontend_fd, dmd_lnb_voltage_t voltage)
     if (ioctl(frontend_fd, FE_SET_VOLTAGE, volt) == -1)
     {
         ret = DVB_FAILURE;
-        DVB_DEBUG(1, "FE_SET_VOLTAGE failed, frontend_fd:%d, voltage:%d errno[%d]:%s", frontend_fd, voltage, errno, strerror(errno));
+        DVB_INFO("FE_SET_VOLTAGE failed, frontend_fd:%d, voltage:%d errno[%d]:%s", frontend_fd, voltage, errno, strerror(errno));
     }
     return ret;
 }
@@ -436,14 +435,14 @@ DVB_RESULT AML_FE_SendDISEQCMessage(int frontend_fd, uint8_t *data, uint8_t size
     for (int i = 0; i < size; i++)
     {
         cmd.msg[i] = data[i];
-        DVB_DEBUG(1, "AML_FE_SendDISEQCMessage cmd:0x%x", data[i]);
+        DVB_INFO("AML_FE_SendDISEQCMessage cmd:0x%x", data[i]);
     }
     cmd.msg_len = size;
 
     if (ioctl(frontend_fd, FE_DISEQC_SEND_MASTER_CMD, &cmd) == -1)
     {
         ret = DVB_FAILURE;
-        DVB_DEBUG(1, "FE_DISEQC_SEND_MASTER_CMD failed, frontend_fd:%d, errno[%d]:%s", frontend_fd, errno, strerror(errno));
+        DVB_INFO("FE_DISEQC_SEND_MASTER_CMD failed, frontend_fd:%d, errno[%d]:%s", frontend_fd, errno, strerror(errno));
     }
     return ret;
 }
@@ -452,7 +451,7 @@ static DVB_RESULT dmd_set_prop(int frontend_fd, const struct dtv_properties *pro
 {
     if (ioctl(frontend_fd, FE_SET_PROPERTY, prop) == -1)
     {
-        DVB_DEBUG(1, "FE_SET_PROPERT failed, frontend_fd:%d, errno[%d]:%s", frontend_fd, errno, strerror(errno));
+        DVB_INFO("FE_SET_PROPERT failed, frontend_fd:%d, errno[%d]:%s", frontend_fd, errno, strerror(errno));
         return DVB_FAILURE;
     }
     return DVB_SUCCESS;

@@ -3,8 +3,10 @@
 #include "dvr_types.h"
 #include "dvr_mutex.h"
 
-#define merr(f,...) DVR_DEBUG_FL(1, "dvr_mutex", f, ##__VA_ARGS__)
-#define mdbg(f,...) merr(f, ##__VA_ARGS__)
+#define MUTEX_LOG_TAG "libdvr-mutex"
+#define merr(...) DVR_LOG_PRINT(LOG_LV_ERROR, MUTEX_LOG_TAG, __VA_ARGS__)
+#define mdbg(...) DVR_LOG_PRINT(LOG_LV_DEBUG, MUTEX_LOG_TAG, __VA_ARGS__)
+
 
 void _dvr_mutex_init(void *mutex)
 {

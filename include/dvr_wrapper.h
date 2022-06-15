@@ -374,6 +374,15 @@ int dvr_wrapper_stop_timeshift (DVR_WrapperPlayback_t playback);
  */
 int dvr_wrapper_restart_timeshift(DVR_WrapperPlayback_t playback, DVR_PlaybackFlag_t flags, DVR_PlaybackPids_t *p_pids);
 
+/**
+ * Set log level
+ * \param level Log level, 0: UNKNOWN, 1: DEFAULT, 2:VERBOSE, 3:DEBUG.
+ *                         4: INFO, 5: WARN, 6: ERROR, 7: FATAL
+ * \retval DVR_SUCCESS On success.
+ * \return Error code.
+ */
+int dvr_wrapper_set_log_level (int level);
+
 #ifdef __cplusplus
 }
 #endif
