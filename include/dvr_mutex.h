@@ -2,13 +2,12 @@
 #define _DVR_MUTEX_H_
 
 #include <pthread.h>
-#include <stdatomic.h>
 
 typedef struct dvr_mutex_s
 {
    pthread_mutex_t lock;
    pthread_t thread;
-   atomic_int lock_cnt;
+   int lock_cnt;
 } dvr_mutex_t;
 
 void _dvr_mutex_init(void *mutex);

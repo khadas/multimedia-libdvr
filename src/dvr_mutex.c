@@ -29,7 +29,7 @@ void _dvr_mutex_lock(void *mutex)
    }
    dvr_mutex_t *mtx = (dvr_mutex_t*)mutex;
    if (pthread_equal(mtx->thread, pthread_self()) != 0) {
-      atomic_fetch_add(&mtx->lock_cnt, 1);
+      mtx->lock_cnt++;
    } else {
       pthread_mutex_lock(&mtx->lock);
       mtx->thread = pthread_self();
@@ -45,8 +45,8 @@ void _dvr_mutex_unlock(void *mutex)
    }
    dvr_mutex_t *mtx = (dvr_mutex_t*)mutex;
    if (pthread_equal(mtx->thread, pthread_self()) != 0) {
-      int last = atomic_fetch_sub(&mtx->lock_cnt, 1);
-      if (last <= 1) {
+      mtx->lock_cnt--;
+      if (mtx->lock_cnt == 0) {
          mtx->thread = 0;
          pthread_mutex_unlock(&mtx->lock);
       }
