@@ -46,8 +46,91 @@ enum {
 };
 
 typedef struct {
+  pthread_mutex_t lock;
+  pthread_cond_t  cond;
+  int             inited;
+  int             locked;
+} DVR_WrapperMutex_t;
+
+static void
+wrapper_mutex_init (DVR_WrapperMutex_t *lock)
+{
+  pthread_condattr_t cattr;
+
+  if (!lock->inited)
+    return;
+
+  pthread_mutex_init(&lock->lock, NULL);
+
+  pthread_condattr_init(&cattr);
+  pthread_condattr_setclock(&cattr, CLOCK_MONOTONIC);
+  pthread_cond_init(&lock->cond, &cattr);
+  pthread_condattr_destroy(&cattr);
+
+  lock->locked = 0;
+  lock->inited = 1;
+}
+
+static int
+wrapper_mutex_lock (DVR_WrapperMutex_t *lock)
+{
+  pthread_mutex_lock(&lock->lock);
+  while (lock->locked) {
+    pthread_cond_wait(&lock->cond, &lock->lock);
+  }
+  lock->locked = 1;
+  pthread_mutex_unlock(&lock->lock);
+
+  return 0;
+}
+
+static int
+wrapper_mutex_unlock (DVR_WrapperMutex_t *lock)
+{
+  pthread_mutex_lock(&lock->lock);
+  lock->locked = 0;
+  pthread_mutex_unlock(&lock->lock);
+  pthread_cond_signal(&lock->cond);
+
+  return 0;
+}
+
+static int
+wrapper_mutex_timedlock (DVR_WrapperMutex_t *lock, struct timespec *tv)
+{
+  int r = 0;
+
+  pthread_mutex_lock(&lock->lock);
+  if (lock->locked) {
+    DVR_WRAPPER_DEBUG("Enter cond_timedwait");
+    r = pthread_cond_timedwait(&lock->cond, &lock->lock, tv);
+    DVR_WRAPPER_DEBUG("Leave cond_timedwait");
+  }
+  if (r == 0) {
+    if (!lock->locked) {
+      lock->locked = 1;
+    } else {
+      r = ETIMEDOUT;
+    }
+  }
+  pthread_mutex_unlock(&lock->lock);
+
+  return r;
+}
+
+#define WRAPPER_RETURN_IF_FALSE_WITH_UNLOCK(expr, lock)\
+  do {\
+    if (!(expr)) {\
+      DVR_INFO("%s-%d failed", __func__, __LINE__);\
+      wrapper_mutex_unlock(lock);\
+      return DVR_FAILURE;\
+    }\
+  } while (0);
+
+
+typedef struct {
   /*make lock the 1st item in the structure*/
-  pthread_mutex_t               lock;
+  DVR_WrapperMutex_t            wrapper_lock;
 
   /*rec or play*/
   int                           type;
@@ -160,7 +243,6 @@ static DVR_WrapperCtx_t record_list[DVR_WRAPPER_MAX] =
 {
   [0 ... (DVR_WRAPPER_MAX - 1)] =
   {
-    .lock = PTHREAD_MUTEX_INITIALIZER,
     .type = W_REC,
   }
 };
@@ -169,7 +251,6 @@ static DVR_WrapperCtx_t playback_list[DVR_WRAPPER_MAX] =
 {
   [0 ... (DVR_WRAPPER_MAX - 1)] =
   {
-    .lock = PTHREAD_MUTEX_INITIALIZER,
     .type = W_PLAYBACK,
   }
 };
@@ -367,8 +448,10 @@ static inline DVR_WrapperCtx_t *ctx_get(unsigned long sn, DVR_WrapperCtx_t *list
 {
   int i;
   for (i = 0; i < DVR_WRAPPER_MAX; i++) {
-    if (list[i].sn == sn)
+    if (list[i].sn == sn) {
+      wrapper_mutex_init(&list[i].wrapper_lock);
       return &list[i];
+    }
   }
   return NULL;
 }
@@ -491,41 +574,18 @@ static inline int wrapper_threadWaitFor(DVR_WrapperCtx_t *ctx)
   return 0;
 }
 
-static void get_timeout_real(int timeout, struct timespec *ts)
-{
-  struct timespec ots;
-  int left, diff;
-
-  clock_gettime(CLOCK_REALTIME, &ots);
-
-  ts->tv_sec  = ots.tv_sec + timeout/1000;
-  ts->tv_nsec = ots.tv_nsec;
-
-  left = timeout % 1000;
-  left *= 1000000;
-  diff = 1000000000-ots.tv_nsec;
-
-  if (diff <= left) {
-    ts->tv_sec++;
-    ts->tv_nsec = left-diff;
-  } else {
-    ts->tv_nsec += left;
-  }
-}
-
 /*return condition, locked if condition == true*/
-static int wrapper_mutex_lock_if(pthread_mutex_t *lock, int *condition)
+static int wrapper_mutex_lock_if(DVR_WrapperMutex_t *lock, int *condition)
 {
   int r2;
   do {
     struct timespec rt2;
-    /*android use real time for mutex timedlock*/
-    get_timeout_real(10, &rt2);
-    r2 = pthread_mutex_timedlock(lock, &rt2);
+    get_timespec_timeout(10, &rt2);
+    r2 = wrapper_mutex_timedlock(lock, &rt2);
   } while (*condition && (r2 == ETIMEDOUT));
 
   if (!(*condition) && (r2 == 0))
-    pthread_mutex_unlock(lock);
+    wrapper_mutex_unlock(lock);
 
   return *condition;
 }
@@ -559,7 +619,7 @@ static void *wrapper_task(void *arg)
           continue not break,
           make all events consumed, or mem leak
         */
-        if (!wrapper_mutex_lock_if(&ctx->lock, &tctx->running))
+        if (!wrapper_mutex_lock_if(&ctx->wrapper_lock, &tctx->running))
             goto processed;
 
         if (ctx_valid(ctx)) {
@@ -570,7 +630,7 @@ static void *wrapper_task(void *arg)
             pthread_mutex_lock(&tctx->lock);
           }
         }
-        pthread_mutex_unlock(&ctx->lock);
+        wrapper_mutex_unlock(&ctx->wrapper_lock);
       }
 
 processed:
@@ -756,13 +816,13 @@ static int wrapper_updateRecordSegment(DVR_WrapperCtx_t *ctx, DVR_RecordSegmentI
       ctx_playback = ctx_getPlayback(sn);
 
     if (ctx_playback) {
-      pthread_mutex_lock(&ctx_playback->lock);
+      wrapper_mutex_lock(&ctx_playback->wrapper_lock);
       if (ctx_valid(ctx_playback)
           && (ctx_playback->sn == sn_timeshift_playback ||
               ctx_playback->sn == sn)) {
           wrapper_updatePlaybackSegment(ctx_playback, seg_info, update_flags);
       }
-      pthread_mutex_unlock(&ctx_playback->lock);
+      wrapper_mutex_unlock(&ctx_playback->wrapper_lock);
     }
   }
 
@@ -835,7 +895,7 @@ static int wrapper_addRecordSegment(DVR_WrapperCtx_t *ctx, DVR_RecordSegmentInfo
     DVR_WRAPPER_INFO("ctx_playback ---- add segment\n");
 
     if (ctx_playback) {
-      pthread_mutex_lock(&ctx_playback->lock);
+      wrapper_mutex_lock(&ctx_playback->wrapper_lock);
       if (ctx_valid(ctx_playback)) {
         DVR_PlaybackSegmentFlag_t flags;
 
@@ -851,7 +911,7 @@ static int wrapper_addRecordSegment(DVR_WrapperCtx_t *ctx, DVR_RecordSegmentInfo
       } else {
             DVR_WRAPPER_INFO("ctx_playback ---- not valid\n");
       }
-      pthread_mutex_unlock(&ctx_playback->lock);
+      wrapper_mutex_unlock(&ctx_playback->wrapper_lock);
     }
     else
     {
@@ -939,11 +999,11 @@ static int wrapper_removeRecordSegment(DVR_WrapperCtx_t *ctx, DVR_WrapperRecordS
     DVR_WrapperCtx_t *ctx_playback = ctx_getPlayback(sn_timeshift_playback);
 
     if (ctx_playback) {
-      pthread_mutex_lock(&ctx_playback->lock);
+      wrapper_mutex_lock(&ctx_playback->wrapper_lock);
       if (ctx_playback->current_segment_id == seg_info->info.id && ctx_playback->playback.speed == 100.0f) {
           ctx_playback->playback.tf_full = DVR_TRUE;
           DVR_WRAPPER_INFO("timeshift, not remove record(sn:%ld) segment(%lld) .(%d) (%f).isplaying.\n", ctx->sn, seg_info->info.id, DVR_TRUE, ctx_playback->playback.speed);
-          pthread_mutex_unlock(&ctx_playback->lock);
+          wrapper_mutex_unlock(&ctx_playback->wrapper_lock);
           return DVR_SUCCESS;
       } else {
           DVR_WRAPPER_INFO("timeshift, start remove record(sn:%ld) segment(%lld) (%lld).(%f)..\n", ctx->sn, seg_info->info.id, ctx_playback->current_segment_id,ctx_playback->playback.speed);
@@ -954,7 +1014,7 @@ static int wrapper_removeRecordSegment(DVR_WrapperCtx_t *ctx, DVR_WrapperRecordS
         error = wrapper_removePlaybackSegment(ctx_playback, &seg_info->info);
       }
       ctx_playback->playback.tf_full = DVR_FALSE;
-      pthread_mutex_unlock(&ctx_playback->lock);
+      wrapper_mutex_unlock(&ctx_playback->wrapper_lock);
     }
   }
 
@@ -994,7 +1054,7 @@ int dvr_wrapper_open_record (DVR_WrapperRecord_t *rec, DVR_WrapperRecordOpenPara
   ctx = ctx_getRecord(0);
   DVR_RETURN_IF_FALSE(ctx);
 
-  pthread_mutex_lock(&ctx->lock);
+  wrapper_mutex_lock(&ctx->wrapper_lock);
 
   DVR_WRAPPER_INFO("open record(dmx:%d) .istf(%d)..time (%ld)ms max size(%lld)byte seg size(%lld)byte\n",
   params->dmx_dev_id, params->is_timeshift, params->max_time, params->max_size, params->segment_size);
@@ -1038,7 +1098,7 @@ int dvr_wrapper_open_record (DVR_WrapperRecord_t *rec, DVR_WrapperRecordOpenPara
   if (error) {
     DVR_WRAPPER_INFO("record(dmx:%d) open fail(error:%d).\n", params->dmx_dev_id, error);
     ctx_reset(ctx);
-    pthread_mutex_unlock(&ctx->lock);
+    wrapper_mutex_unlock(&ctx->wrapper_lock);
     wrapper_releaseThreadForType(ctx->type);
     return DVR_FAILURE;
   }
@@ -1054,7 +1114,7 @@ int dvr_wrapper_open_record (DVR_WrapperRecord_t *rec, DVR_WrapperRecordOpenPara
     }
   }
 
-  pthread_mutex_unlock(&ctx->lock);
+  wrapper_mutex_unlock(&ctx->wrapper_lock);
 
   *rec = (DVR_WrapperRecord_t)ctx->sn;
   return DVR_SUCCESS;
@@ -1071,9 +1131,9 @@ int dvr_wrapper_close_record (DVR_WrapperRecord_t rec)
   ctx = ctx_getRecord((unsigned long)rec);
   DVR_RETURN_IF_FALSE(ctx);
 
-  pthread_mutex_lock(&ctx->lock);
+  wrapper_mutex_lock(&ctx->wrapper_lock);
   DVR_WRAPPER_INFO("close record(sn:%ld)\n", ctx->sn);
-  DVR_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->lock);
+  WRAPPER_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->wrapper_lock);
 
   memset(&seg_info, 0, sizeof(seg_info));
   error = dvr_record_stop_segment(ctx->record.recorder, &seg_info);
@@ -1087,7 +1147,7 @@ int dvr_wrapper_close_record (DVR_WrapperRecord_t rec)
 
   DVR_WRAPPER_INFO("record(sn:%ld) closed = (%d).\n", ctx->sn, error);
   ctx_reset(ctx);
-  pthread_mutex_unlock(&ctx->lock);
+  wrapper_mutex_unlock(&ctx->wrapper_lock);
 
   wrapper_releaseThreadForType(ctx->type);
 
@@ -1107,9 +1167,9 @@ int dvr_wrapper_start_record (DVR_WrapperRecord_t rec, DVR_WrapperRecordStartPar
   ctx = ctx_getRecord((unsigned long)rec);
   DVR_RETURN_IF_FALSE(ctx);
 
-  pthread_mutex_lock(&ctx->lock);
+  wrapper_mutex_lock(&ctx->wrapper_lock);
   DVR_WRAPPER_INFO("start record(sn:%ld, location:%s) save(%d)...\n", ctx->sn, ctx->record.param_open.location, params->save_rec_file);
-  DVR_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->lock);
+  WRAPPER_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->wrapper_lock);
 
   start_param = &ctx->record.param_start;
   memset(start_param, 0, sizeof(*start_param));
@@ -1140,7 +1200,7 @@ int dvr_wrapper_start_record (DVR_WrapperRecord_t rec, DVR_WrapperRecordStartPar
 
   DVR_WRAPPER_INFO("record(sn:%ld) started = (%d)\n", ctx->sn, error);
 
-  pthread_mutex_unlock(&ctx->lock);
+  wrapper_mutex_unlock(&ctx->wrapper_lock);
 
   return error;
 }
@@ -1156,16 +1216,16 @@ int dvr_wrapper_stop_record (DVR_WrapperRecord_t rec)
   ctx = ctx_getRecord((unsigned long)rec);
   DVR_RETURN_IF_FALSE(ctx);
 
-  pthread_mutex_lock(&ctx->lock);
+  wrapper_mutex_lock(&ctx->wrapper_lock);
   DVR_WRAPPER_INFO("stop record(sn:%ld) ...\n", ctx->sn);
-  DVR_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->lock);
+  WRAPPER_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->wrapper_lock);
 
   memset(&seg_info, 0, sizeof(seg_info));
   error = dvr_record_stop_segment(ctx->record.recorder, &seg_info);
   wrapper_updateRecordSegment(ctx, &seg_info, U_ALL);
 
   DVR_WRAPPER_INFO("record(sn:%ld) stopped = (%d)\n", ctx->sn, error);
-  pthread_mutex_unlock(&ctx->lock);
+  wrapper_mutex_unlock(&ctx->wrapper_lock);
 
   return error;
 }
@@ -1180,14 +1240,14 @@ int dvr_wrapper_pause_record (DVR_WrapperRecord_t rec)
   ctx = ctx_getRecord((unsigned long)rec);
   DVR_RETURN_IF_FALSE(ctx);
 
-  pthread_mutex_lock(&ctx->lock);
+  wrapper_mutex_lock(&ctx->wrapper_lock);
   DVR_WRAPPER_INFO("pause record(sn:%ld) ...\n", ctx->sn);
-  DVR_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->lock);
+  WRAPPER_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->wrapper_lock);
 
   error = dvr_record_pause(ctx->record.recorder);
 
   DVR_WRAPPER_INFO("record(sn:%ld) pauseed = (%d)\n", ctx->sn, error);
-  pthread_mutex_unlock(&ctx->lock);
+  wrapper_mutex_unlock(&ctx->wrapper_lock);
 
   return error;
 }
@@ -1202,14 +1262,14 @@ int dvr_wrapper_resume_record (DVR_WrapperRecord_t rec)
   ctx = ctx_getRecord((unsigned long)rec);
   DVR_RETURN_IF_FALSE(ctx);
 
-  pthread_mutex_lock(&ctx->lock);
+  wrapper_mutex_lock(&ctx->wrapper_lock);
   DVR_WRAPPER_INFO("resume record(sn:%ld) ...\n", ctx->sn);
-  DVR_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->lock);
+  WRAPPER_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->wrapper_lock);
 
   error = dvr_record_resume(ctx->record.recorder);
 
   DVR_WRAPPER_INFO("record(sn:%ld) resumed = (%d)\n", ctx->sn, error);
-  pthread_mutex_unlock(&ctx->lock);
+  wrapper_mutex_unlock(&ctx->wrapper_lock);
 
   return error;
 }
@@ -1294,14 +1354,14 @@ int dvr_wrapper_update_record_pids (DVR_WrapperRecord_t rec, DVR_WrapperUpdatePi
   ctx = ctx_getRecord((unsigned long)rec);
   DVR_RETURN_IF_FALSE(ctx);
 
-  pthread_mutex_lock(&ctx->lock);
+  wrapper_mutex_lock(&ctx->wrapper_lock);
   DVR_WRAPPER_INFO("update record(sn:%ld)\n", ctx->sn);
-  DVR_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->lock);
+  WRAPPER_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->wrapper_lock);
 
   start_param = &ctx->record.param_update;
   if (pids_equal(&(start_param->segment),params))
   {
-    pthread_mutex_unlock(&ctx->lock);
+    wrapper_mutex_unlock(&ctx->wrapper_lock);
     return DVR_TRUE;
   }
 
@@ -1322,7 +1382,7 @@ int dvr_wrapper_update_record_pids (DVR_WrapperRecord_t rec, DVR_WrapperUpdatePi
   }
 
   DVR_WRAPPER_INFO("record(sn:%ld) updated = (%d)\n", ctx->sn, error);
-  pthread_mutex_unlock(&ctx->lock);
+  wrapper_mutex_unlock(&ctx->wrapper_lock);
 
   return error;
 }
@@ -1339,10 +1399,10 @@ int dvr_wrapper_get_record_status(DVR_WrapperRecord_t rec, DVR_WrapperRecordStat
   ctx = ctx_getRecord((unsigned long)rec);
   DVR_RETURN_IF_FALSE(ctx);
 
-  pthread_mutex_lock(&ctx->lock);
+  wrapper_mutex_lock(&ctx->wrapper_lock);
 
   DVR_WRAPPER_INFO("get record(sn:%ld) status ...\n", ctx->sn);
-  DVR_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->lock);
+  WRAPPER_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->wrapper_lock);
 
   error = process_generateRecordStatus(ctx, &s);
 
@@ -1356,7 +1416,7 @@ int dvr_wrapper_get_record_status(DVR_WrapperRecord_t rec, DVR_WrapperRecordStat
 
   *status = s;
 
-  pthread_mutex_unlock(&ctx->lock);
+  wrapper_mutex_unlock(&ctx->wrapper_lock);
 
   return error;
 }
@@ -1371,9 +1431,9 @@ int dvr_wrapper_record_is_secure_mode(DVR_WrapperRecord_t rec)
   ctx = ctx_getRecord((unsigned long)rec);
   DVR_RETURN_IF_FALSE(ctx);
 
-  pthread_mutex_lock(&ctx->lock);
+  wrapper_mutex_lock(&ctx->wrapper_lock);
   error = dvr_record_is_secure_mode(ctx->record.recorder);
-  pthread_mutex_unlock(&ctx->lock);
+  wrapper_mutex_unlock(&ctx->wrapper_lock);
   return error;
 }
 
@@ -1388,9 +1448,9 @@ int dvr_wrapper_set_record_secure_buffer (DVR_WrapperRecord_t rec,  uint8_t *p_s
   ctx = ctx_getRecord((unsigned long)rec);
   DVR_RETURN_IF_FALSE(ctx);
 
-  pthread_mutex_lock(&ctx->lock);
+  wrapper_mutex_lock(&ctx->wrapper_lock);
   error = dvr_record_set_secure_buffer(ctx->record.recorder, p_secure_buf, len);
-  pthread_mutex_unlock(&ctx->lock);
+  wrapper_mutex_unlock(&ctx->wrapper_lock);
   return error;
 }
 
@@ -1405,9 +1465,9 @@ int dvr_wrapper_set_record_decrypt_callback (DVR_WrapperRecord_t rec,  DVR_Crypt
   ctx = ctx_getRecord((unsigned long)rec);
   DVR_RETURN_IF_FALSE(ctx);
 
-  pthread_mutex_lock(&ctx->lock);
+  wrapper_mutex_lock(&ctx->wrapper_lock);
   error = dvr_record_set_encrypt_callback(ctx->record.recorder, func, userdata);
-  pthread_mutex_unlock(&ctx->lock);
+  wrapper_mutex_unlock(&ctx->wrapper_lock);
   return error;
 }
 
@@ -1426,7 +1486,7 @@ int dvr_wrapper_open_playback (DVR_WrapperPlayback_t *playback, DVR_WrapperPlayb
   ctx = ctx_getPlayback(0);
   DVR_RETURN_IF_FALSE(ctx);
 
-  pthread_mutex_lock(&ctx->lock);
+  wrapper_mutex_lock(&ctx->wrapper_lock);
 
   DVR_WRAPPER_INFO("open playback(dmx:%d) ..vendor[%d]params->block_size[%d].\n", params->dmx_dev_id, params->vendor, params->block_size);
 
@@ -1463,7 +1523,7 @@ int dvr_wrapper_open_playback (DVR_WrapperPlayback_t *playback, DVR_WrapperPlayb
   if (error) {
     DVR_WRAPPER_INFO("playback(dmx:%d) openned fail(error:%d).\n", params->dmx_dev_id, error);
     ctx_reset(ctx);
-    pthread_mutex_unlock(&ctx->lock);
+    wrapper_mutex_unlock(&ctx->wrapper_lock);
     wrapper_releaseThreadForType(ctx->type);
     return DVR_FAILURE;
   }
@@ -1475,7 +1535,7 @@ int dvr_wrapper_open_playback (DVR_WrapperPlayback_t *playback, DVR_WrapperPlayb
   if (error) {
     DVR_WRAPPER_INFO("playback set deccrypt callback fail(error:%d).\n", error);
   }
-  pthread_mutex_unlock(&ctx->lock);
+  wrapper_mutex_unlock(&ctx->wrapper_lock);
 
   *playback = (DVR_WrapperPlayback_t)ctx->sn;
   return DVR_SUCCESS;
@@ -1491,9 +1551,9 @@ int dvr_wrapper_close_playback (DVR_WrapperPlayback_t playback)
   ctx = ctx_getPlayback((unsigned long)playback);
   DVR_RETURN_IF_FALSE(ctx);
 
-  pthread_mutex_lock(&ctx->lock);
+  wrapper_mutex_lock(&ctx->wrapper_lock);
   DVR_WRAPPER_INFO("close playback(sn:%ld)\n", ctx->sn);
-  DVR_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->lock);
+  WRAPPER_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->wrapper_lock);
 
   if (ctx->playback.param_open.is_timeshift)
     sn_timeshift_playback = 0;
@@ -1517,7 +1577,7 @@ int dvr_wrapper_close_playback (DVR_WrapperPlayback_t playback)
 
   DVR_WRAPPER_INFO("playback(sn:%ld) closed.\n", ctx->sn);
   ctx_reset(ctx);
-  pthread_mutex_unlock(&ctx->lock);
+  wrapper_mutex_unlock(&ctx->wrapper_lock);
 
   wrapper_releaseThreadForType(ctx->type);
 
@@ -1545,11 +1605,11 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
   ctx_record = ctx_getRecord(sn_timeshift_record);
 
   if (ctx_record) {
-    pthread_mutex_lock(&ctx_record->lock);
+    wrapper_mutex_lock(&ctx_record->wrapper_lock);
     if (!ctx_valid(ctx_record)
       || ctx_record->sn != sn_timeshift_record) {
       DVR_WRAPPER_INFO("timeshift, record is not for timeshifting, FATAL error found\n");
-      pthread_mutex_unlock(&ctx_record->lock);
+      wrapper_mutex_unlock(&ctx_record->wrapper_lock);
       is_timeshift  = DVR_FALSE;
     } else {
       is_timeshift  = DVR_TRUE;
@@ -1559,7 +1619,7 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
   ctx = ctx_getPlayback((unsigned long)playback);
   DVR_RETURN_IF_FALSE(ctx);
 
-  pthread_mutex_lock(&ctx->lock);
+  wrapper_mutex_lock(&ctx->wrapper_lock);
 
   DVR_WRAPPER_INFO("start playback(sn:%ld) (%s)\n\t flags(0x%x) v/a/ad/sub/pcr(%d:%d %d:%d %d:%d %d:%d %d)\n",
     ctx->sn,
@@ -1571,13 +1631,13 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
     p_pids->subtitle.pid, p_pids->subtitle.format,
     p_pids->pcr.pid);
 
-  DVR_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->lock);
+  WRAPPER_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->wrapper_lock);
 
   if (ctx->playback.param_open.is_timeshift) {
     /*lock the recorder to avoid changing the recording segments*/
     if (is_timeshift == DVR_FALSE) {
       DVR_WRAPPER_INFO("timeshift, record is not for timeshifting, FATAL error return\n");
-      pthread_mutex_unlock(&ctx->lock);
+      wrapper_mutex_unlock(&ctx->wrapper_lock);
       return DVR_FAILURE;
     } else {
       DVR_WRAPPER_INFO("playback(sn:%ld) record(sn:%ld) locked ok due to timeshift\n",
@@ -1785,9 +1845,9 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
       ctx->playback.pids_req = *p_pids;
       //calualte segment id and pos
       if (dvr_playback_check_limit(ctx->playback.player)) {
-        pthread_mutex_unlock(&ctx->lock);
+        wrapper_mutex_unlock(&ctx->wrapper_lock);
         dvr_wrapper_seek_playback(playback, 0);
-        pthread_mutex_lock(&ctx->lock);
+        wrapper_mutex_lock(&ctx->wrapper_lock);
         error = dvr_playback_start(ctx->playback.player, flags);
       } else {
         error = dvr_playback_seek(ctx->playback.player, seg_info_1st.id, 0);
@@ -1804,12 +1864,12 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
   if (ctx->playback.param_open.is_timeshift) {
     /*unlock the recorder locked above*/
     if (ctx_record && ctx_valid(ctx_record)) {
-        pthread_mutex_unlock(&ctx_record->lock);
+        wrapper_mutex_unlock(&ctx_record->wrapper_lock);
         DVR_WRAPPER_INFO("playback(sn:%ld), record(sn:%ld) unlocked ok due to timeshift\n",
           ctx->sn, ctx_record->sn);
     }
   }
-  pthread_mutex_unlock(&ctx->lock);
+  wrapper_mutex_unlock(&ctx->wrapper_lock);
 
   return error;
 }
@@ -1844,9 +1904,9 @@ int dvr_wrapper_restart_timeshift(DVR_WrapperPlayback_t playback, DVR_PlaybackFl
   ctx = ctx_getRecord((unsigned long)sn_timeshift_record);
   DVR_RETURN_IF_FALSE(ctx);
 
-  pthread_mutex_lock(&ctx->lock);
+  wrapper_mutex_lock(&ctx->wrapper_lock);
   DVR_WRAPPER_INFO("restart record(sn:%ld, location:%s)...\n", ctx->sn, ctx->record.param_open.location);
-  DVR_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->lock);
+  WRAPPER_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->wrapper_lock);
 
   {
     //clear old record status
@@ -1889,7 +1949,7 @@ int dvr_wrapper_restart_timeshift(DVR_WrapperPlayback_t playback, DVR_PlaybackFl
 
   DVR_WRAPPER_INFO("re record(sn:%ld) started = (%d)\n", ctx->sn, error);
 
-  pthread_mutex_unlock(&ctx->lock);
+  wrapper_mutex_unlock(&ctx->wrapper_lock);
 
   //start play
   DVR_WRAPPER_INFO("re start play and clear old status\n");
@@ -1935,9 +1995,9 @@ int dvr_wrapper_stop_playback (DVR_WrapperPlayback_t playback)
   ctx = ctx_getPlayback((unsigned long)playback);
   DVR_RETURN_IF_FALSE(ctx);
 
-  pthread_mutex_lock(&ctx->lock);
+  wrapper_mutex_lock(&ctx->wrapper_lock);
   DVR_WRAPPER_INFO("stop playback(sn:%ld) ...\n", ctx->sn);
-  DVR_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->lock);
+  WRAPPER_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->wrapper_lock);
 
   error = dvr_playback_stop(ctx->playback.player, DVR_TRUE);
 
@@ -1954,7 +2014,7 @@ int dvr_wrapper_stop_playback (DVR_WrapperPlayback_t playback)
   }
 
   DVR_WRAPPER_INFO("playback(sn:%ld) stopped (%d)\n", ctx->sn, error);
-  pthread_mutex_unlock(&ctx->lock);
+  wrapper_mutex_unlock(&ctx->wrapper_lock);
 
   return error;
 }
@@ -1969,9 +2029,9 @@ int dvr_wrapper_pause_playback (DVR_WrapperPlayback_t playback)
   ctx = ctx_getPlayback((unsigned long)playback);
   DVR_RETURN_IF_FALSE(ctx);
 
-  pthread_mutex_lock(&ctx->lock);
+  wrapper_mutex_lock(&ctx->wrapper_lock);
   DVR_WRAPPER_INFO("pause playback(sn:%ld) ...\n", ctx->sn);
-  DVR_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->lock);
+  WRAPPER_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->wrapper_lock);
   //clear end event
   if (ctx->playback.last_event == DVR_PLAYBACK_EVENT_REACHED_END)
       ctx->playback.last_event = DVR_PLAYBACK_EVENT_TRANSITION_OK;
@@ -1981,7 +2041,7 @@ int dvr_wrapper_pause_playback (DVR_WrapperPlayback_t playback)
   ctx->playback.speed = 0.0f;
 
   DVR_WRAPPER_INFO("playback(sn:%ld) paused (%d)\n", ctx->sn, error);
-  pthread_mutex_unlock(&ctx->lock);
+  wrapper_mutex_unlock(&ctx->wrapper_lock);
 
   return error;
 }
@@ -2006,15 +2066,15 @@ int dvr_wrapper_resume_playback (DVR_WrapperPlayback_t playback)
       dvr_wrapper_seek_playback(playback, time_offset);
     }
   }
-  pthread_mutex_lock(&ctx->lock);
+  wrapper_mutex_lock(&ctx->wrapper_lock);
   DVR_WRAPPER_INFO("resume playback(sn:%ld) ...\n", ctx->sn);
-  DVR_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->lock);
+  WRAPPER_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->wrapper_lock);
 
   error = dvr_playback_resume(ctx->playback.player);
   ctx->playback.speed = 100.0f;
 
   DVR_WRAPPER_INFO("playback(sn:%ld) resumed (%d)\n", ctx->sn, error);
-  pthread_mutex_unlock(&ctx->lock);
+  wrapper_mutex_unlock(&ctx->wrapper_lock);
 
   return error;
 }
@@ -2033,9 +2093,9 @@ int dvr_wrapper_set_playback_speed (DVR_WrapperPlayback_t playback, float speed)
   ctx = ctx_getPlayback((unsigned long)playback);
   DVR_RETURN_IF_FALSE(ctx);
 
-  pthread_mutex_lock(&ctx->lock);
+  wrapper_mutex_lock(&ctx->wrapper_lock);
   DVR_WRAPPER_INFO("speed playback(sn:%ld) (x%f) .(x%f)..\n", ctx->sn, speed, ctx->playback.speed);
-  DVR_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->lock);
+  WRAPPER_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->wrapper_lock);
 
   error = dvr_playback_set_speed(ctx->playback.player, dvr_speed);
 
@@ -2056,7 +2116,7 @@ int dvr_wrapper_set_playback_speed (DVR_WrapperPlayback_t playback, float speed)
 
   DVR_WRAPPER_INFO("playback(sn:%ld) speeded(x%f) (%d)\n",
     ctx->sn, speed, error);
-  pthread_mutex_unlock(&ctx->lock);
+  wrapper_mutex_unlock(&ctx->wrapper_lock);
 
   return error;
 }
@@ -2071,15 +2131,15 @@ int dvr_wrapper_setlimit_playback (DVR_WrapperPlayback_t playback, uint64_t time
   ctx = ctx_getPlayback((unsigned long)playback);
   DVR_RETURN_IF_FALSE(ctx);
 
-  pthread_mutex_lock(&ctx->lock);
+  wrapper_mutex_lock(&ctx->wrapper_lock);
 
   DVR_WRAPPER_INFO("setlimit playback(sn:%ld) (time:%lld limit:%d) ...\n", ctx->sn, time, limit);
-  DVR_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->lock);
+  WRAPPER_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->wrapper_lock);
 
   error = dvr_playback_setlimit(ctx->playback.player, time, limit);
   DVR_WRAPPER_INFO("playback(sn:%ld) setlimit(time:%lld limit:%d) ...\n", ctx->sn, time, limit);
 
-  pthread_mutex_unlock(&ctx->lock);
+  wrapper_mutex_unlock(&ctx->wrapper_lock);
 
   return error;
 }
@@ -2099,10 +2159,10 @@ int dvr_wrapper_seek_playback (DVR_WrapperPlayback_t playback, uint32_t time_off
   ctx = ctx_getPlayback((unsigned long)playback);
   DVR_RETURN_IF_FALSE(ctx);
 
-  pthread_mutex_lock(&ctx->lock);
+  wrapper_mutex_lock(&ctx->wrapper_lock);
 
   DVR_WRAPPER_INFO("seek playback(sn:%ld) (off:%d) ...\n", ctx->sn, time_offset);
-  DVR_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->lock);
+  WRAPPER_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->wrapper_lock);
 
   off = 0;
   segment_id = 0;
@@ -2144,7 +2204,7 @@ int dvr_wrapper_seek_playback (DVR_WrapperPlayback_t playback, uint32_t time_off
   error = dvr_playback_seek(ctx->playback.player, segment_id, off);
   DVR_WRAPPER_INFO("playback(sn:%ld) seeked(off:%d) (%d)\n", ctx->sn, time_offset, error);
 
-  pthread_mutex_unlock(&ctx->lock);
+  wrapper_mutex_unlock(&ctx->wrapper_lock);
 
   return error;
 }
@@ -2161,13 +2221,13 @@ int dvr_wrapper_update_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackPid
   ctx = ctx_getPlayback((unsigned long)playback);
   DVR_RETURN_IF_FALSE(ctx);
 
-  pthread_mutex_lock(&ctx->lock);
+  wrapper_mutex_lock(&ctx->wrapper_lock);
 
   DVR_WRAPPER_INFO("update playback(sn:%ld) v/a(%d:%d/%d:%d) ...\n",
     ctx->sn,
     p_pids->video.pid, p_pids->video.format,
     p_pids->audio.pid, p_pids->audio.format);
-  DVR_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->lock);
+  WRAPPER_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->wrapper_lock);
 
   ctx->playback.pids_req = *p_pids;
 
@@ -2197,7 +2257,7 @@ int dvr_wrapper_update_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackPid
     p_pids->audio.pid, p_pids->audio.format,
     error);
 
-  pthread_mutex_unlock(&ctx->lock);
+  wrapper_mutex_unlock(&ctx->wrapper_lock);
 
   return error;
 }
@@ -2214,13 +2274,13 @@ int dvr_wrapper_only_update_playback (DVR_WrapperPlayback_t playback, DVR_Playba
   ctx = ctx_getPlayback((unsigned long)playback);
   DVR_RETURN_IF_FALSE(ctx);
 
-  pthread_mutex_lock(&ctx->lock);
+  wrapper_mutex_lock(&ctx->wrapper_lock);
 
   DVR_WRAPPER_INFO("update playback(sn:%ld) v/a(%d:%d/%d:%d) ...\n",
     ctx->sn,
     p_pids->video.pid, p_pids->video.format,
     p_pids->audio.pid, p_pids->audio.format);
-  DVR_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->lock);
+  WRAPPER_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->wrapper_lock);
 
   ctx->playback.pids_req = *p_pids;
 
@@ -2250,7 +2310,7 @@ int dvr_wrapper_only_update_playback (DVR_WrapperPlayback_t playback, DVR_Playba
     p_pids->audio.pid, p_pids->audio.format,
     error);
 
-  pthread_mutex_unlock(&ctx->lock);
+  wrapper_mutex_unlock(&ctx->wrapper_lock);
 
   return error;
 }
@@ -2268,10 +2328,10 @@ int dvr_wrapper_get_playback_status(DVR_WrapperPlayback_t playback, DVR_WrapperP
   ctx = ctx_getPlayback((unsigned long)playback);
   DVR_RETURN_IF_FALSE(ctx);
 
-  pthread_mutex_lock(&ctx->lock);
+  wrapper_mutex_lock(&ctx->wrapper_lock);
 
   DVR_WRAPPER_INFO("get playback(sn:%ld) status ...\n", ctx->sn);
-  DVR_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->lock);
+  WRAPPER_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->wrapper_lock);
 
   error = dvr_playback_get_status(ctx->playback.player, &play_status);
   DVR_WRAPPER_INFO("playback(sn:%ld) get status (%d)\n", ctx->sn, error);
@@ -2294,7 +2354,7 @@ int dvr_wrapper_get_playback_status(DVR_WrapperPlayback_t playback, DVR_WrapperP
 
   *status = s;
 
-  pthread_mutex_unlock(&ctx->lock);
+  wrapper_mutex_unlock(&ctx->wrapper_lock);
 
   return error;
 }
@@ -2310,9 +2370,9 @@ int dvr_wrapper_set_playback_secure_buffer (DVR_WrapperPlayback_t playback,  uin
   ctx = ctx_getPlayback((unsigned long)playback);
   DVR_RETURN_IF_FALSE(ctx);
 
-  pthread_mutex_lock(&ctx->lock);
+  wrapper_mutex_lock(&ctx->wrapper_lock);
   error = dvr_playback_set_secure_buffer(ctx->playback.player, p_secure_buf, len);
-  pthread_mutex_unlock(&ctx->lock);
+  wrapper_mutex_unlock(&ctx->wrapper_lock);
   return error;
 }
 
@@ -2327,9 +2387,9 @@ int dvr_wrapper_set_playback_decrypt_callback (DVR_WrapperPlayback_t playback,  
   ctx = ctx_getPlayback((unsigned long)playback);
   DVR_RETURN_IF_FALSE(ctx);
 
-  pthread_mutex_lock(&ctx->lock);
+  wrapper_mutex_lock(&ctx->wrapper_lock);
   error = dvr_playback_set_decrypt_callback(ctx->playback.player, func, userdata);
-  pthread_mutex_unlock(&ctx->lock);
+  wrapper_mutex_unlock(&ctx->wrapper_lock);
   return error;
 }
 
