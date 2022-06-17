@@ -1,3 +1,5 @@
+#include <string.h>
+
 #include "dvr_types.h"
 #include "dvr_mutex.h"
 
@@ -62,7 +64,7 @@ void _dvr_mutex_destroy(void *mutex)
       return;
    }
    dvr_mutex_t *mtx = (dvr_mutex_t*)mutex;
-   pthread_mutex_destroy(mtx);
+   pthread_mutex_destroy(&mtx->lock);
 }
 
 int _dvr_mutex_save(void *mutex)
