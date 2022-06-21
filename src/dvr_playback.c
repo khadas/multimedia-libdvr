@@ -1737,7 +1737,7 @@ int dvr_playback_close(DVR_PlaybackHandle_t handle) {
   }
   DVR_PB_INFO(":into");
   dvr_mutex_destroy(&player->lock);
-  pthread_mutex_destroy(&player->lock);
+  pthread_mutex_destroy(&player->segment_lock);
   pthread_cond_destroy(&player->cond);
 
   if (player) {
