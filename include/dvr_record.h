@@ -95,6 +95,7 @@ typedef struct {
   int                         ringbuf_size;       /**< DVR record ring buf size*/
   int                         notification_time;  /**< DVR record notification time, record moudle would send a notifaction when the size of current segment is multiple of this value. Put 0 in this argument if you don't want to receive the notification*/
   DVR_Bool_t                  force_sysclock;     /**< If ture, force to use system clock as PVR index time source. If false, libdvr can determine index time source based on actual situation*/
+  loff_t                      guarded_segment_size;   /**< Guarded segment size in bytes. Libdvr will be forcely stopped to write anymore if current segment reaches this size*/
 } DVR_RecordOpenParams_t;
 
 /**\brief DVR record segment start parameters*/

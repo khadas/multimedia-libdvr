@@ -78,6 +78,7 @@ typedef struct {
   int                             check_no_pts_count;                   /**< The check count of no pts */
   int                             notification_time;                    /**< DVR record nogification time*/
   time_t                          last_send_time;                       /**< Last send notify segment duration */
+  loff_t                          guarded_segment_size;                 /**< Guarded segment size in bytes. Libdvr will be forcely stopped to write anymore if current segment reaches this size*/
 } DVR_RecordContext_t;
 
 extern ssize_t record_device_read_ext(Record_DeviceHandle_t handle, size_t *buf, size_t *len);
@@ -203,6 +204,7 @@ void *record_thread(void *arg)
   DVR_RecordStatus_t record_status;
   int has_pcr;
   int pcr_rec_len = 0;
+  DVR_Bool_t guarded_size_exceeded = DVR_FALSE;
 
   time_t pre_time = 0;
   #define DVR_STORE_INFO_TIME (400)
@@ -296,9 +298,17 @@ void *record_thread(void *arg)
     }
     gettimeofday(&t2, NULL);
 
+    guarded_size_exceeded = DVR_FALSE;
+    if (p_ctx->segment_info.size+len >= p_ctx->guarded_segment_size) {
+      DVR_ERROR("Segment size %u is too large.",p_ctx->segment_info.size);
+      guarded_size_exceeded = DVR_TRUE;
+    }
     /* Got data from device, record it */
     //if (p_ctx->is_secure_mode && p_ctx->enc_func) {
-    if (p_ctx->enc_func) {
+    if (guarded_size_exceeded) {
+      len = 0;
+      ret = 0;
+    } else if (p_ctx->enc_func) {
       /* Encrypt record data */
       DVR_CryptoParams_t crypto_params;
 
@@ -352,7 +362,7 @@ void *record_thread(void *arg)
       //send write event
        if (p_ctx->event_notify_fn) {
          memset(&record_status, 0, sizeof(record_status));
-         DVR_INFO("%s：%d,send event write error", __func__,__LINE__);
+         DVR_INFO("%s:%d,send event write error", __func__,__LINE__);
          record_status.info.id = p_ctx->segment_info.id;
          p_ctx->event_notify_fn(DVR_RECORD_EVENT_WRITE_ERROR, &record_status, p_ctx->event_userdata);
         }
@@ -393,6 +403,7 @@ void *record_thread(void *arg)
     }
     /* Update segment i nfo */
     p_ctx->segment_info.size += len;
+
     /*Duration need use pcr to calculate, todo...*/
     if (p_ctx->index_type == DVR_INDEX_TYPE_PCR) {
       p_ctx->segment_info.duration = segment_tell_total_time(p_ctx->segment_handle);
@@ -554,6 +565,7 @@ int dvr_record_open(DVR_RecordHandle_t *p_handle, DVR_RecordOpenParams_t *params
   p_ctx->is_secure_mode = 0;
   p_ctx->state = DVR_RECORD_STATE_OPENED;
   p_ctx->force_sysclock = params->force_sysclock;
+  p_ctx->guarded_segment_size = params->guarded_segment_size;
   DVR_INFO("%s, block_size:%d is_new:%d", __func__, p_ctx->block_size, p_ctx->is_new_dmx);
   *p_handle = p_ctx;
   return DVR_SUCCESS;
