@@ -65,7 +65,7 @@ static void segment_get_fname(char fname[MAX_SEGMENT_PATH_SIZE],
     strncpy(fname + offset, "-", 1);
     offset += 1;
     sprintf(fname + offset, "%04llu", segment_id);
-    offset += 4;
+    offset += strlen(fname + offset);
   }
 
   if (type == SEGMENT_FILE_TYPE_TS)
