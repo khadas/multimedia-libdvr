@@ -992,7 +992,8 @@ static int wrapper_removeRecordSegment(DVR_WrapperCtx_t *ctx, DVR_WrapperRecordS
   int error;
   DVR_WrapperRecordSegmentInfo_t *pseg, *pseg_tmp;
 
-  DVR_WRAPPER_INFO("---timeshift, remove record(sn:%ld) segment(%lld) ...\n", ctx->sn, seg_info->info.id);
+  DVR_WRAPPER_INFO("calling %s on record(sn:%ld) segment(%lld) ...",
+          __func__, ctx->sn, seg_info->info.id);
 
   /*if timeshifting, notify the playback first, then deal with record*/
   if (ctx->record.param_open.is_timeshift) {
@@ -1002,11 +1003,15 @@ static int wrapper_removeRecordSegment(DVR_WrapperCtx_t *ctx, DVR_WrapperRecordS
       wrapper_mutex_lock(&ctx_playback->wrapper_lock);
       if (ctx_playback->current_segment_id == seg_info->info.id && ctx_playback->playback.speed == 100.0f) {
           ctx_playback->playback.tf_full = DVR_TRUE;
-          DVR_WRAPPER_INFO("timeshift, not remove record(sn:%ld) segment(%lld) .(%d) (%f).isplaying.\n", ctx->sn, seg_info->info.id, DVR_TRUE, ctx_playback->playback.speed);
+          DVR_WRAPPER_INFO("%s, cannot remove record(sn:%ld) segment(%lld) for it is being"
+            " played on segment(%lld) at speed %f.", __func__, ctx->sn, seg_info->info.id,
+            ctx_playback->current_segment_id, ctx_playback->playback.speed);
           wrapper_mutex_unlock(&ctx_playback->wrapper_lock);
           return DVR_SUCCESS;
       } else {
-          DVR_WRAPPER_INFO("timeshift, start remove record(sn:%ld) segment(%lld) (%lld).(%f)..\n", ctx->sn, seg_info->info.id, ctx_playback->current_segment_id,ctx_playback->playback.speed);
+          DVR_WRAPPER_INFO("%s, removing record(sn:%ld) segment(%lld) which is being played "
+            "on segment (%lld) at speed (%f).", __func__, ctx->sn, seg_info->info.id,
+            ctx_playback->current_segment_id,ctx_playback->playback.speed);
       }
       if (ctx_valid(ctx_playback)
         && ctx_playback->sn == sn_timeshift_playback
@@ -1036,7 +1041,8 @@ static int wrapper_removeRecordSegment(DVR_WrapperCtx_t *ctx, DVR_WrapperRecordS
 
   error = dvr_segment_delete(ctx->record.param_open.location, id);
 
-  DVR_WRAPPER_INFO("timeshift, remove record(sn:%ld) segment(%lld) =(%d)\n", ctx->sn, id, error);
+  DVR_WRAPPER_INFO("%s, removed record(sn:%ld) segment(%lld), ret=(%d)\n",
+    __func__, ctx->sn, id, error);
 
   return error;
 }
@@ -2776,26 +2782,33 @@ static int process_handleRecordEvent(DVR_WrapperEventCtx_t *evt, DVR_WrapperCtx_
             }
           }
 
-          if (ctx->record.param_open.is_timeshift
-              && ctx->record.param_open.max_size
-              && status.info.size >= ctx->record.param_open.max_size) {
-            DVR_WrapperRecordSegmentInfo_t *pseg;
+          const loff_t actual_size = status.info.size;
+          const loff_t max_size = ctx->record.param_open.max_size;
+          const loff_t segment_size = ctx->record.param_open.segment_size;
 
-            /*as the player do not support null playlist,
-              there must be one segment existed at any time,
-              we have to keep two segments before remove one*/
-            pseg = list_last_entry(&ctx->segments, DVR_WrapperRecordSegmentInfo_t, head);
-            if (pseg == list_first_entry(&ctx->segments, DVR_WrapperRecordSegmentInfo_t, head)) {
-              /*only one segment, waiting for more*/
-              DVR_WRAPPER_INFO("warning: the size(%lld) of record < max size of segment(%lld)\n",
-                status.info.size,
-                ctx->record.param_open.segment_size);
+          if (ctx->record.param_open.is_timeshift && max_size) {
+            if (actual_size >= max_size) {
+              DVR_WrapperRecordSegmentInfo_t *pseg;
+              /*as the player do not support null playlist,
+                there must be one segment existed at any time,
+                we have to keep two segments before remove one*/
+              pseg = list_last_entry(&ctx->segments, DVR_WrapperRecordSegmentInfo_t, head);
+              if (pseg == list_first_entry(&ctx->segments, DVR_WrapperRecordSegmentInfo_t, head)) {
+                /*only one segment, waiting for more*/
+                DVR_WRAPPER_INFO("warning: the size(%lld) of record < max size of segment(%lld)\n",
+                  actual_size, segment_size);
+              } else {
+                record_removeSegment(ctx, pseg);
+
+                process_generateRecordStatus(ctx, &status);
+                process_notifyRecord(ctx, evt->record.event, &status);
+                wrapper_saveRecordStatistics(ctx->record.param_open.location, &status);
+              }
+              if (actual_size >= max_size + segment_size/2) {
+                dvr_record_discard_coming_data(ctx->record.recorder,DVR_TRUE);
+              }
             } else {
-              record_removeSegment(ctx, pseg);
-
-              process_generateRecordStatus(ctx, &status);
-              process_notifyRecord(ctx, evt->record.event, &status);
-              wrapper_saveRecordStatistics(ctx->record.param_open.location, &status);
+              dvr_record_discard_coming_data(ctx->record.recorder,DVR_FALSE);
             }
           }
         } break;

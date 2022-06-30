@@ -230,6 +230,15 @@ int dvr_record_set_secure_buffer(DVR_RecordHandle_t handle, uint8_t *p_secure_bu
  * \return secure or free.
  */
 int dvr_record_is_secure_mode(DVR_RecordHandle_t handle);
+
+/**\brief Turn on/off recording data discarding
+ * \param[in] handle, DVR recording session handle
+ * \param[in] discard, 0: normal processing, 1: discard coming recording data
+ * \return DVR_SUCCESS on success
+ * \return error code on failure
+ */
+int dvr_record_discard_coming_data(DVR_RecordHandle_t handle, DVR_Bool_t discard);
+
 #ifdef __cplusplus
 }
 #endif

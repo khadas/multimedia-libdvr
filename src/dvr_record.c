@@ -80,6 +80,7 @@ typedef struct {
   time_t                          last_send_time;                       /**< Last send notify segment duration */
   loff_t                          guarded_segment_size;                 /**< Guarded segment size in bytes. Libdvr will be forcely stopped to write anymore if current segment reaches this size*/
   size_t                          secbuf_size;                          /**< DVR record secure buffer length*/
+  DVR_Bool_t                      discard_coming_data;                  /**< Whether to discard subsequent recording data due to exceeding total size limit too much.*/
 } DVR_RecordContext_t;
 
 extern ssize_t record_device_read_ext(Record_DeviceHandle_t handle, size_t *buf, size_t *len);
@@ -305,14 +306,18 @@ void *record_thread(void *arg)
 
     guarded_size_exceeded = DVR_FALSE;
     if (p_ctx->segment_info.size+len >= p_ctx->guarded_segment_size) {
-      DVR_ERROR("Segment size %u is too large.",p_ctx->segment_info.size);
       guarded_size_exceeded = DVR_TRUE;
     }
     /* Got data from device, record it */
-    //if (p_ctx->is_secure_mode && p_ctx->enc_func) {
     if (guarded_size_exceeded) {
       len = 0;
       ret = 0;
+      DVR_ERROR("Skip segment_write due to current segment size %u exceeding"
+        " guarded segment size", p_ctx->segment_info.size);
+    } else if (p_ctx->discard_coming_data) {
+      len = 0;
+      ret = 0;
+      DVR_ERROR("Skip segment_write due to total size exceeding max size too much");
     } else if (p_ctx->enc_func) {
       /* Encrypt record data */
       DVR_CryptoParams_t crypto_params;
@@ -374,96 +379,105 @@ void *record_thread(void *arg)
         DVR_INFO("%s,write error %d", __func__,__LINE__);
       goto end;
     }
-    /* Do time index */
-    uint8_t *index_buf = (p_ctx->enc_func || p_ctx->cryptor)? buf_out : buf;
-    pos = segment_tell_position(p_ctx->segment_handle);
-    has_pcr = record_do_pcr_index(p_ctx, index_buf, len);
-    if (has_pcr == 0 && p_ctx->index_type == DVR_INDEX_TYPE_INVALID) {
-      clock_gettime(CLOCK_MONOTONIC, &end_ts);
-      if ((end_ts.tv_sec*1000 + end_ts.tv_nsec/1000000) -
-          (start_ts.tv_sec*1000 + start_ts.tv_nsec/1000000) > 40) {
-        /* PCR interval threshlod > 40 ms*/
-        DVR_INFO("%s use local clock time index", __func__);
-        p_ctx->index_type = DVR_INDEX_TYPE_LOCAL_CLOCK;
-      }
-    } else if (has_pcr && p_ctx->index_type == DVR_INDEX_TYPE_INVALID){
-      DVR_INFO("%s use pcr time index", __func__);
-      p_ctx->index_type = DVR_INDEX_TYPE_PCR;
-      record_do_pcr_index(p_ctx, index_buf, len);
-    }
-    gettimeofday(&t5, NULL);
-    if (p_ctx->index_type == DVR_INDEX_TYPE_PCR) {
-      if (has_pcr == 0) {
-        if (p_ctx->check_no_pts_count < 2 * CHECK_PTS_MAX_COUNT) {
-          if (p_ctx->check_no_pts_count == 0) {
-            clock_gettime(CLOCK_MONOTONIC, &start_nopcr_ts);
-            clock_gettime(CLOCK_MONOTONIC, &start_ts);
-          }
-          p_ctx->check_no_pts_count++;
-        }
-      } else {
-        clock_gettime(CLOCK_MONOTONIC, &start_nopcr_ts);
-        p_ctx->check_no_pts_count = 0;
-      }
-    }
-    /* Update segment i nfo */
-    p_ctx->segment_info.size += len;
-
-    /*Duration need use pcr to calculate, todo...*/
-    if (p_ctx->index_type == DVR_INDEX_TYPE_PCR) {
-      p_ctx->segment_info.duration = segment_tell_total_time(p_ctx->segment_handle);
-      if (pre_time == 0)
-       pre_time = p_ctx->segment_info.duration;
-    } else if (p_ctx->index_type == DVR_INDEX_TYPE_LOCAL_CLOCK) {
-      clock_gettime(CLOCK_MONOTONIC, &end_ts);
-      p_ctx->segment_info.duration = (end_ts.tv_sec*1000 + end_ts.tv_nsec/1000000) -
-        (start_ts.tv_sec*1000 + start_ts.tv_nsec/1000000) + pcr_rec_len;
-      if (pre_time == 0)
-        pre_time = p_ctx->segment_info.duration;
-      segment_update_pts(p_ctx->segment_handle, p_ctx->segment_info.duration, pos);
-    } else {
-      DVR_INFO("%s can NOT do time index", __func__);
-    }
-    if (p_ctx->index_type == DVR_INDEX_TYPE_PCR &&
-        p_ctx->check_pts_count == CHECK_PTS_MAX_COUNT) {
-       DVR_INFO("%s change time from pcr to local time", __func__);
-       if (pcr_rec_len == 0)
-            pcr_rec_len = segment_tell_total_time(p_ctx->segment_handle);
-       p_ctx->index_type = DVR_INDEX_TYPE_LOCAL_CLOCK;
-      if (pcr_rec_len == 0)
-            pcr_rec_len = segment_tell_total_time(p_ctx->segment_handle);
-       clock_gettime(CLOCK_MONOTONIC, &start_ts);
-    }
-
-    if (p_ctx->index_type == DVR_INDEX_TYPE_PCR ) {
-       clock_gettime(CLOCK_MONOTONIC, &end_nopcr_ts);
-       int diff = (int)(end_nopcr_ts.tv_sec*1000 + end_nopcr_ts.tv_nsec/1000000) -
-        (int)(start_nopcr_ts.tv_sec*1000 + start_nopcr_ts.tv_nsec/1000000);
-       if (diff > 3000) {
-          DVR_INFO("%s no pcr change time from pcr to local time diff[%d]", __func__, diff);
-          if (pcr_rec_len == 0)
-            pcr_rec_len = segment_tell_total_time(p_ctx->segment_handle);
+    if (len>0) {
+      /* Do time index */
+      uint8_t *index_buf = (p_ctx->enc_func || p_ctx->cryptor)? buf_out : buf;
+      pos = segment_tell_position(p_ctx->segment_handle);
+      has_pcr = record_do_pcr_index(p_ctx, index_buf, len);
+      if (has_pcr == 0 && p_ctx->index_type == DVR_INDEX_TYPE_INVALID) {
+        clock_gettime(CLOCK_MONOTONIC, &end_ts);
+        if ((end_ts.tv_sec*1000 + end_ts.tv_nsec/1000000) -
+            (start_ts.tv_sec*1000 + start_ts.tv_nsec/1000000) > 40) {
+          /* PCR interval threshlod > 40 ms*/
+          DVR_INFO("%s use local clock time index", __func__);
           p_ctx->index_type = DVR_INDEX_TYPE_LOCAL_CLOCK;
-       }
-    }
-    p_ctx->segment_info.nb_packets = p_ctx->segment_info.size/188;
+        }
+      } else if (has_pcr && p_ctx->index_type == DVR_INDEX_TYPE_INVALID){
+        DVR_INFO("%s use pcr time index", __func__);
+        p_ctx->index_type = DVR_INDEX_TYPE_PCR;
+        record_do_pcr_index(p_ctx, index_buf, len);
+      }
+      gettimeofday(&t5, NULL);
+      if (p_ctx->index_type == DVR_INDEX_TYPE_PCR) {
+        if (has_pcr == 0) {
+          if (p_ctx->check_no_pts_count < 2 * CHECK_PTS_MAX_COUNT) {
+            if (p_ctx->check_no_pts_count == 0) {
+              clock_gettime(CLOCK_MONOTONIC, &start_nopcr_ts);
+              clock_gettime(CLOCK_MONOTONIC, &start_ts);
+            }
+            p_ctx->check_no_pts_count++;
+          }
+        } else {
+          clock_gettime(CLOCK_MONOTONIC, &start_nopcr_ts);
+          p_ctx->check_no_pts_count = 0;
+        }
+      }
+      /* Update segment i nfo */
+      p_ctx->segment_info.size += len;
 
-    if (p_ctx->segment_info.duration - pre_time > DVR_STORE_INFO_TIME) {
-      pre_time = p_ctx->segment_info.duration + DVR_STORE_INFO_TIME;
-      time_t duration = p_ctx->segment_info.duration;
-      if (p_ctx->index_type == DVR_INDEX_TYPE_LOCAL_CLOCK)
+      /*Duration need use pcr to calculate, todo...*/
+      if (p_ctx->index_type == DVR_INDEX_TYPE_PCR) {
         p_ctx->segment_info.duration = segment_tell_total_time(p_ctx->segment_handle);
-      segment_store_info(p_ctx->segment_handle, &(p_ctx->segment_info));
-      p_ctx->segment_info.duration = duration;
+        if (pre_time == 0)
+         pre_time = p_ctx->segment_info.duration;
+      } else if (p_ctx->index_type == DVR_INDEX_TYPE_LOCAL_CLOCK) {
+        clock_gettime(CLOCK_MONOTONIC, &end_ts);
+        p_ctx->segment_info.duration = (end_ts.tv_sec*1000 + end_ts.tv_nsec/1000000) -
+          (start_ts.tv_sec*1000 + start_ts.tv_nsec/1000000) + pcr_rec_len;
+        if (pre_time == 0)
+          pre_time = p_ctx->segment_info.duration;
+        segment_update_pts(p_ctx->segment_handle, p_ctx->segment_info.duration, pos);
+      } else {
+        DVR_INFO("%s can NOT do time index", __func__);
+      }
+      if (p_ctx->index_type == DVR_INDEX_TYPE_PCR &&
+          p_ctx->check_pts_count == CHECK_PTS_MAX_COUNT) {
+         DVR_INFO("%s change time from pcr to local time", __func__);
+         if (pcr_rec_len == 0)
+              pcr_rec_len = segment_tell_total_time(p_ctx->segment_handle);
+         p_ctx->index_type = DVR_INDEX_TYPE_LOCAL_CLOCK;
+        if (pcr_rec_len == 0)
+              pcr_rec_len = segment_tell_total_time(p_ctx->segment_handle);
+         clock_gettime(CLOCK_MONOTONIC, &start_ts);
+      }
+
+      if (p_ctx->index_type == DVR_INDEX_TYPE_PCR ) {
+         clock_gettime(CLOCK_MONOTONIC, &end_nopcr_ts);
+         int diff = (int)(end_nopcr_ts.tv_sec*1000 + end_nopcr_ts.tv_nsec/1000000) -
+          (int)(start_nopcr_ts.tv_sec*1000 + start_nopcr_ts.tv_nsec/1000000);
+         if (diff > 3000) {
+            DVR_INFO("%s no pcr change time from pcr to local time diff[%d]", __func__, diff);
+            if (pcr_rec_len == 0)
+              pcr_rec_len = segment_tell_total_time(p_ctx->segment_handle);
+            p_ctx->index_type = DVR_INDEX_TYPE_LOCAL_CLOCK;
+         }
+      }
+      p_ctx->segment_info.nb_packets = p_ctx->segment_info.size/188;
+
+      if (p_ctx->segment_info.duration - pre_time > DVR_STORE_INFO_TIME) {
+        pre_time = p_ctx->segment_info.duration + DVR_STORE_INFO_TIME;
+        time_t duration = p_ctx->segment_info.duration;
+        if (p_ctx->index_type == DVR_INDEX_TYPE_LOCAL_CLOCK)
+          p_ctx->segment_info.duration = segment_tell_total_time(p_ctx->segment_handle);
+        segment_store_info(p_ctx->segment_handle, &(p_ctx->segment_info));
+        p_ctx->segment_info.duration = duration;
+      }
+    } else {
+      gettimeofday(&t5, NULL);
     }
     gettimeofday(&t6, NULL);
      /*Event notification*/
-    if (((p_ctx->notification_size > 0 && (p_ctx->segment_info.size -p_ctx->last_send_size) >= p_ctx->notification_size) ||
-        /*!(p_ctx->segment_info.size % p_ctx->notification_size)*/
-        ( p_ctx->notification_time > 0 && (p_ctx->segment_info.duration -p_ctx->last_send_time) >= p_ctx->notification_time))&&
-        p_ctx->event_notify_fn &&
-        p_ctx->segment_info.duration > 0  &&
-        p_ctx->state == DVR_RECORD_STATE_STARTED) {
+    DVR_Bool_t condA1 = (p_ctx->notification_size > 0);
+    DVR_Bool_t condA2 = ((p_ctx->segment_info.size-p_ctx->last_send_size) >= p_ctx->notification_size);
+    DVR_Bool_t condA3 = (p_ctx->notification_time > 0);
+    DVR_Bool_t condA4 = ((p_ctx->segment_info.duration-p_ctx->last_send_time) >= p_ctx->notification_time);
+    DVR_Bool_t condA5 = (guarded_size_exceeded);
+    DVR_Bool_t condA6 = (p_ctx->discard_coming_data);
+    DVR_Bool_t condB = (p_ctx->event_notify_fn != NULL);
+    DVR_Bool_t condC = (p_ctx->segment_info.duration > 0);
+    DVR_Bool_t condD = (p_ctx->state == DVR_RECORD_STATE_STARTED);
+    if (((condA1 && condA2) || (condA3 && condA4) || condA5 || condA6)
+      && condB && condC && condD) {
       memset(&record_status, 0, sizeof(record_status));
       //clock_gettime(CLOCK_MONOTONIC, &end_ts);
       p_ctx->last_send_size = p_ctx->segment_info.size;
@@ -489,6 +503,9 @@ void *record_thread(void *arg)
         get_diff_time(t5, t6), get_diff_time(t6, t7), get_diff_time(t1, t5), len,
         p_ctx->notification_time,p_ctx->segment_info.duration -p_ctx->last_send_time);
 #endif
+    if (len == 0) {
+      usleep(20*1000);
+    }
   }
 end:
   free((void *)buf);
@@ -571,6 +588,7 @@ int dvr_record_open(DVR_RecordHandle_t *p_handle, DVR_RecordOpenParams_t *params
   p_ctx->state = DVR_RECORD_STATE_OPENED;
   p_ctx->force_sysclock = params->force_sysclock;
   p_ctx->guarded_segment_size = params->guarded_segment_size;
+  p_ctx->discard_coming_data = DVR_FALSE;
   DVR_INFO("%s, block_size:%d is_new:%d", __func__, p_ctx->block_size, p_ctx->is_new_dmx);
   *p_handle = p_ctx;
   return DVR_SUCCESS;
@@ -1033,4 +1051,28 @@ int dvr_record_is_secure_mode(DVR_RecordHandle_t handle)
   else
     ret = 0;
   return ret;
+}
+
+int dvr_record_discard_coming_data(DVR_RecordHandle_t handle, DVR_Bool_t discard)
+{
+  DVR_RecordContext_t *p_ctx;
+  int i;
+
+  p_ctx = (DVR_RecordContext_t *)handle;
+  for (i = 0; i < MAX_DVR_RECORD_SESSION_COUNT; i++) {
+    if (p_ctx == &record_ctx[i])
+      break;
+  }
+  DVR_RETURN_IF_FALSE(p_ctx == &record_ctx[i]);
+
+  if (p_ctx->discard_coming_data != discard) {
+    p_ctx->discard_coming_data = discard;
+    if (discard) {
+      DVR_WARN("%s, start discarding coming data. discard:%d",__func__,discard);
+    } else {
+      DVR_WARN("%s, finish discarding coming data. discard:%d",__func__,discard);
+    }
+  }
+
+  return DVR_TRUE;
 }
