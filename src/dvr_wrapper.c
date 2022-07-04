@@ -892,7 +892,7 @@ static int wrapper_addRecordSegment(DVR_WrapperCtx_t *ctx, DVR_RecordSegmentInfo
     else
       ctx_playback = ctx_getPlayback(sn);
 
-    DVR_WRAPPER_INFO("ctx_playback ---- add segment\n");
+    DVR_WRAPPER_INFO("rec(sn:%ld) add_seg: playback(sn:%ld) add seg\n", ctx->sn, sn);
 
     if (ctx_playback) {
       wrapper_mutex_lock(&ctx_playback->wrapper_lock);
@@ -906,19 +906,26 @@ static int wrapper_addRecordSegment(DVR_WrapperCtx_t *ctx, DVR_RecordSegmentInfo
             flags |= DVR_PLAYBACK_SEGMENT_ENCRYPTED;
           wrapper_addPlaybackSegment(ctx_playback, seg_info, &ctx_playback->playback.pids_req, flags);
         } else {
-          DVR_WRAPPER_INFO("ctx_playback list_empty(&ctx_playback->segments) true\n");
+          DVR_WRAPPER_INFO("rec(sn:%ld) add_seg: playback(sn:%ld) list empty\n", ctx->sn, sn);
         }
       } else {
-            DVR_WRAPPER_INFO("ctx_playback ---- not valid\n");
+            DVR_WRAPPER_INFO("rec(sn:%ld) add_seg: playback(sn:%ld) not valid\n", ctx->sn, sn);
       }
       wrapper_mutex_unlock(&ctx_playback->wrapper_lock);
     }
     else
     {
-      DVR_WRAPPER_INFO("ctx_playback ---- not valid 1\n");
+      DVR_WRAPPER_INFO("rec(sn:%ld) add_seg: playback(sn:%ld) not valid 2\n", ctx->sn, sn);
+    }
+
+    /*if it is not a timeshift recording, but a playing recording,
+      do not forget to obey the recording rule: link the segment!*/
+    if (!ctx->record.param_open.is_timeshift) {
+        DVR_WRAPPER_INFO("rec(sn:%ld) add_seg: update link\n", ctx->sn);
+        dvr_segment_link_op(ctx->record.param_open.location, 1, &seg_info->id, SEGMENT_OP_ADD);
     }
   } else {
-    DVR_WRAPPER_INFO("ctx_playback -sn[%d]-\n", sn);
+    DVR_WRAPPER_INFO("rec(sn:%ld) add_seg: update link\n", ctx->sn);
     dvr_segment_link_op(ctx->record.param_open.location, 1, &seg_info->id, SEGMENT_OP_ADD);
   }
 
