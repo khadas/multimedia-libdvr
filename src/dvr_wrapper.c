@@ -102,9 +102,9 @@ wrapper_mutex_timedlock (DVR_WrapperMutex_t *lock, struct timespec *tv)
 
   pthread_mutex_lock(&lock->lock);
   if (lock->locked) {
-    DVR_WRAPPER_DEBUG("Enter cond_timedwait");
+    //DVR_WRAPPER_DEBUG("Enter cond_timedwait");
     r = pthread_cond_timedwait(&lock->cond, &lock->lock, tv);
-    DVR_WRAPPER_DEBUG("Leave cond_timedwait");
+    //DVR_WRAPPER_DEBUG("Leave cond_timedwait");
   }
   if (r == 0) {
     if (!lock->locked) {
