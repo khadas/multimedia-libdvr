@@ -79,6 +79,7 @@ typedef struct {
   int                             notification_time;                    /**< DVR record nogification time*/
   time_t                          last_send_time;                       /**< Last send notify segment duration */
   loff_t                          guarded_segment_size;                 /**< Guarded segment size in bytes. Libdvr will be forcely stopped to write anymore if current segment reaches this size*/
+  size_t                          secbuf_size;                          /**< DVR record secure buffer length*/
 } DVR_RecordContext_t;
 
 extern ssize_t record_device_read_ext(Record_DeviceHandle_t handle, size_t *buf, size_t *len);
@@ -226,7 +227,11 @@ void *record_thread(void *arg)
     return NULL;
   }
 
-  buf_out = (uint8_t *)malloc(block_size + 188);
+  if (p_ctx->is_secure_mode) {
+    buf_out = (uint8_t *)malloc(p_ctx->secbuf_size + 188);
+  } else {
+    buf_out = (uint8_t *)malloc(block_size + 188);
+  }
   if (!buf_out) {
     DVR_INFO("%s, malloc failed", __func__);
     free(buf);
@@ -330,7 +335,7 @@ void *record_thread(void *arg)
 
       crypto_params.output_buffer.type = DVR_BUFFER_TYPE_NORMAL;
       crypto_params.output_buffer.addr = (size_t)buf_out;
-      crypto_params.output_buffer.size = block_size + 188;
+      crypto_params.output_buffer.size = p_ctx->secbuf_size + 188;
 
       p_ctx->enc_func(&crypto_params, p_ctx->enc_userdata);
       gettimeofday(&t3, NULL);
@@ -1005,6 +1010,7 @@ int dvr_record_set_secure_buffer(DVR_RecordHandle_t handle, uint8_t *p_secure_bu
   DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
 
   p_ctx->is_secure_mode = 1;
+  p_ctx->secbuf_size = len;
   return ret;
 }
 
