@@ -57,7 +57,7 @@ wrapper_mutex_init (DVR_WrapperMutex_t *lock)
 {
   pthread_condattr_t cattr;
 
-  if (!lock->inited)
+  if (lock->inited)
     return;
 
   pthread_mutex_init(&lock->lock, NULL);
