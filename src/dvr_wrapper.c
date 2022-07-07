@@ -1659,8 +1659,8 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
     error = dvr_segment_get_allInfo(ctx->playback.param_open.location, &info_list);
     if (error == DVR_FAILURE) {
           error = DVR_FAILURE;
-          DVR_WRAPPER_INFO("fail to get all seg info (location:%s, seg:%llu), (error:%d)\n",
-            ctx->playback.param_open.location, p_segment_ids[i], error);
+          DVR_WRAPPER_INFO("fail to get all seg info (location:%s), (error:%d)\n",
+            ctx->playback.param_open.location, error);
           for (i = 0; i < segment_nb; i++) {
             DVR_RecordSegmentInfo_t seg_info;
             DVR_PlaybackSegmentFlag_t flags;
@@ -2595,6 +2595,8 @@ static int wrapper_saveRecordStatistics(const char *location, DVR_WrapperRecordS
         p_status->info.time - p_status->info_obsolete.time,
         p_status->info.pkts - p_status->info_obsolete.pkts);
     fputs(buf, fp);
+    fflush(fp);
+    fsync(fileno(fp));
     fclose(fp);
     return DVR_SUCCESS;
   }
