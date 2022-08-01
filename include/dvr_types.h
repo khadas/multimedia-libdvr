@@ -72,7 +72,7 @@ extern int g_dvr_log_level;
 #define DVR_ASSERT(expr) \
   do {\
     if (!(expr)) {\
-      DVR_FATAL("%s-%d failed", __func__, __LINE__);\
+      DVR_FATAL("at %s:%d, \'"#expr"\' is false then asserts", __func__, __LINE__);\
       assert(expr);\
     }\
   } while (0)
@@ -81,7 +81,7 @@ extern int g_dvr_log_level;
 #define DVR_RETURN_IF_FALSE(expr)\
   do {\
     if (!(expr)) {\
-      DVR_ERROR("%s-%d failed", __func__, __LINE__);\
+      DVR_ERROR("at %s:%d, \'"#expr"\' is false then returns failure", __func__, __LINE__);\
       return DVR_FAILURE;\
     }\
   } while (0);
@@ -90,7 +90,7 @@ extern int g_dvr_log_level;
 #define DVR_RETURN_IF_FALSE_WITH_UNLOCK(expr, lock)\
   do {\
     if (!(expr)) {\
-      DVR_ERROR("%s-%d failed", __func__, __LINE__);\
+      DVR_ERROR("at %s:%d, \'"#expr"\' is false then unlocks and returns failure", __func__, __LINE__);\
       pthread_mutex_unlock(lock);\
       return DVR_FAILURE;\
     }\

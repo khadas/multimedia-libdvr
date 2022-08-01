@@ -167,6 +167,18 @@ int segment_delete(const char *location, uint64_t segment_id);
  */
 int segment_ongoing(Segment_Handle_t handle);
 
+/**\brief get current ongoing segment size
+ * \param[in] handle, The segment handle
+ * \return segment size
+ */
+off_t segment_get_cur_segment_size(Segment_Handle_t handle);
+
+/**\brief get current ongoing segment id
+ * \param[in] handle, The segment handle
+ * \return segment id
+ */
+uint64_t segment_get_cur_segment_id(Segment_Handle_t handle);
+
 
 #ifdef __cplusplus
 }

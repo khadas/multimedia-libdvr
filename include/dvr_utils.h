@@ -103,6 +103,14 @@ int dvr_prop_echo(const char *name, const char *cmd);
 
 int dvr_prop_read(const char *name, char *buf, int len);
 
+/**\brief calculates the difference between ts1 and ts2
+ * \param[in] ts1, higher bound of the timespec* whose length is calculated
+ * \param[in] ts2, lower bound of the timespec* whose length is calculated
+ * \param[out] ts3, The result timespec* of (ts1-ts2)
+ * \return void
+ */
+void clock_timespec_subtract(struct timespec *ts1, struct timespec *ts2, struct timespec *ts3);
+
 #ifdef __cplusplus
 }
 #endif

@@ -245,3 +245,33 @@ int dvr_prop_read(const char *name, char *buf, int len)
   return DVR_FAILURE;
 }
 
+#define NSEC_PER_SEC 1000000000L
+void clock_timespec_subtract(struct timespec *ts1, struct timespec *ts2, struct timespec *ts3)
+{
+  time_t sec;
+  long nsec;
+  sec = ts1->tv_sec - ts2->tv_sec;
+  nsec = ts1->tv_nsec - ts2->tv_nsec;
+  if (ts1->tv_sec >= 0 && ts1->tv_nsec >=0) {
+    if ((sec < 0 && nsec > 0) || (sec > 0 && nsec >= NSEC_PER_SEC)) {
+      nsec -= NSEC_PER_SEC;
+      sec++;
+    }
+    if (sec > 0 && nsec < 0) {
+      nsec += NSEC_PER_SEC;
+      sec--;
+    }
+  } else {
+    if (nsec <= -NSEC_PER_SEC || nsec >= NSEC_PER_SEC) {
+      nsec += NSEC_PER_SEC;
+      sec--;
+    }
+    if ((sec < 0 && nsec > 0)) {
+      nsec -= NSEC_PER_SEC;
+      sec++;
+    }
+  }
+  ts3->tv_sec = sec;
+  ts3->tv_nsec = nsec;
+}
+

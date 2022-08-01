@@ -36,6 +36,11 @@
 #define IS_KERNEL_SPEED(_SPEED_) (((_SPEED_) == PLAYBACK_SPEED_X2) || ((_SPEED_) == PLAYBACK_SPEED_X1) || ((_SPEED_) == PLAYBACK_SPEED_S2) || ((_SPEED_) == PLAYBACK_SPEED_S4) || ((_SPEED_) == PLAYBACK_SPEED_S8))
 #define IS_FAST_SPEED(_SPEED_) (((_SPEED_) == PLAYBACK_SPEED_X2) || ((_SPEED_) == PLAYBACK_SPEED_S2) || ((_SPEED_) == PLAYBACK_SPEED_S4) || ((_SPEED_) == PLAYBACK_SPEED_S8))
 
+#define DVR_PLAYER_CHANGE_STATE(player,newstate)\
+  DVR_PB_INFO("%s:%d player %p changes state from %s to %s",__func__,__LINE__,\
+    player,_dvr_playback_state_toString(player->state),_dvr_playback_state_toString(newstate));\
+    player->state=newstate;
+
 
 #define FFFB_SLEEP_TIME    (1000)//500ms
 #define FB_DEFAULT_LEFT_TIME    (3000)
@@ -96,21 +101,20 @@ static char* _cmd_toString(int cmd)
 }
 
 
-static char* _dvr_playback_state_toString(int stat)
+static char* _dvr_playback_state_toString(int state)
 {
-  char *string[DVR_PLAYBACK_STATE_FB+1]={
-        "start",
-        "stop",
-        "pause",
-        "ff",
-        "fb"
+  char *strings[5]={
+        "START",
+        "STOP",
+        "PAUSE",
+        "FF",
+        "FB",
   };
 
-  if (stat > DVR_PLAYBACK_STATE_FB) {
-    return "unknown";
-  } else {
-    return string[stat];
+  if (state >= 5 || state < 0) {
+    return "UNKNOWN";
   }
+  return strings[state];
 }
 
 static DVR_Bool_t _dvr_support_speed(int speed) {
@@ -153,6 +157,7 @@ static DVR_Bool_t _dvr_support_speed(int speed) {
   }
   return ret;
 }
+
 void _dvr_tsplayer_callback_test(void *user_data, am_tsplayer_event *event)
 {
   DVR_PB_INFO("in callback test ");
@@ -1055,6 +1060,42 @@ static void* _dvr_playback_thread(void *arg)
     //DVR_PB_INFO("lock check_no_data_time:%d", check_no_data_time);
     dvr_mutex_lock(&player->lock);
 
+    {
+      static struct timespec _prevts={0,0};
+      struct timespec _nowts,_diffts;
+      clock_gettime(CLOCK_MONOTONIC, &_nowts);
+      clock_timespec_subtract(&_nowts,&_prevts,&_diffts);
+      if (_diffts.tv_sec>0) {
+        char _logbuf[512]={0};
+        char* _pbuf=_logbuf;
+        int _nchar=0;
+        DVR_PlaybackSegmentInfo_t* _segment;
+        list_for_each_entry(_segment, &player->segment_list, head) {
+          if (player->cur_segment_id == _segment->segment_id) {
+            int segsize = segment_get_cur_segment_size(player->r_handle);
+            int readptr = segment_tell_position(player->r_handle);
+            float progress = -1.0f;
+            if (segsize>0) {
+                progress = (float)readptr*100/segsize;
+            }
+            _nchar=sprintf(_pbuf,"%lld(%.1f%), ",_segment->segment_id,progress);
+          } else {
+            _nchar=sprintf(_pbuf,"%lld, ",_segment->segment_id);
+          }
+          if (_nchar<0) {
+            break;
+          }
+          _pbuf+=_nchar;
+          if (_pbuf-_logbuf+10 >= sizeof(_logbuf)) {
+            sprintf(_pbuf,"...");
+            break;
+          }
+        }
+        DVR_PB_INFO("clk: %08u, seglist: %s",_nowts.tv_sec,_logbuf);
+        _prevts=_nowts;
+      }
+    }
+
     if (player->cmd.cur_cmd == DVR_PLAYBACK_CMD_SEEK ||
       player->cmd.cur_cmd == DVR_PLAYBACK_CMD_FF ||
       player->cmd.cur_cmd == DVR_PLAYBACK_CMD_FB ||
@@ -1079,7 +1120,7 @@ static void* _dvr_playback_thread(void *arg)
             //need change to pause state
             player->cmd.cur_cmd = DVR_PLAYBACK_CMD_PAUSE;
             player->cmd.state = DVR_PLAYBACK_STATE_PAUSE;
-            player->state = DVR_PLAYBACK_STATE_PAUSE;
+            DVR_PLAYER_CHANGE_STATE(player,DVR_PLAYBACK_STATE_PAUSE);
             //clear flag
             player->play_flag = player->play_flag & (~DVR_PLAYBACK_STARTED_PAUSEDLIVE);
             player->first_frame = 0;
@@ -1266,9 +1307,7 @@ static void* _dvr_playback_thread(void *arg)
         //dvr_mutex_lock(&player->lock);
         /*if cache time > 20s , we think get time is error,*/
         if (_cache_time - MIN_CACHE_TIME > 20 * 1000) {
-            DVR_PB_INFO("read end but cache time is %d > 20s, this is an error at media_hal", _cache_time);
-            DVR_PB_INFO("read end but cache time is %d > 20s, this is an error at media_hal", _cache_time);
-            DVR_PB_INFO("read end but cache time is %d > 20s, this is an error at media_hal", _cache_time);
+            DVR_PB_WARN("read end but cache time is %d > 20s, this is an error at media_hal", _cache_time);
         }
         //_dvr_playback_timeoutwait((DVR_PlaybackHandle_t)player, ((_cache_time - MIN_CACHE_TIME) > MIN_CACHE_TIME ? MIN_CACHE_TIME : (_cache_time - MIN_CACHE_TIME)));
         //dvr_mutex_unlock(&player->lock);
@@ -1613,7 +1652,7 @@ int dvr_playback_open(DVR_PlaybackHandle_t *p_handle, DVR_PlaybackOpenParams_t *
   player->cmd.cur_cmd = DVR_PLAYBACK_CMD_STOP;
   player->cmd.speed.speed.speed = PLAYBACK_SPEED_X1;
   player->cmd.state = DVR_PLAYBACK_STATE_STOP;
-  player->state = DVR_PLAYBACK_STATE_STOP;
+  DVR_PLAYER_CHANGE_STATE(player,DVR_PLAYBACK_STATE_STOP);
   player->cmd.pos = 0;
   player->speed = 1.0f;
   player->first_trans_ok = DVR_FALSE;
@@ -1833,7 +1872,7 @@ int dvr_playback_start(DVR_PlaybackHandle_t handle, DVR_PlaybackFlag_t flag) {
     if (player->cmd.cur_cmd == DVR_PLAYBACK_CMD_FB
       || player->cmd.cur_cmd == DVR_PLAYBACK_CMD_FF) {
       player->cmd.state = DVR_PLAYBACK_STATE_START;
-      player->state = DVR_PLAYBACK_STATE_START;
+      DVR_PLAYER_CHANGE_STATE(player,DVR_PLAYBACK_STATE_START);
     } else {
       player->cmd.last_cmd = player->cmd.cur_cmd;
       player->cmd.cur_cmd = DVR_PLAYBACK_CMD_START;
@@ -1858,7 +1897,7 @@ int dvr_playback_start(DVR_PlaybackHandle_t handle, DVR_PlaybackFlag_t flag) {
         }
       }
       player->cmd.state = DVR_PLAYBACK_STATE_START;
-      player->state = DVR_PLAYBACK_STATE_START;
+      DVR_PLAYER_CHANGE_STATE(player,DVR_PLAYBACK_STATE_START);
     }
   }
 #ifdef AVSYNC_USED_PCR
@@ -2141,7 +2180,7 @@ static int _do_check_pid_info(DVR_PlaybackHandle_t handle, DVR_PlaybackPids_t  n
       }
       //audio and video all close
       if (!player->has_audio && !player->has_video) {
-        player->state = DVR_PLAYBACK_STATE_STOP;
+        DVR_PLAYER_CHANGE_STATE(player,DVR_PLAYBACK_STATE_STOP);
       }
     } else if (type == 2) {
       //case disable ad
@@ -2429,7 +2468,7 @@ int dvr_playback_stop(DVR_PlaybackHandle_t handle, DVR_Bool_t clear) {
   player->cmd.last_cmd = player->cmd.cur_cmd;
   player->cmd.cur_cmd = DVR_PLAYBACK_CMD_STOP;
   player->cmd.state = DVR_PLAYBACK_STATE_STOP;
-  player->state = DVR_PLAYBACK_STATE_STOP;
+  DVR_PLAYER_CHANGE_STATE(player,DVR_PLAYBACK_STATE_STOP);
   player->cur_segment_id = UINT64_MAX;
   player->segment_is_open = DVR_FALSE;
   DVR_PB_DEBUG("unlock");
@@ -2472,7 +2511,7 @@ int dvr_playback_audio_start(DVR_PlaybackHandle_t handle, am_tsplayer_audio_para
   player->cmd.last_cmd = player->cmd.cur_cmd;
   player->cmd.cur_cmd = DVR_PLAYBACK_CMD_A_START;
   player->cmd.state = DVR_PLAYBACK_STATE_START;
-  player->state = DVR_PLAYBACK_STATE_START;
+  DVR_PLAYER_CHANGE_STATE(player,DVR_PLAYBACK_STATE_START);
   DVR_PB_DEBUG("unlock");
   dvr_mutex_unlock(&player->lock);
   return DVR_SUCCESS;
@@ -2493,7 +2532,7 @@ int dvr_playback_audio_stop(DVR_PlaybackHandle_t handle) {
   //playback_device_audio_stop(player->handle);
   if (player->has_video == DVR_FALSE) {
     player->cmd.state = DVR_PLAYBACK_STATE_STOP;
-    player->state = DVR_PLAYBACK_STATE_STOP;
+    DVR_PLAYER_CHANGE_STATE(player,DVR_PLAYBACK_STATE_STOP);
     //destory thread
     _stop_playback_thread(handle);
   } else {
@@ -2552,7 +2591,7 @@ int dvr_playback_video_start(DVR_PlaybackHandle_t handle, am_tsplayer_video_para
   player->cmd.last_cmd = player->cmd.cur_cmd;
   player->cmd.cur_cmd = DVR_PLAYBACK_CMD_V_START;
   player->cmd.state = DVR_PLAYBACK_STATE_START;
-  player->state = DVR_PLAYBACK_STATE_START;
+  DVR_PLAYER_CHANGE_STATE(player,DVR_PLAYBACK_STATE_START);
   DVR_PB_DEBUG("unlock");
   dvr_mutex_unlock(&player->lock);
   return DVR_SUCCESS;
@@ -2572,7 +2611,7 @@ int dvr_playback_video_stop(DVR_PlaybackHandle_t handle) {
 
   if (player->has_audio == DVR_FALSE) {
     player->cmd.state = DVR_PLAYBACK_STATE_STOP;
-    player->state = DVR_PLAYBACK_STATE_STOP;
+    DVR_PLAYER_CHANGE_STATE(player,DVR_PLAYBACK_STATE_STOP);
     //destory thread
     _stop_playback_thread(handle);
   } else {
@@ -2623,12 +2662,12 @@ int dvr_playback_pause(DVR_PlaybackHandle_t handle, DVR_Bool_t flush) {
   if (player->cmd.cur_cmd == DVR_PLAYBACK_CMD_FF ||
     player->cmd.cur_cmd == DVR_PLAYBACK_CMD_FB) {
     player->cmd.state = DVR_PLAYBACK_STATE_PAUSE;
-    player->state = DVR_PLAYBACK_STATE_PAUSE;
+    DVR_PLAYER_CHANGE_STATE(player,DVR_PLAYBACK_STATE_PAUSE);
   } else {
     player->cmd.last_cmd = player->cmd.cur_cmd;
     player->cmd.cur_cmd = DVR_PLAYBACK_CMD_PAUSE;
     player->cmd.state = DVR_PLAYBACK_STATE_PAUSE;
-    player->state = DVR_PLAYBACK_STATE_PAUSE;
+    DVR_PLAYER_CHANGE_STATE(player,DVR_PLAYBACK_STATE_PAUSE);
   }
   dvr_mutex_unlock(&player->lock);
   DVR_PB_DEBUG("unlock");
@@ -2805,12 +2844,12 @@ int dvr_playback_resume(DVR_PlaybackHandle_t handle) {
     if (player->cmd.cur_cmd == DVR_PLAYBACK_CMD_FF ||
       player->cmd.cur_cmd == DVR_PLAYBACK_CMD_FB) {
       player->cmd.state = DVR_PLAYBACK_STATE_START;
-      player->state = DVR_PLAYBACK_STATE_START;
+      DVR_PLAYER_CHANGE_STATE(player,DVR_PLAYBACK_STATE_START);
     } else {
       player->cmd.last_cmd = player->cmd.cur_cmd;
       player->cmd.cur_cmd = DVR_PLAYBACK_CMD_RESUME;
       player->cmd.state = DVR_PLAYBACK_STATE_START;
-      player->state = DVR_PLAYBACK_STATE_START;
+      DVR_PLAYER_CHANGE_STATE(player,DVR_PLAYBACK_STATE_START);
     }
     DVR_PB_DEBUG("unlock");
     dvr_mutex_unlock(&player->lock);
@@ -2834,7 +2873,7 @@ int dvr_playback_resume(DVR_PlaybackHandle_t handle) {
     if (player->cmd.speed.speed.speed == PLAYBACK_SPEED_X1)
       _dvr_cmd(handle, player->cmd.cur_cmd);
     player->cmd.state = DVR_PLAYBACK_STATE_START;
-    player->state = DVR_PLAYBACK_STATE_START;
+    DVR_PLAYER_CHANGE_STATE(player,DVR_PLAYBACK_STATE_START);
     DVR_PB_INFO("unlock");
     dvr_mutex_unlock(&player->lock);
   } else {
@@ -3092,7 +3131,7 @@ int dvr_playback_seek(DVR_PlaybackHandle_t handle, uint64_t segment_id, uint32_t
   }
   if (player->state == DVR_PLAYBACK_STATE_PAUSE) {
     player->cmd.state = DVR_PLAYBACK_STATE_PAUSE;
-    player->state = DVR_PLAYBACK_STATE_PAUSE;
+    DVR_PLAYER_CHANGE_STATE(player,DVR_PLAYBACK_STATE_PAUSE);
     if (VALID_PID(audio_params.pid) || VALID_PID(video_params.pid))
       player->seek_pause = DVR_TRUE;
     DVR_PB_INFO("set state pause in seek vpid[0x%x]apid[0x%x]",video_params.pid, audio_params.pid);
@@ -3107,7 +3146,7 @@ int dvr_playback_seek(DVR_PlaybackHandle_t handle, uint64_t segment_id, uint32_t
     player->cmd.last_cmd = player->cmd.cur_cmd;
     player->cmd.cur_cmd = DVR_PLAYBACK_CMD_SEEK;
     player->cmd.state = DVR_PLAYBACK_STATE_START;
-    player->state = DVR_PLAYBACK_STATE_START;
+    DVR_PLAYER_CHANGE_STATE(player,DVR_PLAYBACK_STATE_START);
   }
   player->last_send_time_id = UINT64_MAX;
   DVR_PB_DEBUG("unlock");
@@ -3702,7 +3741,7 @@ static int _dvr_playback_replay(DVR_PlaybackHandle_t handle, DVR_Bool_t trick) {
   player->cmd.last_cmd = player->cmd.cur_cmd;
   player->cmd.cur_cmd = DVR_PLAYBACK_CMD_START;
   player->cmd.state = DVR_PLAYBACK_STATE_START;
-  player->state = DVR_PLAYBACK_STATE_START;
+  DVR_PLAYER_CHANGE_STATE(player,DVR_PLAYBACK_STATE_START);
   return 0;
 }
 

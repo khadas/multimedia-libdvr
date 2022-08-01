@@ -923,21 +923,21 @@ int segment_delete(const char *location, uint64_t segment_id)
   memset(fname, 0, sizeof(fname));
   segment_get_fname(fname, location, segment_id, SEGMENT_FILE_TYPE_TS);
   ret = unlink(fname);
-  DVR_INFO("%s, [%s] return:%s", __func__, fname, strerror(errno));
+  DVR_ERROR("%s, [%s] return:%s", __func__, fname, strerror(errno));
   DVR_RETURN_IF_FALSE(ret == 0);
 
   /*delete index file*/
   memset(fname, 0, sizeof(fname));
   segment_get_fname(fname, location, segment_id, SEGMENT_FILE_TYPE_INDEX);
   unlink(fname);
-  DVR_INFO("%s, [%s] return:%s", __func__, fname, strerror(errno));
+  DVR_ERROR("%s, [%s] return:%s", __func__, fname, strerror(errno));
   DVR_RETURN_IF_FALSE(ret == 0);
 
   /*delete store information file*/
   memset(fname, 0, sizeof(fname));
   segment_get_fname(fname, location, segment_id, SEGMENT_FILE_TYPE_DAT);
   unlink(fname);
-  DVR_INFO("%s, [%s] return:%s", __func__, fname, strerror(errno));
+  DVR_ERROR("%s, [%s] return:%s", __func__, fname, strerror(errno));
   DVR_RETURN_IF_FALSE(ret == 0);
 
   return DVR_SUCCESS;
@@ -1002,3 +1002,24 @@ loff_t segment_dump_pts(Segment_Handle_t handle)
 
   return 0;
 }
+
+off_t segment_get_cur_segment_size(Segment_Handle_t handle)
+{
+  Segment_Context_t *p_ctx = (Segment_Context_t *)handle;
+  DVR_RETURN_IF_FALSE(p_ctx);
+  DVR_RETURN_IF_FALSE(p_ctx->ts_fd != -1);
+  struct stat sb;
+  int ret=fstat(p_ctx->ts_fd,&sb);
+  if (ret<0) {
+    return -1;
+  }
+  return sb.st_size;
+}
+
+uint64_t segment_get_cur_segment_id(Segment_Handle_t handle)
+{
+  Segment_Context_t *p_ctx = (Segment_Context_t *)handle;
+  DVR_RETURN_IF_FALSE(p_ctx);
+  return p_ctx->segment_id;
+}
+
