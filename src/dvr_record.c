@@ -852,12 +852,12 @@ int dvr_record_stop_segment(DVR_RecordHandle_t handle, DVR_RecordSegmentInfo_t *
     p_ctx->segment_info.duration = segment_tell_total_time(p_ctx->segment_handle);
     p_ctx->segment_info.duration = 10*1000; //debug, should delete it
   } else {
+    pthread_join(p_ctx->thread, NULL);
     ret = record_device_stop(p_ctx->dev_handle);
     //DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
     if (ret != DVR_SUCCESS)
       goto end;
     //p_ctx->state = DVR_RECORD_STATE_STOPPED;
-    pthread_join(p_ctx->thread, NULL);
   }
 
   //add index file store
