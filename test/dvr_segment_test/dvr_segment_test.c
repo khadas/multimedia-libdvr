@@ -28,16 +28,16 @@ int main(int argc, char **argv)
   char buf[BUF_LEN];
   memset(buf, 0, BUF_LEN);
 
-  Segment_OpenParams_t rparams;
+  Segment_OpenParams_t params;
 
-  memset(rparams.location, 0, DVR_MAX_LOCATION_SIZE);
-  strncpy(rparams.location, "/data/pvr/tsthal_rec1", strlen("/data/pvr/tsthal_rec1"));
+  memset(params.location, 0, DVR_MAX_LOCATION_SIZE);
+  strncpy(params.location, "/data/pvr/tsthal_rec1", strlen("/data/pvr/tsthal_rec1"));
 
-  rparams.segment_id = (uint64_t)id;
-  rparams.mode = SEGMENT_MODE_READ;
+  params.segment_id = (uint64_t)id;
+  params.mode = SEGMENT_MODE_READ;
   printf("start open segment read mode\r\n");
   //dump file len write ptr pos
-  segment_open(&rparams, &r_handle);
+  segment_open(&params, &r_handle);
   if (r_handle == NULL) {
       printf("read error\n");
       return 0;

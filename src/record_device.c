@@ -227,7 +227,7 @@ int record_device_open(Record_DeviceHandle_t *p_handle, Record_DeviceOpenParams_
   dvr_file_echo(buf, "0");
 
   if (params->fend_dev_id > MAX_FEND_DEVICE_COUNT -1) {
-    DVR_ERROR("invalid frontend devicie id:%d, will use default.\n",
+    DVR_ERROR("invalid frontend device id:%d, will use default.\n",
           params->fend_dev_id);
     p_ctx->fend_dev_id = 0;
   } else {
@@ -540,7 +540,7 @@ int record_device_read(Record_DeviceHandle_t handle, void *buf, size_t len, int 
   ret = poll(fds, 2, timeout);
   if (ret <= 0) {
     if (ret < 0)
-      DVR_INFO("%s, %d failed: %s fd %d evfd %d", __func__, __LINE__, strerror(errno), p_ctx->fd, p_ctx->evtfd);
+      DVR_INFO("%s, %d failed: %s fd %d event fd %d", __func__, __LINE__, strerror(errno), p_ctx->fd, p_ctx->evtfd);
     else
       DVR_INFO("%s, %d timeout", __func__, __LINE__);
     return DVR_FAILURE;
@@ -679,7 +679,7 @@ int record_device_set_secure_buffer(Record_DeviceHandle_t handle, uint8_t *sec_b
     }
     else
     {
-      DVR_INFO("record_device_set_secure_buffer ioctl sucesss DMX_SET_SEC_MEM: fd:%d, buf:%#x\n", fd, p_ctx->dvr_buf);
+      DVR_INFO("record_device_set_secure_buffer ioctl succeeded DMX_SET_SEC_MEM: fd:%d, buf:%#x\n", fd, p_ctx->dvr_buf);
     }
     if (SECDMX_AddOutputBuffer_Ptr != NULL)
       result = SECDMX_AddOutputBuffer_Ptr(sid, (size_t)sec_buf, len, &op_handle);

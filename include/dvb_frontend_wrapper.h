@@ -173,7 +173,7 @@ extern "C"
   {
     TUNER_STATE_LOCKED,
     TUNER_STATE_TIMEOUT,
-    TUNER_STATE_UNKNOW
+    TUNER_STATE_UNKNOWN
   } dmd_tuner_event_t;
 
   typedef struct

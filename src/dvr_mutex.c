@@ -4,20 +4,20 @@
 #include "dvr_mutex.h"
 
 #define MUTEX_LOG_TAG "libdvr-mutex"
-#define merr(...) DVR_LOG_PRINT(LOG_LV_ERROR, MUTEX_LOG_TAG, __VA_ARGS__)
-#define mdbg(...) DVR_LOG_PRINT(LOG_LV_DEBUG, MUTEX_LOG_TAG, __VA_ARGS__)
+#define mutex_error(...) DVR_LOG_PRINT(LOG_LV_ERROR, MUTEX_LOG_TAG, __VA_ARGS__)
+#define mutex_debug(...) DVR_LOG_PRINT(LOG_LV_DEBUG, MUTEX_LOG_TAG, __VA_ARGS__)
 
 
 void _dvr_mutex_init(void *mutex)
 {
    if (!mutex) {
-      merr("null mutex\n");
+      mutex_error("null mutex\n");
       return;
    }
    dvr_mutex_t *mtx = (dvr_mutex_t*)mutex;
    memset(mtx, 0, sizeof(dvr_mutex_t));
    if (pthread_mutex_init(&mtx->lock, NULL) != 0) {
-      merr("init mutex fail\n");
+      mutex_error("init mutex fail\n");
       return;
    }
    mtx->thread = 0;
@@ -28,7 +28,7 @@ void _dvr_mutex_init(void *mutex)
 void _dvr_mutex_lock(void *mutex)
 {
    if (!mutex) {
-      merr("null mutex\n");
+      mutex_error("null mutex\n");
       return;
    }
    dvr_mutex_t *mtx = (dvr_mutex_t*)mutex;
@@ -44,7 +44,7 @@ void _dvr_mutex_lock(void *mutex)
 void _dvr_mutex_unlock(void *mutex)
 {
    if (!mutex) {
-      merr("null mutex\n");
+      mutex_error("null mutex\n");
       return;
    }
    dvr_mutex_t *mtx = (dvr_mutex_t*)mutex;
@@ -55,14 +55,14 @@ void _dvr_mutex_unlock(void *mutex)
          pthread_mutex_unlock(&mtx->lock);
       }
    } else {
-      mdbg("not own mutex\n");
+      mutex_debug("not own mutex\n");
    }
 }
 
 void _dvr_mutex_destroy(void *mutex)
 {
    if (!mutex) {
-      merr("null mutex\n");
+      mutex_error("null mutex\n");
       return;
    }
    dvr_mutex_t *mtx = (dvr_mutex_t*)mutex;
@@ -72,7 +72,7 @@ void _dvr_mutex_destroy(void *mutex)
 int _dvr_mutex_save(void *mutex)
 {
    if (!mutex) {
-       merr("null mutex\n");
+       mutex_error("null mutex\n");
        return 0;
    }
    dvr_mutex_t *mtx = (dvr_mutex_t*)mutex;
@@ -85,7 +85,7 @@ int _dvr_mutex_save(void *mutex)
 void _dvr_mutex_restore(void *mutex, int val)
 {
    if (!mutex) {
-       merr("null mutex\n");
+       mutex_error("null mutex\n");
        return;
    }
    dvr_mutex_t *mtx = (dvr_mutex_t*)mutex;
@@ -96,32 +96,32 @@ void _dvr_mutex_restore(void *mutex, int val)
 #ifdef DVR_MUTEX_DEBUG
 void _dvr_mutex_init_dbg(void *mutex, const char *file, int line)
 {
-   mdbg("%s:%d\n", file, line);
+   mutex_debug("%s:%d\n", file, line);
    _dvr_mutex_init(mutex);
 }
 void _dvr_mutex_lock_dbg(void *mutex, const char *file, int line)
 {
-   mdbg("%s:%d\n", file, line);
+   mutex_debug("%s:%d\n", file, line);
    _dvr_mutex_lock(mutex);
 }
 void _dvr_mutex_unlock_dbg(void *mutex, const char *file, int line)
 {
-   mdbg("%s:%d\n", file, line);
+   mutex_debug("%s:%d\n", file, line);
    _dvr_mutex_unlock(mutex);
 }
 void _dvr_mutex_destroy_dbg(void *mutex, const char *file, int line)
 {
-   mdbg("%s:%d\n", file, line);
+   mutex_debug("%s:%d\n", file, line);
    _dvr_mutex_destroy(mutex);
 }
 int _dvr_mutex_save_dbg(void *mutex, const char *file, int line)
 {
-   mdbg("%s:%d\n", file, line);
+   mutex_debug("%s:%d\n", file, line);
    return _dvr_mutex_save(mutex);
 }
 void _dvr_mutex_restore_dbg(void *mutex, int val, const char *file, int line)
 {
-   mdbg("%s:%d\n", file, line);
+   mutex_debug("%s:%d\n", file, line);
    _dvr_mutex_restore(mutex, val);
 }
 #endif

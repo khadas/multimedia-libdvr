@@ -66,14 +66,14 @@ typedef struct
 {
   DVR_Bool_t              transition;     /**< DVR_TRUE is transition, DVR_FALSE is not transition. At the start of a recording this shall be set to DVR_TRUE*/
   DVR_CryptoParity_t      parity;         /**< The crypto parity at the ts_offset*/
-  loff_t                  ts_offset;      /**< TS packet offset correspongding to this crypto period*/
+  loff_t                  ts_offset;      /**< TS packet offset corresponding to this crypto period*/
   DVR_CryptoFilterType_t  filter_type;    /**< Indicate this notification concerns audio or video*/
 } DVR_CryptoPeriodInfo_t;
 
 /**\brief DVR crypto period information*/
 typedef struct {
-  uint64_t                      interval_bytes;         /**< The inteval between two regular notification of crypto period. For example, if the current segment is always ODD for a long time, record module would notify the current crypto period status when segment size reached the interval_bytes*/
-  DVR_Bool_t                    notify_clear_periods;   /**< Inticate whether it shall track the transition to clear period. DVR_TRUE means it shall not notify clear periods, but only transition between ODD and EVEN. DVR_FALSE means it shall notify transition between ODD, EVEN and clear periods*/
+  uint64_t                      interval_bytes;         /**< The interval between two regular notification of crypto period. For example, if the current segment is always ODD for a long time, record module would notify the current crypto period status when segment size reached the interval_bytes*/
+  DVR_Bool_t                    notify_clear_periods;   /**< Indicate whether it shall track the transition to clear period. DVR_TRUE means it shall not notify clear periods, but only transition between ODD and EVEN. DVR_FALSE means it shall notify transition between ODD, EVEN and clear periods*/
 } DVR_CryptoPeriod_t;
 
 /**\brief DVR record event notify function*/
@@ -88,12 +88,12 @@ typedef struct {
   int                         flush_size;         /**< DVR record interrupt flush size*/
   DVR_RecordEventFunction_t   event_fn;           /**< DVR record event callback function*/
   void                        *event_userdata;    /**< DVR event userdata*/
-  size_t                      notification_size;  /**< DVR record notification size, record moudle would send a notifaction when the size of current segment is multiple of this value. Put 0 in this argument if you don't want to receive the notification*/
+  size_t                      notification_size;  /**< DVR record notification size, record module would send a notification when the size of current segment is multiple of this value. Put 0 in this argument if you don't want to receive the notification*/
   uint8_t                     *clearkey;          /**< key for encrypted PVR on FTA.*/
-  uint8_t                     *cleariv;           /**< iv for encrpted PVR on FTA.*/
+  uint8_t                     *cleariv;           /**< iv for encrypted PVR on FTA.*/
   uint32_t                    keylen;             /**< key/iv length.*/
   int                         ringbuf_size;       /**< DVR record ring buf size*/
-  int                         notification_time;  /**< DVR record notification time, record moudle would send a notifaction when the size of current segment is multiple of this value. Put 0 in this argument if you don't want to receive the notification*/
+  int                         notification_time;  /**< DVR record notification time, record module would send a notification when the size of current segment is multiple of this value. Put 0 in this argument if you don't want to receive the notification*/
   DVR_Bool_t                  force_sysclock;     /**< If ture, force to use system clock as PVR index time source. If false, libdvr can determine index time source based on actual situation*/
   loff_t                      guarded_segment_size;   /**< Guarded segment size in bytes. Libdvr will be forcely stopped to write anymore if current segment reaches this size*/
 } DVR_RecordOpenParams_t;
@@ -190,7 +190,7 @@ int dvr_record_resume_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t
 
 /**\brief DVR record write data, used for VOD mode
  * \param[in] handle DVR recording session handle
- * \param[in] buffer The redcord data buffer
+ * \param[in] buffer The record data buffer
  * \param[in] len The record data length
  * \return DVR_SUCCESS on success
  * \return error code on failure

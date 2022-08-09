@@ -108,7 +108,7 @@ int am_crypt_des_crypt(void* cryptor, uint8_t* dst,
         /* p_out length must be at least more 188Bytes than p_in length */
 #if 0
         if (*p_out_len - left < 188) {
-            printf("%s p_out length %d is not enougth big\n",
+            printf("%s p_out length %d is not enough big\n",
                 __func__, *p_out_len);
             return -1;
         }

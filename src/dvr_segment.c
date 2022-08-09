@@ -224,7 +224,7 @@ int dvr_segment_get_allInfo(const char *location, struct list_head *list)
 
 int dvr_segment_link(const char *location, uint32_t nb_segments, uint64_t *p_segment_ids)
 {
-  return dvr_segment_link_op(location, nb_segments, p_segment_ids, LSEG_OP_NEW);
+  return dvr_segment_link_op(location, nb_segments, p_segment_ids, SEGMENT_OP_NEW);
 }
 
 int dvr_segment_link_op(const char *location, uint32_t nb_segments, uint64_t *p_segment_ids, int op)
@@ -241,7 +241,7 @@ int dvr_segment_link_op(const char *location, uint32_t nb_segments, uint64_t *p_
   DVR_INFO("%s op[%d] location:%s, nb_segments:%d", __func__, op, location, nb_segments);
   memset(fpath, 0, sizeof(fpath));
   sprintf(fpath, "%s.list", location);
-  fp = fopen(fpath, (op == LSEG_OP_ADD) ? "a+" : "w+");
+  fp = fopen(fpath, (op == SEGMENT_OP_ADD) ? "a+" : "w+");
   if (!fp) {
     DVR_INFO("failed to open list file, err:%d:%s", errno, strerror(errno));
     return DVR_FAILURE;

@@ -68,7 +68,7 @@ DVB_RESULT AML_FE_Colse(int frontend_fd)
 dmd_tuner_event_t AML_FE_GetTuneStatus(int frontend_fd)
 {
     struct dvb_frontend_event fe_event;
-    dmd_tuner_event_t tune_event = TUNER_STATE_UNKNOW;
+    dmd_tuner_event_t tune_event = TUNER_STATE_UNKNOWN;
 
     if (ioctl(frontend_fd, FE_READ_STATUS, &fe_event.status) >= 0)
     {

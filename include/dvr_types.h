@@ -109,11 +109,11 @@ typedef uint8_t        DVR_Bool_t;
 #define DVR_FALSE       (0)
 #endif
 
-#ifndef UNDVRUSED
-#define UNDVRUSED(x) (void)(x)
+#ifndef DVR_UNUSED
+#define DVR_UNUSED(x) (void)(x)
 #endif
 
-/**Funciton result*/
+/**Function result*/
 typedef enum {
   DVR_FAILURE = -1, /**< Generic error.*/
   DVR_SUCCESS = 0   /**< Success*/

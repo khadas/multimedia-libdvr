@@ -53,7 +53,7 @@ typedef struct {
 typedef struct {
   DVR_PlaybackPlayState_t state;      /**< DVR playback state*/
   DVR_WrapperInfo_t info_cur;         /**< DVR playback current information*/
-  DVR_WrapperInfo_t info_full;        /**< DVR playback total(non-obsolete) infomation*/
+  DVR_WrapperInfo_t info_full;        /**< DVR playback total(non-obsolete) information*/
   DVR_PlaybackPids_t pids;            /**< DVR playback pids information*/
   float speed;                        /**< DVR playback current speed*/
   DVR_PlaybackSegmentFlag_t flags;    /**< DVR playback flags*/
@@ -82,7 +82,7 @@ typedef struct {
   DVR_CryptoFunction_t  crypto_fn;                       /**< Crypto callback function.*/
   void                  *crypto_data;                    /**< User data of crypto function.*/
   uint8_t               *clearkey;                       /**< key for encrypted PVR on FTA.*/
-  uint8_t               *cleariv;                        /**< iv for encrpted PVR on FTA.*/
+  uint8_t               *cleariv;                        /**< iv for encrypted PVR on FTA.*/
   uint32_t              keylen;                          /**< key/iv length.*/
   DVR_RecordEventFunction_t   event_fn;                  /**< DVR record event callback function.*/
   void                        *event_userdata;           /**< DVR event userdata.*/
@@ -93,7 +93,7 @@ typedef struct {
 
 typedef struct {
   DVR_WrapperPidsInfo_t pids_info;
-  int                   save_rec_file;                    /**< save rec file with same location,defaule is 0.*/
+  int                   save_rec_file;                    /**< save rec file with same location,default is 0.*/
 } DVR_WrapperRecordStartParams_t;
 
 typedef struct {
@@ -112,7 +112,7 @@ typedef struct {
   DVR_CryptoFunction_t    crypto_fn;                       /**< Crypto function.*/
   void                    *crypto_data;                    /**< Crypto function's user data.*/
   uint8_t                 *clearkey;                       /**< key for encrypted PVR on FTA.*/
-  uint8_t                 *cleariv;                        /**< iv for encrpted PVR on FTA.*/
+  uint8_t                 *cleariv;                        /**< iv for encrypted PVR on FTA.*/
   uint32_t                keylen;                          /**< key/iv length.*/
   DVR_PlaybackEventFunction_t  event_fn;                   /**< playback event callback function*/
   void                        *event_userdata;             /**< event userdata*/
@@ -358,7 +358,7 @@ int dvr_wrapper_segment_del_by_location (const char *location);
 int dvr_wrapper_segment_get_info_by_location (const char *location, DVR_WrapperInfo_t *p_info);
 
 /**
- * Stop timeshit.
+ * Stop timeshift.
  * \param playback The playback handle.
  * \retval DVR_SUCCESS On success.
  * \return Error code.

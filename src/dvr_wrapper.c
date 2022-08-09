@@ -919,7 +919,7 @@ static int wrapper_addRecordSegment(DVR_WrapperCtx_t *ctx, DVR_RecordSegmentInfo
     }
   } else {
     DVR_WRAPPER_INFO("ctx_playback -sn[%d]-\n", sn);
-    dvr_segment_link_op(ctx->record.param_open.location, 1, &seg_info->id, LSEG_OP_ADD);
+    dvr_segment_link_op(ctx->record.param_open.location, 1, &seg_info->id, SEGMENT_OP_ADD);
   }
 
   return error;
@@ -2152,11 +2152,11 @@ int dvr_wrapper_setlimit_playback (DVR_WrapperPlayback_t playback, uint64_t time
 
   wrapper_mutex_lock(&ctx->wrapper_lock);
 
-  DVR_WRAPPER_INFO("setlimit playback(sn:%ld) (time:%lld limit:%d) ...\n", ctx->sn, time, limit);
+  DVR_WRAPPER_INFO("set_limit playback(sn:%ld) (time:%lld limit:%d) ...\n", ctx->sn, time, limit);
   WRAPPER_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->wrapper_lock);
 
   error = dvr_playback_setlimit(ctx->playback.player, time, limit);
-  DVR_WRAPPER_INFO("playback(sn:%ld) setlimit(time:%lld limit:%d) ...\n", ctx->sn, time, limit);
+  DVR_WRAPPER_INFO("playback(sn:%ld) set_limit(time:%lld limit:%d) ...\n", ctx->sn, time, limit);
 
   wrapper_mutex_unlock(&ctx->wrapper_lock);
 

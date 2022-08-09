@@ -11,7 +11,7 @@ typedef uint32_t Index_FileHandle_t;
 typedef enum {
   INDEX_RECORD_MODE,
   INDEX_PLAYBACK_MODE,
-  INDEX_UNKNOW_MODE,
+  INDEX_UNKNOWN_MODE,
 } Index_FileOpenMode_t;
 
 typedef struct Index_FileOpenParams_s {

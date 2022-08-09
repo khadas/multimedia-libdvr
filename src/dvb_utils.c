@@ -117,7 +117,7 @@ int dvb_set_demux_source(int dmx_idx, DVB_DemuxSource_t src)
             }
             else
             {
-                 DVR_INFO("dvb_set_demux_source ioctl sucesss src:%d DMX_SET_INPUT:%d dmx_idx:%d", src, input, dmx_idx);
+                 DVR_INFO("dvb_set_demux_source ioctl succeeded src:%d DMX_SET_INPUT:%d dmx_idx:%d", src, input, dmx_idx);
                  r = 0;
             }
             if (ioctl(fd, DMX_SET_HW_SOURCE, source) == -1)
@@ -127,7 +127,7 @@ int dvb_set_demux_source(int dmx_idx, DVB_DemuxSource_t src)
             }
             else
             {
-                DVR_INFO("dvb_set_demux_source ioctl sucesss src:%d DMX_SET_HW_SOURCE:%d dmx_idx:%d", src, source, dmx_idx);
+                DVR_INFO("dvb_set_demux_source ioctl succeeded src:%d DMX_SET_HW_SOURCE:%d dmx_idx:%d", src, source, dmx_idx);
                 r = 0;
             }
             close(fd);

@@ -18,7 +18,7 @@
   * \li mode: tune mode
   * \li freq: frequency MHz
   * \li sym_rate: symbol_rate
-  * \li modul: modulation
+  * \li module: modulation
   * \li bw: bandwidth
   * \li tran_mode: transmission_mode
   * \li plp: plp_id, only for dvb-t2
@@ -58,7 +58,7 @@
   *
   * Lock DVB-C:
   * \code
-  *   am_fend_test [fe=fontend_idx] [mode=1] [freq=frequency] [sym_rate=symbol_rate] [modul=modulation] [timer=check_tune_time]
+  *   am_fend_test [fe=fontend_idx] [mode=1] [freq=frequency] [sym_rate=symbol_rate] [module=modulation] [timer=check_tune_time]
   * \endcode
   * Lock DVB-T:
   * \code
@@ -70,11 +70,11 @@
   * \endcode
   * Lock DVB-S:
   * \code
-  *   am_fend_test [fe=fontend_idx] [mode=4] [freq=frequency] [sym_rate=symbol_rate] [modul=modulation] [timer=check_tune_time]
+  *   am_fend_test [fe=fontend_idx] [mode=4] [freq=frequency] [sym_rate=symbol_rate] [module=modulation] [timer=check_tune_time]
   * \endcode
   * Lock DVB-S2:
   * \code
-  *   am_fend_test [fe=fontend_idx] [mode=5] [freq=frequency] [sym_rate=symbol_rate] [modul=modulation] [timer=check_tune_time]
+  *   am_fend_test [fe=fontend_idx] [mode=5] [freq=frequency] [sym_rate=symbol_rate] [module=modulation] [timer=check_tune_time]
   * \endcode
   * Lock DTMB:
   * \code
@@ -110,7 +110,7 @@
 #include "frontend.h"
 #include "dvb_frontend_wrapper.h"
 
-#define TUNE_MODE_UNKNOW 0
+#define TUNE_MODE_UNKNOWN 0
 #define TUNE_MODE_DVB_C 1
 #define TUNE_MODE_DVB_T 2
 #define TUNE_MODE_DVB_T2 3
@@ -157,14 +157,14 @@ static char *help_transmission_mode =
 
 static void usage(int argc, char *argv[])
 {
-  printf("[Lock DVB-C:] \n%s fe=fontend_idx mode=1 freq=frequency sym_rate=symbol_rate modul=modulation timer=check_tune_time\n", argv[0]);
+  printf("[Lock DVB-C:] \n%s fe=fontend_idx mode=1 freq=frequency sym_rate=symbol_rate module=modulation timer=check_tune_time\n", argv[0]);
   printf("[Lock DVB-T:] \n%s fe=fontend_idx mode=2 freq=frequency bw=bandwidth tran_mode=transmission_mode timer=check_tune_time\n", argv[0]);
   printf("[Lock DVB-T2:]\n%s fe=fontend_idx mode=3 freq=frequency bw=bandwidth  tran_mode=transmission_mode  plp=plp_id timer=check_tune_time\n", argv[0]);
-  printf("[Lock DVB-S:] \n%s fe=fontend_idx mode=4 freq=frequency sym_rate=symbol_rate modul=modulation timer=check_tune_time\n", argv[0]);
-  printf("[Lock DVB-S2:]\n%s fe=fontend_idx mode=5 freq=frequency sym_rate=symbol_rate modul=modulation timer=check_tune_time\n", argv[0]);
+  printf("[Lock DVB-S:] \n%s fe=fontend_idx mode=4 freq=frequency sym_rate=symbol_rate module=modulation timer=check_tune_time\n", argv[0]);
+  printf("[Lock DVB-S2:]\n%s fe=fontend_idx mode=5 freq=frequency sym_rate=symbol_rate module=modulation timer=check_tune_time\n", argv[0]);
   printf("[Lock DTMB:]\n%s fe=fontend_idx mode=6 freq=frequency bw=bandwidth timer=check_tune_time\n", argv[0]);
 
-  printf("\nfreq(MHZ) lo(MHz) timer(second)\n");
+  printf("\n""freq(MHZ) lo(MHz) timer(second)\n");
   printf("mode:%s\n", help_mode);
   printf("modulation:%s\n", help_modulation);
   printf("bw:%s\n", help_bandwidth);
@@ -176,7 +176,7 @@ int main(int argc, char **argv)
   int i;
   int ret = -1;
   int check_tune_time;
-  int mode = TUNE_MODE_UNKNOW;
+  int mode = TUNE_MODE_UNKNOWN;
   int fontend_id = INVALID_FD;
   int fontend_idx = 0;
   int frequency; //MHz
@@ -205,8 +205,8 @@ int main(int argc, char **argv)
       sscanf(argv[i], "freq=%i", &frequency);
     else if (!strncmp(argv[i], "sym_rate", 8))
       sscanf(argv[i], "sym_rate=%i", &symbol_rate);
-    else if (!strncmp(argv[i], "modul", 5))
-      sscanf(argv[i], "modul=%i", &modulation);
+    else if (!strncmp(argv[i], "module", 5))
+      sscanf(argv[i], "module=%i", &modulation);
     else if (!strncmp(argv[i], "bw", 2))
       sscanf(argv[i], "bw=%i", &bandwidth);
     else if (!strncmp(argv[i], "tran_mode", 9))
@@ -293,7 +293,7 @@ int main(int argc, char **argv)
     ret = AML_FE_TuneDVB_T(fontend_id, &terrestrial);
     printf("DTMB: lock to freq:%d, bandwidth:%d ret:%d \n", frequency, bandwidth, ret);
     break;
-  case TUNE_MODE_UNKNOW:
+  case TUNE_MODE_UNKNOWN:
   default:
     printf("tune mode unknow, mode:%d", mode);
     break;
@@ -307,12 +307,12 @@ int main(int argc, char **argv)
 
   int num = (check_tune_time > 0 ? check_tune_time : 60);
   printf("Will check tune status %ds\n", num);
-  dmd_tuner_event_t revent = TUNER_STATE_UNKNOW;
+  dmd_tuner_event_t event = TUNER_STATE_UNKNOWN;
   while (num--)
   {
     sleep(1);
-    revent = AML_FE_GetTuneStatus(fontend_id);
-    printf("####### [%s] #######\n", revent == TUNER_STATE_LOCKED ? "LOCKED" : "UNLOCKED");
+    event = AML_FE_GetTuneStatus(fontend_id);
+    printf("####### [%s] #######\n", event == TUNER_STATE_LOCKED ? "LOCKED" : "UNLOCKED");
   }
 
   AML_FE_Colse(fontend_id);

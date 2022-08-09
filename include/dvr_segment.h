@@ -72,8 +72,8 @@ int dvr_segment_get_allInfo(const char *location, struct list_head *list);
 int dvr_segment_link(const char *location, uint32_t nb_segments, uint64_t *p_segment_ids);
 
 
-#define LSEG_OP_NEW 0
-#define LSEG_OP_ADD 1
+#define SEGMENT_OP_NEW 0
+#define SEGMENT_OP_ADD 1
 int dvr_segment_link_op(const char *location, uint32_t nb_segments, uint64_t *p_segment_ids, int op);
 
 #ifdef __cplusplus

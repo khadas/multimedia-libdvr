@@ -2388,7 +2388,7 @@ int dvr_playback_update_segment_pids(DVR_PlaybackHandle_t handle, uint64_t segme
  */
 int dvr_playback_stop(DVR_PlaybackHandle_t handle, DVR_Bool_t clear) {
   DVR_Playback_t *player = (DVR_Playback_t *) handle;
-  UNDVRUSED(clear);
+  DVR_UNUSED(clear);
   if (player == NULL) {
     DVR_PB_INFO("player is NULL");
     return DVR_FAILURE;
@@ -2602,7 +2602,7 @@ int dvr_playback_video_stop(DVR_PlaybackHandle_t handle) {
  */
 int dvr_playback_pause(DVR_PlaybackHandle_t handle, DVR_Bool_t flush) {
   DVR_Playback_t *player = (DVR_Playback_t *) handle;
-  UNDVRUSED(flush);
+  DVR_UNUSED(flush);
   if (player == NULL) {
     DVR_PB_INFO("player is NULL");
     return DVR_FAILURE;

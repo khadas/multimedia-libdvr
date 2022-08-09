@@ -39,7 +39,7 @@ int record_device_close(Record_DeviceHandle_t handle);
  */
 int record_device_add_pid(Record_DeviceHandle_t handle, int pid);
 
-/**\brief Remoe a pid from the DVR record handle
+/**\brief Remove a pid from the DVR record handle
  * \param[in] handle, DVR device handle
  * \param[in] pid, pid value
  * \return DVR_SUCCESS On success

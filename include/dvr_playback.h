@@ -223,7 +223,7 @@ typedef struct
   DVR_CryptoFunction_t   crypto_fn;       /**< Crypto function.*/
   void                   *crypto_data;    /**< Crypto function's user data.*/
   uint8_t                *clearkey;       /**< key for encrypted PVR on FTA.*/
-  uint8_t                *cleariv;        /**< iv for encrpted PVR on FTA.*/
+  uint8_t                *cleariv;        /**< iv for encrypted PVR on FTA.*/
   uint32_t               keylen;          /**< key/iv length.*/
   DVR_Bool_t             has_pids;        /**< has video audo pid fmt info*/
   DVR_PlaybackEventFunction_t  event_fn;           /**< playback event callback function*/
