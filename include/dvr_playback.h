@@ -159,8 +159,10 @@ typedef struct
 {
   DVR_PlaybackPlayState_t state;  /**< playback play state */
   uint64_t segment_id;                 /**< playback ongoing segment index */
-  uint32_t time_cur;                   /**< playback cur time,0 <--> time_end Ms*/
-  uint32_t time_end;                   /**< playback ongoing segment dur,Ms */
+  int32_t time_cur;               /**< current playback time position in ms of a segment.
+                                   It can be a negative value to refer to relative time
+                                   position of previous segment*/
+  int32_t time_end;               /**< end time position of a segment in ms */
   DVR_PlaybackPids_t pids;        /**< playback played pids */
   int                    speed;  /**< playback speed */
   DVR_PlaybackSegmentFlag_t flags; /**< playback played segment flag */

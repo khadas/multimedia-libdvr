@@ -3116,6 +3116,9 @@ int dvr_playback_seek(DVR_PlaybackHandle_t handle, uint64_t segment_id, uint32_t
   return DVR_SUCCESS;
 }
 
+// Get current playback time position of the ongoing segment.
+// Notice the return value may be negative. This is because previous segment's
+// data cached in demux buffer need to be considered.
 static int _dvr_get_cur_time(DVR_PlaybackHandle_t handle) {
   //get cur time of segment
   DVR_Playback_t *player = (DVR_Playback_t *) handle;
@@ -3146,6 +3149,9 @@ static int _dvr_get_cur_time(DVR_PlaybackHandle_t handle) {
   return cur_time;
 }
 
+// Get current playback time position of the ongoing segment.
+// Notice the return value may be negative. This is because previous segment's
+// data cached in demux buffer need to be considered.
 static int _dvr_get_play_cur_time(DVR_PlaybackHandle_t handle, uint64_t *id) {
   //get cur time of segment
   DVR_Playback_t *player = (DVR_Playback_t *) handle;
