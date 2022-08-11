@@ -1275,16 +1275,22 @@ int dvr_wrapper_resume_record (DVR_WrapperRecord_t rec)
 }
 
 /* Return true if arr1 contains all elements in arr2 */
-static DVR_Bool_t pids_test_include( DVR_StreamPid_t* arr1, int size1,
-                  DVR_StreamPid_t* arr2, int size2)
+static DVR_Bool_t pids_test_include(
+                  DVR_StreamPid_t* arr1, DVR_RecordPidAction_t *act1, int size1,
+                  DVR_StreamPid_t* arr2, DVR_RecordPidAction_t *act2, int size2)
 {
   DVR_Bool_t ret = DVR_TRUE;
   for (int i=0;i<size2;i++)
   { // iterate all elements in arr2 to check if they exist in arr1
     DVR_Bool_t found=DVR_FALSE;
+
+    if (act2[i] == DVR_RECORD_PID_CLOSE)
+      continue;
+
     for (int j=0;j<size1;j++)
     {
-      if (arr2[i].pid == arr1[j].pid)
+      if (act1[j] != DVR_RECORD_PID_CLOSE
+          && arr2[i].pid == arr1[j].pid)
       {
         found=DVR_TRUE;
         break;
@@ -1310,12 +1316,20 @@ static DVR_Bool_t pids_equal(const DVR_RecordSegmentStartParams_t* p1,
   DVR_RETURN_IF_FALSE(p1 != NULL && p2 != NULL);
   DVR_RETURN_IF_FALSE(p1->nb_pids>0 && p2->nb_pids>0);
 
-  DVR_Bool_t cond1 = pids_test_include(p1->pids,p1->nb_pids,p2->pids,p2->nb_pids);
-  DVR_Bool_t cond2 = pids_test_include(p2->pids,p2->nb_pids,p1->pids,p1->nb_pids);
+  DVR_Bool_t cond1 = pids_test_include(p1->pids,p1->pid_action,p1->nb_pids,
+                        p2->pids,p2->pid_action,p2->nb_pids);
+  DVR_Bool_t cond2 = pids_test_include(p2->pids,p2->pid_action,p2->nb_pids,
+                        p1->pids,p1->pid_action,p1->nb_pids);
   DVR_Bool_t is_equal = (cond1 && cond2);
+  int removed;
 
+  removed = 0;
   for (i=0;i<p1->nb_pids;i++)
   {
+    if (p1->pid_action[i] == DVR_RECORD_PID_CLOSE) {
+      removed++;
+      continue;
+    }
     chars = snprintf(buf+cnt,sizeof(buf)-cnt,"0x%hx,",p1->pids[i].pid);
     if (chars<0)
     {
@@ -1323,11 +1337,16 @@ static DVR_Bool_t pids_equal(const DVR_RecordSegmentStartParams_t* p1,
     }
     cnt += chars;
   }
-  DVR_INFO("%s nb_pids1:%d, pids1: %s",__func__,p1->nb_pids,buf);
+  DVR_INFO("%s nb_pids1:%d, pids1: %s",__func__,p1->nb_pids-removed,buf);
   memset(buf,0,sizeof(buf));
 
+  removed = 0;
   for (i=0,cnt=0;i<p2->nb_pids;i++)
   {
+    if (p2->pid_action[i] == DVR_RECORD_PID_CLOSE) {
+      removed++;
+      continue;
+    }
     chars = snprintf(buf+cnt,sizeof(buf)-cnt,"0x%hx,",p2->pids[i].pid);
     if (chars<0)
     {
@@ -1335,7 +1354,7 @@ static DVR_Bool_t pids_equal(const DVR_RecordSegmentStartParams_t* p1,
     }
     cnt += chars;
   }
-  DVR_INFO("%s nb_pids2:%d, pids2: %s",__func__,p2->nb_pids,buf);
+  DVR_INFO("%s nb_pids2:%d, pids2: %s",__func__,p2->nb_pids-removed,buf);
   DVR_INFO("%s is_equal:%d",__func__,is_equal);
   return is_equal;
 }
