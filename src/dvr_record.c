@@ -332,15 +332,16 @@ void *record_thread(void *arg)
         crypto_params.input_buffer.type = DVR_BUFFER_TYPE_SECURE;
         crypto_params.input_buffer.addr = secure_buf.addr;
         crypto_params.input_buffer.size = secure_buf.len;
+        crypto_params.output_buffer.size = p_ctx->secbuf_size + 188;
       } else {
         crypto_params.input_buffer.type = DVR_BUFFER_TYPE_NORMAL;
         crypto_params.input_buffer.addr = (size_t)buf;
         crypto_params.input_buffer.size = len;
+        crypto_params.output_buffer.size = block_size + 188;
       }
 
       crypto_params.output_buffer.type = DVR_BUFFER_TYPE_NORMAL;
       crypto_params.output_buffer.addr = (size_t)buf_out;
-      crypto_params.output_buffer.size = p_ctx->secbuf_size + 188;
 
       p_ctx->enc_func(&crypto_params, p_ctx->enc_userdata);
       gettimeofday(&t3, NULL);
