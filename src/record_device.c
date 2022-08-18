@@ -170,7 +170,12 @@ int record_device_open(Record_DeviceHandle_t *p_handle, Record_DeviceOpenParams_
     pthread_mutex_unlock(&p_ctx->lock);
     return DVR_FAILURE;
   }
-  fcntl(p_ctx->fd, F_SETFL, fcntl(p_ctx->fd, F_GETFL, 0) | O_NONBLOCK, 0);
+  if (fcntl(p_ctx->fd, F_SETFL, fcntl(p_ctx->fd, F_GETFL, 0) | O_NONBLOCK, 0) < 0) {
+    DVR_ERROR("%s setting non-block flag fails with errno:%d(%s)",
+        __func__,errno,strerror(errno));
+    pthread_mutex_unlock(&p_ctx->lock);
+    return DVR_FAILURE;
+  }
 
   p_ctx->evtfd = eventfd(0, 0);
   DVR_INFO("%s, %d fd: %d %p %d %p", __func__, __LINE__, p_ctx->fd, &(p_ctx->fd), p_ctx->evtfd, &(p_ctx->evtfd));
@@ -331,7 +336,12 @@ int record_device_add_pid(Record_DeviceHandle_t handle, int pid)
   add_dvr_pids(p_ctx);
   if (p_ctx->state == RECORD_DEVICE_STATE_STARTED) {
     //need start pid filter
-    fcntl(fd, F_SETFL, O_NONBLOCK);
+    if (fcntl(fd, F_SETFL, O_NONBLOCK)<0) {
+      DVR_ERROR("%s setting non-block flag fails with errno:%d(%s)",
+          __func__,errno,strerror(errno));
+      pthread_mutex_unlock(&p_ctx->lock);
+      return DVR_FAILURE;
+    }
     memset(&params, 0, sizeof(params));
     params.pid = p_ctx->streams[i].pid;
     params.input = DMX_IN_FRONTEND;
@@ -425,7 +435,7 @@ int record_device_start(Record_DeviceHandle_t handle)
   if (p_ctx->state != RECORD_DEVICE_STATE_OPENED &&
       p_ctx->state != RECORD_DEVICE_STATE_STOPPED) {
     pthread_mutex_unlock(&p_ctx->lock);
-    DVR_INFO("%s, %d, wrong state:%d", __func__, __LINE__,p_ctx->state);
+    DVR_ERROR("%s, %d, wrong state:%d", __func__, __LINE__,p_ctx->state);
     return DVR_FAILURE;
   }
 
@@ -438,7 +448,12 @@ int record_device_start(Record_DeviceHandle_t handle)
         p_ctx->streams[i].is_start == DVR_FALSE) {
       //need start pid filter
       fd = p_ctx->streams[i].fid;
-      fcntl(fd, F_SETFL, O_NONBLOCK);
+      if (fcntl(fd, F_SETFL, O_NONBLOCK)<0) {
+          DVR_ERROR("%s setting non-block flag fails with errno:%d(%s)",
+              __func__,errno,strerror(errno));
+          pthread_mutex_unlock(&p_ctx->lock);
+          return DVR_FAILURE;
+      }
       memset(&params, 0, sizeof(params));
       params.pid = p_ctx->streams[i].pid;
       params.input = DMX_IN_FRONTEND;
@@ -446,13 +461,13 @@ int record_device_start(Record_DeviceHandle_t handle)
       params.pes_type = DMX_PES_OTHER;
       ret = ioctl(fd, DMX_SET_PES_FILTER, &params);
       if (ret == -1) {
-        DVR_INFO("%s set pes filter failed (%s)", __func__, strerror(errno));
+        DVR_ERROR("%s set pes filter failed (%s)", __func__, strerror(errno));
         pthread_mutex_unlock(&p_ctx->lock);
         return DVR_FAILURE;
       }
       ret = ioctl(fd, DMX_START, 0);
       if (ret == -1) {
-        DVR_INFO("%s start pes filter failed (%s)", __func__, strerror(errno));
+        DVR_ERROR("%s start pes filter failed (%s)", __func__, strerror(errno));
         pthread_mutex_unlock(&p_ctx->lock);
         return DVR_FAILURE;
       }

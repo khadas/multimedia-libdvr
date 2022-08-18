@@ -98,26 +98,24 @@ loff_t segment_seek(Segment_Handle_t handle, uint64_t time, int block_size);
  */
 loff_t segment_tell_position(Segment_Handle_t handle);
 
-/**\brief Tell the giving position time for the giving segment, used for playback
+/**\brief Tell position time of the given segment's postion. Function is used for playback.
  * \param[in] handle, Segment handle
- * \return The segment giving position time on success
- * \return error code on failure
+ * \param[in] position, Segment's file position
+ * \return position time in ms on success, or -1 on failure
  */
-uint64_t segment_tell_position_time(Segment_Handle_t handle, loff_t position);
+loff_t segment_tell_position_time(Segment_Handle_t handle, loff_t position);
 
-/**\brief Tell the current time for the giving segment, used for playback
+/**\brief Tell current playback time of the given segment. Function is used for playback.
  * \param[in] handle, Segment handle
- * \return The segment current time on success
- * \return error code on failure
+ * \return segment's current playback time in ms on success, or -1 on failure
  */
-uint64_t segment_tell_current_time(Segment_Handle_t handle);
+loff_t segment_tell_current_time(Segment_Handle_t handle);
 
-/**\brief Tell the total time for the giving segment
+/**\brief Tell total time of the given segment.
  * \param[in] handle, Segment handle
- * \return The segment total time on success
- * \return error code on failure
+ * \return The segment's total time in ms on success, or -1 on failure
  */
-uint64_t segment_tell_total_time(Segment_Handle_t handle);
+loff_t segment_tell_total_time(Segment_Handle_t handle);
 
 /**\brief Store the segment information to a file
  * \param[in] handle, The segment handle

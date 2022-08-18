@@ -321,7 +321,7 @@ DVB_RESULT AML_DMX_SetPesFilter(int dev_no, int fhandle, const struct dmx_pes_fi
 
     if (dmx_get_dev(dev_no, &dev))
     {
-        DVB_INFO("wrong dmx device no %d", dev_no);
+        DVB_ERROR("wrong dmx device no %d", dev_no);
         return DVB_FAILURE;
     }
 
@@ -333,20 +333,23 @@ DVB_RESULT AML_DMX_SetPesFilter(int dev_no, int fhandle, const struct dmx_pes_fi
     filter = dmx_get_filter(dev, fhandle);
     if (filter)
     {
-       if (ioctl(filter->fd, DMX_STOP, 0) < 0)
-       {
-               DVB_INFO("dmx stop filter failed error:%s", strerror(errno));
-               ret = DVB_FAILURE;
-       }
-       else
-       {
-          fcntl(filter->fd, F_SETFL, O_NONBLOCK);
-          if (ioctl(filter->fd, DMX_SET_PES_FILTER, params) < 0)
-          {
-                  DVB_INFO("set filter failed error:%s", strerror(errno));
-                  ret = DVB_FAILURE;
-              }
-       }
+        ret = DVB_FAILURE;
+        if (ioctl(filter->fd, DMX_STOP, 0) < 0)
+        {
+            DVB_ERROR("stopping demux filter fails with errno:%d(%s)",errno,strerror(errno));
+        }
+        else if (fcntl(filter->fd, F_SETFL, O_NONBLOCK) < 0)
+        {
+            DVB_ERROR("setting filter non-block flag fails with errno:%d(%s)",errno,strerror(errno));
+        }
+        else if (ioctl(filter->fd, DMX_SET_PES_FILTER, params) < 0)
+        {
+            DVB_ERROR("setting PES filter fails with errno:%d(%s)",errno,strerror(errno));
+        }
+        else
+        {
+            ret = DVB_SUCCESS;
+        }
     }
 
     pthread_mutex_unlock(&dev->lock);
@@ -541,10 +544,11 @@ DVB_RESULT AML_DMX_Close(int dev_no)
     int open_count = 0;
     dvb_dmx_t *dev = NULL;
     dvb_dmx_filter_t *filter = NULL;
+    DVB_RESULT ret = DVB_SUCCESS;
 
     if (dmx_get_dev(dev_no, &dev))
     {
-        DVB_INFO("wrong dmx device no %d", dev_no);
+        DVB_ERROR("wrong dmx device no %d", dev_no);
         return DVB_FAILURE;
     }
 
@@ -557,11 +561,15 @@ DVB_RESULT AML_DMX_Close(int dev_no)
         {
             if (filter->enable)
             {
-                ioctl(filter->fd, DMX_STOP, 0);
+                if (ioctl(filter->fd, DMX_STOP, 0)<0)
+                {
+                    DVB_ERROR("fails to stop filter. fd:%d", filter->fd);
+                    ret = DVB_FAILURE;
+                }
             }
             close(filter->fd);
         }
-    else if (filter->used)
+        else if (filter->used)
         {
             open_count++;
         }
@@ -569,11 +577,11 @@ DVB_RESULT AML_DMX_Close(int dev_no)
 
     if (open_count == 0)
     {
-       dev->running = 0;
-       pthread_join(dev->thread, NULL);
-       pthread_mutex_destroy(&dev->lock);
+        dev->running = 0;
+        pthread_join(dev->thread, NULL);
     }
 
     pthread_mutex_unlock(&dev->lock);
-    return DVB_SUCCESS;
+
+    return ret;
 }
