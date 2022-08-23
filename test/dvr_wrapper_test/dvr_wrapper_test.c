@@ -159,7 +159,7 @@ typedef struct
 static int vpid=0x1fff, apid=0x1fff, vfmt=0, afmt=0;
 static int duration=60;
 static int size=1024*1024*1024;
-static int tssrc=0;
+static int ts_src=0;
 static int pause=0;
 
 static int mode = 0;
@@ -184,7 +184,7 @@ static void display_usage(void)
     INF( "*pause\n");
     INF( "*resume\n");
     INF( "*f speed(100,200,300,-100,-200..)\n");
-    INF( "*seek time_in_msecond\n");
+    INF( "*seek time_in_ms\n");
     INF( "*aud <pid>:<fmt>\n");
     INF( "*info (print record info)\n");
     INF( "*stat (print playback status)\n");
@@ -261,7 +261,7 @@ int start_test(void)
                 INF("rec resumed.\n");
             }
             else {
-                ERR("Unkown command: %s\n", buf);
+                ERR("Unknown command: %s\n", buf);
                 display_usage();
             }
         }
@@ -459,10 +459,10 @@ static int start_recording()
     char cmd[256];
     int error;
 
-    sprintf(cmd, "echo ts%d > /sys/class/stb/demux%d_source", tssrc, DMX_DEV_DVR);
+    sprintf(cmd, "echo ts%d > /sys/class/stb/demux%d_source", ts_src, DMX_DEV_DVR);
     //system(cmd);
     printf("set dmx source used api\r\n");
-    dvb_set_demux_source(DMX_DEV_DVR, tssrc);
+    dvb_set_demux_source(DMX_DEV_DVR, ts_src);
     memset(&rec_open_params, 0, sizeof(DVR_WrapperRecordOpenParams_t));
 
     rec_open_params.dmx_dev_id = DMX_DEV_DVR;
@@ -649,7 +649,7 @@ static int start_playback(int apid, int afmt, int vpid, int vfmt)
        INF( "open TsPlayer %s, result(%d)\n", (result)? "FAIL" : "OK", result);
 
        result = AmTsPlayer_getVersion(&versionM, &versionL);
-       INF( "TsPlayer verison(%d.%d) %s, result(%d)\n",
+       INF( "TsPlayer version(%d.%d) %s, result(%d)\n",
           versionM, versionL,
           (result)? "FAIL" : "OK",
           result);
@@ -753,7 +753,7 @@ int main(int argc, char **argv)
         else if (!strncmp(argv[i], "size", 4))
             sscanf(argv[i], "size=%i", &size);
         else if (!strncmp(argv[i], "tsin", 4))
-            sscanf(argv[i], "tsin=%i", &tssrc);
+            sscanf(argv[i], "tsin=%i", &ts_src);
         else if (!strncmp(argv[i], "pause", 5))
             sscanf(argv[i], "pause=%i", &pause);
         else if (!strncmp(argv[i], "file", 4))
@@ -806,7 +806,7 @@ int main(int argc, char **argv)
         INF( "video:%d:%d(pid/fmt) audio:%d:%d(pid/fmt)\n",
             vpid, vfmt, apid, afmt);
         INF( "duration:%d size:%d tsin:%d\n",
-            duration, size, tssrc);
+            duration, size, ts_src);
         if (!is_timeshifting(mode)) {
             INF( "recording file:%s\n",
                 pfilename);

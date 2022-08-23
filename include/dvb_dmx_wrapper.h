@@ -9,7 +9,7 @@
  * @brief   linux dvb demux wrapper
  * @file    dvb_dmx_wrapper.h
  *
- * \author chuanzhi wang <chaunzhi.wang@amlogic.com>
+ * \author chuanzhi wang <chuanzhi.wang@amlogic.com>
  * \date 2020-07-16: create the document
  ***************************************************************************/
 

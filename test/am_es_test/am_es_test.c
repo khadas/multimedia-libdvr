@@ -149,26 +149,26 @@ int open_es_dmx(int dmx_no, int pid, int is_audio) {
     int ret;
     snprintf(dev_name, sizeof(dev_name), "/dev/dvb0.demux%d", dmx_no);
     int fd = open(dev_name, O_RDWR);
-    struct dmx_pes_filter_params aparam;
+    struct dmx_pes_filter_params audio_param;
     printf("pid:%d,is audio:%d\r\n", pid, is_audio);
-    aparam.pid = pid;
+    audio_param.pid = pid;
     if (is_audio) {
         printf("pid:%d,is audio:%d set audio pes type\r\n", pid, is_audio);
-        aparam.pes_type = DMX_PES_AUDIO0;
+        audio_param.pes_type = DMX_PES_AUDIO0;
     }
     else {
         printf("pid:%d,is audio:%d set video type\r\n", pid, is_audio);
-        aparam.pes_type = DMX_PES_VIDEO0;
+        audio_param.pes_type = DMX_PES_VIDEO0;
     }
-    aparam.input = DMX_IN_DVR;
-    aparam.output = DMX_OUT_TAP;
-    aparam.flags = 0;
-    aparam.flags |= DMX_ES_OUTPUT;
+    audio_param.input = DMX_IN_DVR;
+    audio_param.output = DMX_OUT_TAP;
+    audio_param.flags = 0;
+    audio_param.flags |= DMX_ES_OUTPUT;
     if (is_audio == 0)
-    aparam.flags |= DMX_OUTPUT_RAW_MODE;
+    audio_param.flags |= DMX_OUTPUT_RAW_MODE;
     fcntl(fd,F_SETFL,O_NONBLOCK);
     ret = ioctl(fd, DMX_SET_BUFFER_SIZE, 1024*1024);
-    ret = ioctl(fd, DMX_SET_PES_FILTER, &aparam);
+    ret = ioctl(fd, DMX_SET_PES_FILTER, &audio_param);
     ioctl(fd, DMX_START, 0);
     if (ret == -1) {
         printf("set pes filter failed (%s)\r\n", strerror(errno));

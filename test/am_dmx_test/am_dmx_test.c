@@ -117,15 +117,15 @@ static char u_path_g_b[256];
     d5 - 1:ts_tap :pes only
     d6 - 1:w2file
 */
-#define UPARA_TYPE      0xf
-#define UPARA_CRC       0xf0
-#define UPARA_PR        0xf00
-#define UPARA_SF        0xf000
-#define UPARA_DMX_TAP   0xf0000
-#define UPARA_FILE      0xf00000
-#define UPARA_PES2ES    0xf000000
+#define PARA_TYPE      0xf
+#define PARA_CRC       0xf0
+#define PARA_PR        0xf00
+#define PARA_SF        0xf000
+#define PARA_DMX_TAP   0xf0000
+#define PARA_FILE      0xf00000
+#define PARA_PES2ES    0xf000000
 
-#define get_upara(_i) (u_para[(_i)] ? u_para[(_i)] : u_para_g)
+#define get_u_para(_i) (u_para[(_i)] ? u_para[(_i)] : u_para_g)
 
 #define AML_MACRO_BEGIN   do {
 #define AML_MACRO_END     } while (0)
@@ -163,14 +163,14 @@ static void dump_bytes(int dev_no, int fid, const uint8_t *data, int len, void *
         if ((i % 16) != 0) printf("\n");
     }
 #if 1
-    if (bat & UPARA_PR) {
+    if (bat & PARA_PR) {
         if (data[0] == 0x4a) {
             printf("sec:tabid:0x%02x,bunqid:0x%02x%02x,section num:%4d,lat_section_num:%4d\n", data[0],
                 data[3], data[4], data[6], data[7]);
         }
 
     }
-    else if (nit & UPARA_PR) {
+    else if (nit & PARA_PR) {
 
         if (data[0] == 0x40) {
             printf("section:%8d,max:%8d\n", data[6], data[7]);
@@ -202,7 +202,7 @@ static void dump_bytes(int dev_no, int fid, const uint8_t *data, int len, void *
             s_last_num = data[6];
         }
     }
-    else if (pat & UPARA_PR) {
+    else if (pat & PARA_PR) {
         if (data[0] == 0x0)
             printf("%02x: %02x %02x %02x %02x %02x %02x %02x %02x\n", data[0], data[1], data[2], data[3], data[4],
                 data[5], data[6], data[7], data[8]);
@@ -214,16 +214,16 @@ static void dump_bytes(int dev_no, int fid, const uint8_t *data, int len, void *
             return;
         }
 #if 0
-        if (get_upara(u - 1) & UPARA_PR)
+        if (get_u_para(u - 1) & PARA_PR)
             printf("[%d:%d %d] %02x %02x %02x %02x %02x %02x %02x %02x %02x\n", u - 1, u_pid[u - 1], len,
                 data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8]);
-        if (get_upara(u - 1) & UPARA_FILE) {
+        if (get_u_para(u - 1) & PARA_FILE) {
             {
                 int ret = fwrite(data, 1, len, fp[u - 1]);
                 if (ret != len)
                     printf("data w lost\n");
             }
-            if (get_upara(u - 1) & UPARA_PES2ES) {
+            if (get_u_para(u - 1) & PARA_PES2ES) {
                 if (!h_pes[u - 1]) {
                     AM_PES_Para_t para = {.packet = pes_cb, .user_data = (void*)(long)u, .payload_only = AM_TRUE,};
                     AM_PES_Create(&h_pes[u - 1], &para);
@@ -303,7 +303,7 @@ static int get_section(int dmx, int timeout)
     //param.filter.mask[2] = 0xff;
 
     param.flags = DMX_CHECK_CRC;
-    if (pat & UPARA_SF)
+    if (pat & PARA_SF)
         param.flags |= 0x100;
     AM_TRY(AML_DMX_SetSecFilter(dmx, fid, &param));
     }
@@ -316,7 +316,7 @@ static int get_section(int dmx, int timeout)
     param.filter.filter[0] = 0x4E;
     param.filter.mask[0] = 0xff;
     param.flags = DMX_CHECK_CRC;
-    if (eit & UPARA_SF)
+    if (eit & PARA_SF)
         param.flags |= 0x100;
     AM_TRY(AML_DMX_SetSecFilter(dmx, fid_eit_pf, &param));
 
@@ -325,7 +325,7 @@ static int get_section(int dmx, int timeout)
     param.filter.filter[0] = 0x4F;
     param.filter.mask[0] = 0xff;
     param.flags = DMX_CHECK_CRC;
-    if (eit & UPARA_SF)
+    if (eit & PARA_SF)
         param.flags |= 0x100;
     AM_TRY(AML_DMX_SetSecFilter(dmx, fid_eit_opf, &param));
     }
@@ -337,9 +337,9 @@ static int get_section(int dmx, int timeout)
     param.pid = 0x10;
     param.filter.filter[0] = 0x40;
     param.filter.mask[0] = 0xff;
-    if (nit & UPARA_CRC)
+    if (nit & PARA_CRC)
         param.flags = DMX_CHECK_CRC;
-    if (nit & UPARA_SF)
+    if (nit & PARA_SF)
         param.flags |= 0x100;
     AM_TRY(AML_DMX_SetSecFilter(dmx, fid_nit, &param));
     }
@@ -351,9 +351,9 @@ static int get_section(int dmx, int timeout)
     param.pid = 0x11;
     param.filter.filter[0] = 0x4a;
     param.filter.mask[0] = 0xff;
-    if (bat & UPARA_CRC)
+    if (bat & PARA_CRC)
         param.flags = DMX_CHECK_CRC;
-    if (bat & UPARA_SF)
+    if (bat & PARA_SF)
         param.flags |= 0x100;
     AM_TRY(AML_DMX_SetSecFilter(dmx, fid_bat, &param));
     }
@@ -400,16 +400,16 @@ static int get_section(int dmx, int timeout)
                 printf("buffersize => %d\n", u_bs[i]);
             }
 
-            if (get_upara(i) & UPARA_TYPE) {/*pes*/
+            if (get_u_para(i) & PARA_TYPE) {/*pes*/
                 printf("pes: para[%d]:%d\n", i, u_para[i]);
                 memset(&pparam, 0, sizeof(pparam));
                 pparam.pid = u_pid[i];
                 pparam.pes_type = DMX_PES_SUBTITLE;
                 pparam.input = DMX_IN_FRONTEND;
                 pparam.output = DMX_OUT_TAP;
-                if (get_upara(i) & UPARA_DMX_TAP)
+                if (get_u_para(i) & PARA_DMX_TAP)
                     pparam.output = DMX_OUT_TSDEMUX_TAP;
-                if (get_upara(i) & UPARA_SF)
+                if (get_u_para(i) & PARA_SF)
                     pparam.flags |= 0x100;
                 AM_TRY(AML_DMX_SetPesFilter(dmx, fid_user[i], &pparam));
 
@@ -441,14 +441,14 @@ static int get_section(int dmx, int timeout)
                     }
                 }
                 }
-                if (get_upara(i) & UPARA_CRC)
+                if (get_u_para(i) & PARA_CRC)
                     param.flags = DMX_CHECK_CRC;
-                if (get_upara(i) & UPARA_SF)
+                if (get_u_para(i) & PARA_SF)
                     param.flags |= 0x100;
                 AM_TRY(AML_DMX_SetSecFilter(dmx, fid_user[i], &param));
             }
 
-            if (get_upara(i) & UPARA_FILE) {
+            if (get_u_para(i) & PARA_FILE) {
                 char name[32];
                 sprintf(name, "%s/u_%d.dump", u_path_g, i);
                 fp[i] = fopen(name, "wb");
@@ -497,7 +497,7 @@ static int get_section(int dmx, int timeout)
         if (u_pid[i] != -1) {
             AM_TRY(AML_DMX_StopFilter(dmx, fid_user[i]));
             AM_TRY(AML_DMX_FreeFilter(dmx, fid_user[i]));
-            if ((get_upara(i) & UPARA_FILE) && fp[i])
+            if ((get_u_para(i) & PARA_FILE) && fp[i])
                 fclose(fp[i]);
         }
     }

@@ -13,7 +13,7 @@
 #define MAX_SEGMENT_PATH_SIZE (DVR_MAX_LOCATION_SIZE + 32)
 #define MAX_PTS_THRESHOLD (10*1000)
 #define PCR_RECORD_INTERVAL_MS (300)
-#define PTS_DISCONTINE_DEVIATION     (40)
+#define PTS_DISCONTINUED_DEVIATION     (40)
 #define PTS_HEAD_DEVIATION     (40)
 #define PCR_JUMP_DUR     (5000)
 
@@ -27,7 +27,7 @@ typedef struct {
   FILE            *index_fp;                          /**< Time index file fd*/
   FILE            *dat_fp;                            /**< Information file fd*/
   FILE            *all_dat_fp;                            /**< Information file fd*/
-  FILE            *ongoing_fp;                        /**< Ongoing file fd, used to verify timedhift mode*/
+  FILE            *ongoing_fp;                        /**< Ongoing file fd, used to verify timeshift mode*/
   uint64_t        first_pts;                          /**< First pts value, use for write mode*/
   uint64_t        last_pts;                           /**< Last input pts value, use for write mode*/
   uint64_t        last_record_pts;                    /**< Last record pts value, use for write mode*/
@@ -334,7 +334,7 @@ int segment_update_pts(Segment_Handle_t handle, uint64_t pts, loff_t offset)
         DVR_INFO("Current pts has a transition, [%llu, %llu, %llu]",
             p_ctx->first_pts, p_ctx->last_pts, pts);
         p_ctx->last_record_pts = pts;
-        //p_ctx->cur_time = p_ctx->cur_time + PTS_DISCONTINE_DEVIATION;
+        //p_ctx->cur_time = p_ctx->cur_time + PTS_DISCONTINUED_DEVIATION;
       } else {
         /*This is a normal pts, record it*/
         loff_t off_diff = offset - p_ctx->last_offset;

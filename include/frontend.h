@@ -704,7 +704,7 @@ struct dvb_frontend_parameters_ex {
         struct dvb_ofdm_parameters ofdm;    /* DVB-T */
         struct dvb_vsb_parameters vsb;        /* ATSC */
         struct dvb_analog_parameters analog;
-        /* Add extenstion data here */
+        /* Add extension data here */
     } u;
 };
 
@@ -807,7 +807,7 @@ enum tuner_param_cmd_e {
 struct tuner_param_s {
     enum tuner_param_cmd_e cmd;
     unsigned int      parm;
-    unsigned int    resvred;
+    unsigned int    reserved;
 };
 
 

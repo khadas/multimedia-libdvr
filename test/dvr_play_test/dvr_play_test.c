@@ -31,7 +31,7 @@ static void display_usage(void)
     fprintf(stderr, "*resume\n");
     fprintf(stderr, "*ff speed(1=1X,2=4X,3=6X)\n");
     fprintf(stderr, "*fb speed(1=1X,2=4X,3=6X)\n");
-    fprintf(stderr, "*seek time_in_msecond\n");
+    fprintf(stderr, "*seek time_in_ms\n");
     fprintf(stderr, "*quit\n");
     fprintf(stderr, "==================\n");
 }
@@ -85,7 +85,7 @@ int start_playback_test(DVR_PlaybackHandle_t handle)
                 sscanf(buf + 4, "%d", &time);
                 dvr_playback_seek(handle, 0,time);
             } else {
-                fprintf(stderr, "Unkown command: %s\n", buf);
+                fprintf(stderr, "Unknown command: %s\n", buf);
                 display_usage();
             }
         }

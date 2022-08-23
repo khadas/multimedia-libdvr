@@ -78,18 +78,18 @@ static int key_index[128];
     d5 - 1:ts_tap :pes only
     d6 - 1:w2file
 */
-#define UPARA_TYPE      0xf
-#define UPARA_CRC       0xf0
-#define UPARA_PR        0xf00
-#define UPARA_SF        0xf000
-#define UPARA_DMX_TAP   0xf0000
-#define UPARA_FILE      0xf00000
-#define UPARA_PES2ES    0xf000000
-#define UPARA_CA         0x20000000
-#define UPARA_ES         0x40000000
-#define UPARA_PCR         0x80000000
+#define PARA_TYPE      0xf
+#define PARA_CRC       0xf0
+#define PARA_PR        0xf00
+#define PARA_SF        0xf000
+#define PARA_DMX_TAP   0xf0000
+#define PARA_FILE      0xf00000
+#define PARA_PES2ES    0xf000000
+#define PARA_CA         0x20000000
+#define PARA_ES         0x40000000
+#define PARA_PCR         0x80000000
 
-#define get_upara(_i) (u_para[(_i)]? u_para[(_i)] : u_para_g)
+#define get_u_para(_i) (u_para[(_i)]? u_para[(_i)] : u_para_g)
 
 #if 0
 static void pes_cb(AM_PES_Handle_t handle, uint8_t *buf, int size) {
@@ -116,14 +116,14 @@ static void dump_bytes(int dev_no, int fid, const uint8_t *data, int len, void *
         if ((i % 16) != 0 ) printf("\n");
     }
 #if 1
-    if (bat & UPARA_PR) {
+    if (bat & PARA_PR) {
         if (data[0] == 0x4a) {
             printf("sec:tabid:0x%02x,bunqid:0x%02x%02x,section num:%4d,lat_section_num:%4d\n", data[0],
                 data[3], data[4], data[6], data[7]);
         }
 
     }
-    else if (nit & UPARA_PR) {
+    else if (nit & PARA_PR) {
 
         if (data[0] == 0x40) {
             printf("section:%8d,max:%8d\n", data[6], data[7]);
@@ -155,7 +155,7 @@ static void dump_bytes(int dev_no, int fid, const uint8_t *data, int len, void *
             s_last_num = data[6];
         }
     }
-    else if (pat & UPARA_PR) {
+    else if (pat & PARA_PR) {
         if (data[0] == 0x0)
             printf("%02x: %02x %02x %02x %02x %02x %02x %02x %02x\n", data[0], data[1], data[2], data[3], data[4],
                 data[5], data[6], data[7], data[8]);
@@ -167,17 +167,17 @@ static void dump_bytes(int dev_no, int fid, const uint8_t *data, int len, void *
             return;
         }
 
-        if (get_upara(u - 1) & UPARA_PR)
+        if (get_u_para(u - 1) & PARA_PR)
             printf("[%d:%d %d] %02x %02x %02x %02x %02x %02x %02x %02x %02x\n", u-1, u_pid[u-1], len,
                 data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8]);
-        if (get_upara(u - 1) & UPARA_FILE) {
+        if (get_u_para(u - 1) & PARA_FILE) {
             {
                 int ret = fwrite(data, 1, len, fp[u - 1]);
                 if (ret != len)
                     printf("data w lost\n");
             }
 #if 0
-            if (get_upara(u - 1) & UPARA_PES2ES) {
+            if (get_u_para(u - 1) & PARA_PES2ES) {
                 if (!h_pes[u - 1]) {
                     AM_PES_Para_t para = {.packet = pes_cb, .user_data = (void*)(long)u, .payload_only = AM_TRUE,};
                     AM_PES_Create(&h_pes[u - 1], &para);
@@ -258,7 +258,7 @@ static int get_section(int dmx, int timeout)
             }
             printf("set %d\n", __LINE__);
 
-            if (get_upara(i) & UPARA_CA) {
+            if (get_u_para(i) & PARA_CA) {
                     int dsc_algo = 0;
                     int dsc_type = 0;
                     int parity = 0;
@@ -376,10 +376,10 @@ static int get_section(int dmx, int timeout)
                     }
             }
 
-            if (get_upara(i) & UPARA_TYPE) {/*pes*/
+            if (get_u_para(i) & PARA_TYPE) {/*pes*/
                 memset(&pparam, 0, sizeof(pparam));
                 pparam.pid = u_pid[i];
-                if (get_upara(i) & UPARA_PCR) {
+                if (get_u_para(i) & PARA_PCR) {
                     pparam.pes_type = DMX_PES_PCR0;
                     printf("set %d\n", __LINE__);
                     pcr_flag = 1;
@@ -389,11 +389,11 @@ static int get_section(int dmx, int timeout)
 
                 pparam.input = DMX_IN_FRONTEND;
                 pparam.output = DMX_OUT_TAP;
-                if (get_upara(i) & UPARA_DMX_TAP)
+                if (get_u_para(i) & PARA_DMX_TAP)
                     pparam.output = DMX_OUT_TSDEMUX_TAP;
-                if (get_upara(i) & UPARA_SF)
+                if (get_u_para(i) & PARA_SF)
                     pparam.flags |= 0x100;
-                if (get_upara(i) & UPARA_ES) {
+                if (get_u_para(i) & PARA_ES) {
                     pparam.flags |= DMX_ES_OUTPUT;
                     printf("set es flag\n");
                 }
@@ -425,14 +425,14 @@ static int get_section(int dmx, int timeout)
                     }
                 }
                 }
-                if (get_upara(i) & UPARA_CRC)
+                if (get_u_para(i) & PARA_CRC)
                     param.flags = DMX_CHECK_CRC;
-                if (get_upara(i) & UPARA_SF)
+                if (get_u_para(i) & PARA_SF)
                     param.flags |= 0x100;
                 AM_TRY(AM_DMX_SetSecFilter(dmx, fid_user[i], &param));
             }
 
-            if (get_upara(i) & UPARA_FILE) {
+            if (get_u_para(i) & PARA_FILE) {
                 char name[32];
                 sprintf(name, "%s/u_%d.dump", u_path_g, i);
                 fp[i] = fopen(name, "wb");
@@ -474,9 +474,9 @@ static int get_section(int dmx, int timeout)
         if (u_pid[i] != -1) {
             AM_TRY(AM_DMX_StopFilter(dmx, fid_user[i]));
             AM_TRY(AM_DMX_FreeFilter(dmx, fid_user[i]));
-            if ((get_upara(i) & UPARA_FILE) && fp[i])
+            if ((get_u_para(i) & PARA_FILE) && fp[i])
                 fclose(fp[i]);
-            if (get_upara(i) & UPARA_CA)
+            if (get_u_para(i) & PARA_CA)
                 ca_free_chan(dmx, ca_index[i]);
         }
     }
@@ -593,13 +593,13 @@ int get_para(char *argv)
 int main(int argc, char **argv)
 {
     AM_DMX_OpenPara_t para;
-//    AM_FEND_OpenPara_t fpara;
+//    AM_FEND_OpenPara_t fend_para;
 //    struct dvb_frontend_parameters p;
 //    fe_status_t status;
     int ret = 0;
     int i;
 
-//    memset(&fpara, 0, sizeof(fpara));
+//    memset(&fend_para, 0, sizeof(fend_para));
 
     if (argc == 1)
     {

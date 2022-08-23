@@ -9,7 +9,7 @@
  * @brief   linux dvb frontend wrapper
  * @file    dvb_dmx_frontend.h
  *
- * \author chuanzhi wang <chaunzhi.wang@amlogic.com>
+ * \author chuanzhi wang <chuanzhi.wang@amlogic.com>
  * \date 2020-09-11: create the document
  ***************************************************************************/
 

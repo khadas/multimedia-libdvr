@@ -185,7 +185,7 @@ typedef enum {
   DVR_PLAYBACK_EVENT_NO_KEY,                        /**< no key*/
   DVR_PLAYBACK_EVENT_REACHED_BEGIN     ,            /**< reached begin*/
   DVR_PLAYBACK_EVENT_REACHED_END,                    /**< reached end*/
-  DVR_PLAYBACK_EVENT_NOTIFY_PLAYTIME,               /**< notify play cur segmeng time ms*/
+  DVR_PLAYBACK_EVENT_NOTIFY_PLAYTIME,               /**< notify play cur segment time ms*/
   DVR_PLAYBACK_EVENT_FIRST_FRAME,                   /**< first frame*/
   DVR_PLAYBACK_EVENT_NODATA,                        /**< no data*/
   DVR_PLAYBACK_EVENT_DATARESUME                     /**< data resume*/
@@ -237,19 +237,19 @@ typedef enum
 {
   DVR_PLAYBACK_CMD_START,               /**< start av */
   DVR_PLAYBACK_CMD_STOP,                /**< stop av */
-  DVR_PLAYBACK_CMD_VSTART,              /**< v start */
-  DVR_PLAYBACK_CMD_ASTART   ,           /**< a start */
-  DVR_PLAYBACK_CMD_VSTOP  ,             /**< v stop */
-  DVR_PLAYBACK_CMD_ASTOP,               /**< a stop */
-  DVR_PLAYBACK_CMD_VRESTART,            /**< v restart */
-  DVR_PLAYBACK_CMD_ARESTART,            /**< a restart */
-  DVR_PLAYBACK_CMD_AVRESTART,            /**< av restart */
-  DVR_PLAYBACK_CMD_VSTOPASTART,         /**< v stop a start*/
-  DVR_PLAYBACK_CMD_ASTOPVSTART,         /**< a stop vstart */
-  DVR_PLAYBACK_CMD_VSTOPARESTART,       /**<v stop a restart*/
-  DVR_PLAYBACK_CMD_ASTOPVRESTART,       /**<a stop v restart*/
-  DVR_PLAYBACK_CMD_VSTARTARESTART,       /**<v start a restart*/
-  DVR_PLAYBACK_CMD_ASTARTVRESTART,       /**<a start v restart*/
+  DVR_PLAYBACK_CMD_V_START,              /**< v start */
+  DVR_PLAYBACK_CMD_A_START   ,           /**< a start */
+  DVR_PLAYBACK_CMD_V_STOP  ,             /**< v stop */
+  DVR_PLAYBACK_CMD_A_STOP,               /**< a stop */
+  DVR_PLAYBACK_CMD_V_RESTART,            /**< v restart */
+  DVR_PLAYBACK_CMD_A_RESTART,            /**< a restart */
+  DVR_PLAYBACK_CMD_AV_RESTART,            /**< av restart */
+  DVR_PLAYBACK_CMD_V_STOP_A_START,         /**< v stop a start*/
+  DVR_PLAYBACK_CMD_A_STOP_V_START,         /**< a stop v_start */
+  DVR_PLAYBACK_CMD_V_STOP_A_RESTART,       /**<v stop a restart*/
+  DVR_PLAYBACK_CMD_A_STOP_V_RESTART,       /**<a stop v restart*/
+  DVR_PLAYBACK_CMD_V_START_A_RESTART,       /**<v start a restart*/
+  DVR_PLAYBACK_CMD_A_START_V_RESTART,       /**<a start v restart*/
   DVR_PLAYBACK_CMD_PAUSE,               /**< pause */
   DVR_PLAYBACK_CMD_RESUME,              /**< resume */
   DVR_PLAYBACK_CMD_SEEK,                /**< seek */
@@ -339,7 +339,7 @@ typedef struct
   DVR_PlaybackVendor_t       vendor;
   int                        noData;
   DVR_Bool_t                 seek_pause;                /**<set true when user call seek at pause state,we will start inject data, if first frame is got,set false and stop inject data*/
-  int                        last_segment_tatol;        /**< last segment tatol time*/
+  int                        last_segment_total;        /**< last segment total time*/
 
   DVR_PlaybackConSpe_t       con_spe;   /**< inject data speed info*/
 
@@ -376,7 +376,7 @@ int dvr_playback_open(DVR_PlaybackHandle_t *p_handle, DVR_PlaybackOpenParams_t *
 int dvr_playback_close(DVR_PlaybackHandle_t handle);
 
 
-/**\brief Start play audio and video, used start auido api and start video api
+/**\brief Start play audio and video, used start audio api and start video api
  * \param[in] handle playback handle
  * \param[in] flag playback flag
  * \retval DVR_SUCCESS On success
@@ -444,11 +444,11 @@ int dvr_playback_stop(DVR_PlaybackHandle_t handle, DVR_Bool_t clear);
 /**\brief Start audio playing
  * \param[in] handle playback handle
  * \param[in] params audio playback params,contains fmt and pid...
- * \param[in] adparams ad audio playback params,contains fmt and pid...
+ * \param[in] ad_params ad audio playback params,contains fmt and pid...
  * \retval DVR_SUCCESS On success
  * \return Error code
  */
-int dvr_playback_audio_start(DVR_PlaybackHandle_t handle, am_tsplayer_audio_params *param, am_tsplayer_audio_params *adparam);
+int dvr_playback_audio_start(DVR_PlaybackHandle_t handle, am_tsplayer_audio_params *param, am_tsplayer_audio_params *ad_param);
 
 
 /**\brief Stop audio playing

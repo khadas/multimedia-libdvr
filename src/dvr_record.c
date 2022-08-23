@@ -59,7 +59,7 @@ typedef struct {
   char                            location[DVR_MAX_LOCATION_SIZE];      /**< DVR record file location*/
   DVR_RecordSegmentStartParams_t  segment_params;                       /**< DVR record start parameters*/
   DVR_RecordSegmentInfo_t         segment_info;                         /**< DVR record current segment info*/
-  size_t                          notification_size;                    /**< DVR record nogification size*/
+  size_t                          notification_size;                    /**< DVR record notification size*/
   DVR_RecordEventFunction_t       event_notify_fn;                      /**< DVR record event notify function*/
   void                            *event_userdata;                      /**< DVR record event userdata*/
   //DVR_VodContext_t                vod;                                  /**< DVR record vod context*/
@@ -76,7 +76,7 @@ typedef struct {
   uint64_t                        pts;                                  /**< The newest pcr or local time */
   int                             check_pts_count;                      /**< The check count of pts */
   int                             check_no_pts_count;                   /**< The check count of no pts */
-  int                             notification_time;                    /**< DVR record nogification time*/
+  int                             notification_time;                    /**< DVR record notification time*/
   time_t                          last_send_time;                       /**< Last send notify segment duration */
   loff_t                          guarded_segment_size;                 /**< Guarded segment size in bytes. Libdvr will be forcely stopped to write anymore if current segment reaches this size*/
   size_t                          secbuf_size;                          /**< DVR record secure buffer length*/
@@ -202,7 +202,7 @@ void *record_thread(void *arg)
   uint32_t block_size = p_ctx->block_size;
   loff_t pos = 0;
   int ret;
-  struct timespec start_ts, end_ts, start_nopcr_ts, end_nopcr_ts;
+  struct timespec start_ts, end_ts, start_no_pcr_ts, end_no_pcr_ts;
   DVR_RecordStatus_t record_status;
   int has_pcr;
   int pcr_rec_len = 0;
@@ -277,7 +277,7 @@ void *record_thread(void *arg)
         DVR_INFO("handle[%p] ret:%d\n", p_ctx->dev_handle, ret);
         /*For the second recording, poll always failed which we should check
          * dvbcore further. For now, Just ignore the fack poll fail, I think
-         * it won't influce anything. But we need adjust the poll timeout
+         * it won't influence anything. But we need adjust the poll timeout
          * from 1000ms to 10ms.
          */
         //continue;
@@ -389,7 +389,7 @@ void *record_thread(void *arg)
         clock_gettime(CLOCK_MONOTONIC, &end_ts);
         if ((end_ts.tv_sec*1000 + end_ts.tv_nsec/1000000) -
             (start_ts.tv_sec*1000 + start_ts.tv_nsec/1000000) > 40) {
-          /* PCR interval threshlod > 40 ms*/
+          /* PCR interval threshold > 40 ms*/
           DVR_INFO("%s use local clock time index", __func__);
           p_ctx->index_type = DVR_INDEX_TYPE_LOCAL_CLOCK;
         }
@@ -403,13 +403,13 @@ void *record_thread(void *arg)
         if (has_pcr == 0) {
           if (p_ctx->check_no_pts_count < 2 * CHECK_PTS_MAX_COUNT) {
             if (p_ctx->check_no_pts_count == 0) {
-              clock_gettime(CLOCK_MONOTONIC, &start_nopcr_ts);
+              clock_gettime(CLOCK_MONOTONIC, &start_no_pcr_ts);
               clock_gettime(CLOCK_MONOTONIC, &start_ts);
             }
             p_ctx->check_no_pts_count++;
           }
         } else {
-          clock_gettime(CLOCK_MONOTONIC, &start_nopcr_ts);
+          clock_gettime(CLOCK_MONOTONIC, &start_no_pcr_ts);
           p_ctx->check_no_pts_count = 0;
         }
       }
@@ -443,9 +443,9 @@ void *record_thread(void *arg)
       }
 
       if (p_ctx->index_type == DVR_INDEX_TYPE_PCR ) {
-         clock_gettime(CLOCK_MONOTONIC, &end_nopcr_ts);
-         int diff = (int)(end_nopcr_ts.tv_sec*1000 + end_nopcr_ts.tv_nsec/1000000) -
-          (int)(start_nopcr_ts.tv_sec*1000 + start_nopcr_ts.tv_nsec/1000000);
+         clock_gettime(CLOCK_MONOTONIC, &end_no_pcr_ts);
+         int diff = (int)(end_no_pcr_ts.tv_sec*1000 + end_no_pcr_ts.tv_nsec/1000000) -
+          (int)(start_no_pcr_ts.tv_sec*1000 + start_no_pcr_ts.tv_nsec/1000000);
          if (diff > 3000) {
             DVR_INFO("%s no pcr change time from pcr to local time diff[%d]", __func__, diff);
             if (pcr_rec_len == 0)
@@ -971,7 +971,7 @@ int dvr_record_write(DVR_RecordHandle_t handle, void *buffer, uint32_t len)
   pos = segment_tell_position(p_ctx->segment_handle);
   has_pcr = record_do_pcr_index(p_ctx, buffer, len);
   if (has_pcr == 0) {
-    /* Pull VOD record shoud use PCR time index */
+    /* Pull VOD record should use PCR time index */
     DVR_INFO("%s has no pcr, can NOT do time index", __func__);
   }
   ret = segment_write(p_ctx->segment_handle, buffer, len);
