@@ -2990,3 +2990,25 @@ int dvr_wrapper_set_log_level (int level)
   return DVR_SUCCESS;
 }
 
+int dvr_wrapper_set_ac4_preselection_id(DVR_WrapperPlayback_t playback, int presel_id)
+{
+  DVR_WrapperCtx_t *ctx;
+  int error;
+
+  DVR_RETURN_IF_FALSE(playback==NULL);
+
+  ctx = ctx_getPlayback((unsigned long)playback);
+  DVR_RETURN_IF_FALSE(ctx);
+
+  wrapper_mutex_lock(&ctx->wrapper_lock);
+
+  WRAPPER_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->wrapper_lock);
+
+  DVR_WRAPPER_INFO("set ac4 preselection id: %d", presel_id);
+  error = dvr_playback_set_ac4_preselection_id(ctx->playback.player, presel_id);
+
+  wrapper_mutex_unlock(&ctx->wrapper_lock);
+
+  return error;
+}
+

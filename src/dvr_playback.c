@@ -1690,6 +1690,7 @@ int dvr_playback_open(DVR_PlaybackHandle_t *p_handle, DVR_PlaybackOpenParams_t *
   player->cur_segment_id = UINT64_MAX;
   player->last_segment_id = 0LL;
   player->segment_is_open = DVR_FALSE;
+  player->audio_presentation_id = -1;
 
   //init ff fb time
   player->fffb_current = 0;
@@ -1893,6 +1894,9 @@ int dvr_playback_start(DVR_PlaybackHandle_t handle, DVR_PlaybackFlag_t flag) {
           player->has_audio = DVR_TRUE;
           dvr_playback_change_seek_state(handle, audio_params.pid);
           AmTsPlayer_setAudioParams(player->handle,  &audio_params);
+          if (player->audio_presentation_id > -1) {
+            AmTsPlayer_setParams(player->handle, AM_TSPLAYER_KEY_AUDIO_PRESENTATION_ID, &player->audio_presentation_id);
+          }
           AmTsPlayer_startAudioDecoding(player->handle);
         }
       }
@@ -2140,6 +2144,9 @@ static int _do_check_pid_info(DVR_PlaybackHandle_t handle, DVR_PlaybackPids_t  n
           player->has_audio = DVR_TRUE;
           DVR_PB_INFO("start audio pid[%d]fmt[%d]",audio_params.pid, audio_params.codectype);
           AmTsPlayer_setAudioParams(player->handle,  &audio_params);
+          if (player->audio_presentation_id > -1) {
+            AmTsPlayer_setParams(player->handle, AM_TSPLAYER_KEY_AUDIO_PRESENTATION_ID, &player->audio_presentation_id);
+          }
           AmTsPlayer_startAudioDecoding(player->handle);
           //playback_device_audio_start(player->handle,&audio_params);
         }
@@ -2170,6 +2177,9 @@ static int _do_check_pid_info(DVR_PlaybackHandle_t handle, DVR_PlaybackPids_t  n
               player->has_audio = DVR_TRUE;
               DVR_PB_INFO("restart audio when start ad");
               AmTsPlayer_setAudioParams(player->handle,  &audio_params);
+              if (player->audio_presentation_id > -1) {
+                AmTsPlayer_setParams(player->handle, AM_TSPLAYER_KEY_AUDIO_PRESENTATION_ID, &player->audio_presentation_id);
+              }
               AmTsPlayer_startAudioDecoding(player->handle);
           }
         }
@@ -2199,6 +2209,9 @@ static int _do_check_pid_info(DVR_PlaybackHandle_t handle, DVR_PlaybackPids_t  n
           player->has_audio = DVR_TRUE;
           DVR_PB_INFO("restart audio when stop ad");
           AmTsPlayer_setAudioParams(player->handle,  &audio_params);
+          if (player->audio_presentation_id > -1) {
+            AmTsPlayer_setParams(player->handle, AM_TSPLAYER_KEY_AUDIO_PRESENTATION_ID, &player->audio_presentation_id);
+          }
           AmTsPlayer_startAudioDecoding(player->handle);
         }
       }
@@ -2505,6 +2518,9 @@ int dvr_playback_audio_start(DVR_PlaybackHandle_t handle, am_tsplayer_audio_para
     DVR_PB_INFO("start audio");
     player->has_audio = DVR_TRUE;
     AmTsPlayer_setAudioParams(player->handle, param);
+    if (player->audio_presentation_id > -1) {
+      AmTsPlayer_setParams(player->handle, AM_TSPLAYER_KEY_AUDIO_PRESENTATION_ID, &player->audio_presentation_id);
+    }
     AmTsPlayer_startAudioDecoding(player->handle);
   }
 
@@ -2836,6 +2852,9 @@ int dvr_playback_resume(DVR_PlaybackHandle_t handle) {
       player->has_audio = DVR_TRUE;
       dvr_playback_change_seek_state(handle, audio_params.pid);
       AmTsPlayer_setAudioParams(player->handle, &audio_params);
+      if (player->audio_presentation_id > -1) {
+        AmTsPlayer_setParams(player->handle, AM_TSPLAYER_KEY_AUDIO_PRESENTATION_ID, &player->audio_presentation_id);
+      }
       AmTsPlayer_startAudioDecoding(player->handle);
     } else {
       DVR_PB_INFO("audio_params.pid:%d player->has_audio:%d speed:%d", audio_params.pid, player->has_audio, player->cmd.speed.speed.speed);
@@ -3119,6 +3138,9 @@ int dvr_playback_seek(DVR_PlaybackHandle_t handle, uint64_t segment_id, uint32_t
       DVR_PB_INFO("start audio seek");
       dvr_playback_change_seek_state(handle, audio_params.pid);
       AmTsPlayer_setAudioParams(player->handle, &audio_params);
+      if (player->audio_presentation_id > -1) {
+        AmTsPlayer_setParams(player->handle, AM_TSPLAYER_KEY_AUDIO_PRESENTATION_ID, &player->audio_presentation_id);
+      }
       AmTsPlayer_startAudioDecoding(player->handle);
       player->has_audio = DVR_TRUE;
     }
@@ -3724,6 +3746,9 @@ static int _dvr_playback_replay(DVR_PlaybackHandle_t handle, DVR_Bool_t trick) {
       player->has_audio = DVR_TRUE;
       DVR_PB_INFO("start audio");
       AmTsPlayer_setAudioParams(player->handle, &audio_params);
+      if (player->audio_presentation_id > -1) {
+        AmTsPlayer_setParams(player->handle, AM_TSPLAYER_KEY_AUDIO_PRESENTATION_ID, &player->audio_presentation_id);
+      }
       AmTsPlayer_startAudioDecoding(player->handle);
     }
 
@@ -4121,5 +4146,18 @@ int dvr_playback_set_secure_buffer(DVR_PlaybackHandle_t handle, uint8_t *p_secur
 
   dvr_mutex_unlock(&player->lock);
   DVR_PB_INFO("out");
+  return DVR_SUCCESS;
+}
+
+int dvr_playback_set_ac4_preselection_id(DVR_PlaybackHandle_t handle, int presel_id)
+{
+  DVR_Playback_t *player = (DVR_Playback_t *) handle;
+  DVR_RETURN_IF_FALSE(player == NULL);
+
+  player->audio_presentation_id = presel_id;
+  am_tsplayer_result ret = AmTsPlayer_setParams(player->handle,
+      AM_TSPLAYER_KEY_AUDIO_PRESENTATION_ID, &presel_id);
+  DVR_RETURN_IF_FALSE(ret == AM_TSPLAYER_OK);
+
   return DVR_SUCCESS;
 }

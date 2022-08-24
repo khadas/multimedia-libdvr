@@ -383,6 +383,15 @@ int dvr_wrapper_restart_timeshift(DVR_WrapperPlayback_t playback, DVR_PlaybackFl
  */
 int dvr_wrapper_set_log_level (int level);
 
+/**
+ * Set AC4 audio preselection id for playback
+ * \param playback The playback handle.
+ * \param presel_id AC4 audio preselection id
+ * \retval DVR_SUCCESS On success.
+ * \return Error code.
+ */
+int dvr_wrapper_set_ac4_preselection_id(DVR_WrapperPlayback_t playback, int presel_id);
+
 #ifdef __cplusplus
 }
 #endif
