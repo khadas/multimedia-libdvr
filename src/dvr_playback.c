@@ -1512,6 +1512,10 @@ rewrite:
       write_success++;
       if (CONTROL_SPEED_ENABLE == 1) {
 check0:
+            if (!player->is_running) {
+                DVR_PB_DG(1, "playback thread exit");
+                break;
+            }
             if (_dvr_check_speed_con((DVR_PlaybackHandle_t)player) == DVR_FALSE){
               dvr_mutex_lock(&player->lock);
               _dvr_playback_timeoutwait((DVR_PlaybackHandle_t)player, 50);
@@ -1532,6 +1536,10 @@ check0:
       write_success = 0;
       if (CONTROL_SPEED_ENABLE == 1) {
 check1:
+        if (!player->is_running) {
+            DVR_PB_DG(1, "playback thread exit");
+            break;
+        }
         if (_dvr_check_speed_con((DVR_PlaybackHandle_t)player) == DVR_FALSE){
           dvr_mutex_lock(&player->lock);
           _dvr_playback_timeoutwait((DVR_PlaybackHandle_t)player, 50);
