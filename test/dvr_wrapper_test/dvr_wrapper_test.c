@@ -527,6 +527,8 @@ static int get_dvr_info(char *location, int *apid, int *afmt, int *vpid, int *vf
     int aid = 0x1fff, vid = 0x1fff;
     int aft = 0, vft = 0;
 
+    memset(&seg_info,0,sizeof(seg_info));
+
     error = dvr_segment_get_list(location, &segment_nb, &p_segment_ids);
     if (!error && segment_nb) {
         error = dvr_segment_get_info(location, p_segment_ids[0], &seg_info);

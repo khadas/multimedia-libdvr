@@ -201,7 +201,7 @@ void *record_thread(void *arg)
   uint8_t *buf, *buf_out;
   uint32_t block_size = p_ctx->block_size;
   loff_t pos = 0;
-  int ret;
+  int ret = DVR_SUCCESS;
   struct timespec start_ts, end_ts, start_no_pcr_ts, end_no_pcr_ts;
   DVR_RecordStatus_t record_status;
   int has_pcr;
@@ -210,7 +210,7 @@ void *record_thread(void *arg)
 
   time_t pre_time = 0;
   #define DVR_STORE_INFO_TIME (400)
-  DVR_SecureBuffer_t secure_buf;
+  DVR_SecureBuffer_t secure_buf = {0,0};
   DVR_NewDmxSecureBuffer_t new_dmx_secure_buf;
   int first_read = 0;
   if (CONTROL_SPEED_ENABLE == 0)
@@ -519,7 +519,7 @@ int dvr_record_open(DVR_RecordHandle_t *p_handle, DVR_RecordOpenParams_t *params
 {
   DVR_RecordContext_t *p_ctx;
   Record_DeviceOpenParams_t dev_open_params;
-  int ret;
+  int ret = DVR_SUCCESS;
   uint32_t i;
 
   DVR_RETURN_IF_FALSE(p_handle);
@@ -598,7 +598,7 @@ int dvr_record_open(DVR_RecordHandle_t *p_handle, DVR_RecordOpenParams_t *params
 int dvr_record_close(DVR_RecordHandle_t handle)
 {
   DVR_RecordContext_t *p_ctx;
-  int ret;
+  int ret = DVR_SUCCESS;
   uint32_t i;
 
   p_ctx = (DVR_RecordContext_t *)handle;
@@ -630,7 +630,7 @@ int dvr_record_close(DVR_RecordHandle_t handle)
 int dvr_record_pause(DVR_RecordHandle_t handle)
 {
   DVR_RecordContext_t *p_ctx;
-  int ret;
+  int ret = DVR_SUCCESS;
   uint32_t i;
 
   p_ctx = (DVR_RecordContext_t *)handle;
@@ -654,7 +654,7 @@ int dvr_record_pause(DVR_RecordHandle_t handle)
 int dvr_record_resume(DVR_RecordHandle_t handle)
 {
   DVR_RecordContext_t *p_ctx;
-  int ret;
+  int ret = DVR_SUCCESS;
   uint32_t i;
 
   p_ctx = (DVR_RecordContext_t *)handle;
@@ -689,7 +689,7 @@ int dvr_record_start_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t 
 {
   DVR_RecordContext_t *p_ctx;
   Segment_OpenParams_t open_params;
-  int ret;
+  int ret = DVR_SUCCESS;
   uint32_t i;
 
   p_ctx = (DVR_RecordContext_t *)handle;
@@ -749,7 +749,7 @@ int dvr_record_next_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t *
 {
   DVR_RecordContext_t *p_ctx;
   Segment_OpenParams_t open_params;
-  int ret;
+  int ret = DVR_SUCCESS;
   uint32_t i;
   loff_t pos;
 
@@ -850,7 +850,7 @@ int dvr_record_next_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t *
 int dvr_record_stop_segment(DVR_RecordHandle_t handle, DVR_RecordSegmentInfo_t *p_info)
 {
   DVR_RecordContext_t *p_ctx;
-  int ret;
+  int ret = DVR_SUCCESS;
   uint32_t i;
   loff_t pos;
 
@@ -908,7 +908,7 @@ int dvr_record_resume_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t
 {
   DVR_RecordContext_t *p_ctx;
   uint32_t i;
-  int ret;
+  int ret = DVR_SUCCESS;
 
   p_ctx = (DVR_RecordContext_t *)handle;
   for (i = 0; i < MAX_DVR_RECORD_SESSION_COUNT; i++) {
@@ -956,7 +956,7 @@ int dvr_record_write(DVR_RecordHandle_t handle, void *buffer, uint32_t len)
   DVR_RecordContext_t *p_ctx;
   uint32_t i;
   off_t pos = 0;
-  int ret;
+  int ret = DVR_SUCCESS;
   int has_pcr;
 
   p_ctx = (DVR_RecordContext_t *)handle;
@@ -1010,7 +1010,7 @@ int dvr_record_set_secure_buffer(DVR_RecordHandle_t handle, uint8_t *p_secure_bu
 {
   DVR_RecordContext_t *p_ctx;
   uint32_t i;
-  int ret;
+  int ret = DVR_SUCCESS;
 
   p_ctx = (DVR_RecordContext_t *)handle;
   for (i = 0; i < MAX_DVR_RECORD_SESSION_COUNT; i++) {
@@ -1037,7 +1037,7 @@ int dvr_record_is_secure_mode(DVR_RecordHandle_t handle)
 {
   DVR_RecordContext_t *p_ctx;
   uint32_t i;
-  int ret;
+  int ret = DVR_SUCCESS;
 
   p_ctx = (DVR_RecordContext_t *)handle;
   for (i = 0; i < MAX_DVR_RECORD_SESSION_COUNT; i++) {

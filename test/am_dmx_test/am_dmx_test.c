@@ -253,7 +253,7 @@ static int get_section(int dmx, int timeout)
     int fid_bat;
 #endif
 
-    int fid_user[USER_MAX];
+    int fid_user[USER_MAX] = {0};
     int i;
 
     struct dmx_sct_filter_params param;

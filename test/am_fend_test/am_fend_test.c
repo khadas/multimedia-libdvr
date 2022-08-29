@@ -175,17 +175,17 @@ int main(int argc, char **argv)
 {
   int i;
   int ret = -1;
-  int check_tune_time;
+  int check_tune_time = 0;
   int mode = TUNE_MODE_UNKNOWN;
   int fontend_id = INVALID_FD;
   int fontend_idx = 0;
-  int frequency; //MHz
+  int frequency = 0; //MHz
   //DVB-C
-  int symbol_rate;
-  int modulation;
+  int symbol_rate = 0;
+  int modulation = 0;
   //DVB-T
-  int bandwidth;
-  int transmission_mode;
+  int bandwidth = 0;
+  int transmission_mode = 0;
   int guard_interval;
   int plp_id = 0;
   //DVB-S

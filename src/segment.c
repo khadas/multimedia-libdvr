@@ -964,8 +964,8 @@ loff_t segment_dump_pts(Segment_Handle_t handle)
   Segment_Context_t *p_ctx;
   char buf[256];
   char value[256];
-  uint64_t pts;
-  loff_t offset;
+  uint64_t pts = 0;
+  loff_t offset = 0;
   char *p1, *p2;
 
   p_ctx = (Segment_Context_t *)handle;
