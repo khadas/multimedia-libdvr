@@ -1061,10 +1061,10 @@ static void* _dvr_playback_thread(void *arg)
     dvr_mutex_lock(&player->lock);
 
     {
-      static struct timespec _prevts={0,0};
+      static struct timespec _prev_ts={0,0};
       struct timespec _nowts,_diffts;
       clock_gettime(CLOCK_MONOTONIC, &_nowts);
-      clock_timespec_subtract(&_nowts,&_prevts,&_diffts);
+      clock_timespec_subtract(&_nowts,&_prev_ts,&_diffts);
       if (_diffts.tv_sec>0) {
         char _logbuf[512]={0};
         char* _pbuf=_logbuf;
@@ -1072,11 +1072,11 @@ static void* _dvr_playback_thread(void *arg)
         DVR_PlaybackSegmentInfo_t* _segment;
         list_for_each_entry(_segment, &player->segment_list, head) {
           if (player->cur_segment_id == _segment->segment_id) {
-            int segsize = segment_get_cur_segment_size(player->r_handle);
-            int readptr = segment_tell_position(player->r_handle);
+            int seg_size = segment_get_cur_segment_size(player->r_handle);
+            int read_ptr = segment_tell_position(player->r_handle);
             float progress = -1.0f;
-            if (segsize>0) {
-                progress = (float)readptr*100/segsize;
+            if (seg_size>0) {
+                progress = (float)read_ptr*100/seg_size;
             }
             _nchar=sprintf(_pbuf,"%lld(%.1f%), ",_segment->segment_id,progress);
           } else {
@@ -1091,8 +1091,8 @@ static void* _dvr_playback_thread(void *arg)
             break;
           }
         }
-        DVR_PB_INFO("clk: %08u, seglist: %s",_nowts.tv_sec,_logbuf);
-        _prevts=_nowts;
+        DVR_PB_INFO("clk: %08u, seg_list: %s",_nowts.tv_sec,_logbuf);
+        _prev_ts=_nowts;
       }
     }
 
@@ -1977,7 +1977,7 @@ int dvr_playback_remove_segment(DVR_PlaybackHandle_t handle, uint64_t segment_id
   }
 
   if (segment_id == player->cur_segment_id) {
-    DVR_PB_INFO("not suport remove current segment id: %lld", segment_id);
+    DVR_PB_INFO("not support remove current segment id: %lld", segment_id);
     return DVR_FAILURE;
   }
   DVR_PB_DEBUG("lock");
@@ -2290,7 +2290,7 @@ int dvr_playback_update_segment_pids(DVR_PlaybackHandle_t handle, uint64_t segme
           if (segment->pids.audio.pid != p_pids->audio.pid &&
              segment->pids.audio.pid == 0x1fff) {
                //not used this to seek to start pos.we will
-               //add uopdate only api. if need seek to start
+               //add update only api. if need seek to start
                //pos, we will call only update api and used seek api
                //to start and stop av codec
             if (0 && player->need_seek_start == DVR_TRUE) {
@@ -2533,7 +2533,7 @@ int dvr_playback_audio_stop(DVR_PlaybackHandle_t handle) {
   if (player->has_video == DVR_FALSE) {
     player->cmd.state = DVR_PLAYBACK_STATE_STOP;
     DVR_PLAYER_CHANGE_STATE(player,DVR_PLAYBACK_STATE_STOP);
-    //destory thread
+    //destroy thread
     _stop_playback_thread(handle);
   } else {
     //do nothing.video is playing
@@ -2612,7 +2612,7 @@ int dvr_playback_video_stop(DVR_PlaybackHandle_t handle) {
   if (player->has_audio == DVR_FALSE) {
     player->cmd.state = DVR_PLAYBACK_STATE_STOP;
     DVR_PLAYER_CHANGE_STATE(player,DVR_PLAYBACK_STATE_STOP);
-    //destory thread
+    //destroy thread
     _stop_playback_thread(handle);
   } else {
     //do nothing.audio is playing

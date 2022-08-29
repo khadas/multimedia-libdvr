@@ -276,7 +276,7 @@ extern "C"
  * \param FE device fd
  * \return DVB_SUCCESS On success, DVB_FAILURE on error.
  */
-  DVB_RESULT AML_FE_Colse(int frontend_fd);
+  DVB_RESULT AML_FE_Close(int frontend_fd);
 
   /**\brief get current tune status
  * \param FE device fd

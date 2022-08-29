@@ -58,7 +58,7 @@ int dvr_unregister_rw_sys(void);
  *   - error
  */
 
-int dvr_rgister_rw_prop(DVR_Read_Prop_Cb RCb, DVR_Write_Prop_Cb WCb);
+int dvr_register_rw_prop(DVR_Read_Prop_Cb RCb, DVR_Write_Prop_Cb WCb);
 
 /**\brief unregist rw prop cb */
 int dvr_unregister_rw_prop(void);

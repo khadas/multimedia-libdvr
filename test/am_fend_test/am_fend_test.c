@@ -295,7 +295,7 @@ int main(int argc, char **argv)
     break;
   case TUNE_MODE_UNKNOWN:
   default:
-    printf("tune mode unknow, mode:%d", mode);
+    printf("tune mode unknown, mode:%d", mode);
     break;
   }
 
@@ -315,6 +315,6 @@ int main(int argc, char **argv)
     printf("####### [%s] #######\n", event == TUNER_STATE_LOCKED ? "LOCKED" : "UNLOCKED");
   }
 
-  AML_FE_Colse(fontend_id);
+  AML_FE_Close(fontend_id);
   return 0;
 }

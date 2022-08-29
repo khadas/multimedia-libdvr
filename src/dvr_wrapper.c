@@ -1062,7 +1062,7 @@ int dvr_wrapper_open_record (DVR_WrapperRecord_t *rec, DVR_WrapperRecordOpenPara
 
   wrapper_mutex_lock(&ctx->wrapper_lock);
 
-  DVR_WRAPPER_INFO("open record(dmx:%d) .istf(%d)..time (%ld)ms max size(%lld)byte seg size(%lld)byte\n",
+  DVR_WRAPPER_INFO("open record(dmx:%d) .is_tf(%d)..time (%ld)ms max size(%lld)byte seg size(%lld)byte\n",
   params->dmx_dev_id, params->is_timeshift, params->max_time, params->max_size, params->segment_size);
 
   ctx_reset(ctx);
@@ -2581,7 +2581,7 @@ static DVR_Result_t wrapper_playback_event_handler(DVR_PlaybackEvent_t event, vo
   evt.type = W_PLAYBACK;
   evt.playback.event = event;
   evt.playback.status = *(DVR_Play_Notify_t *)params;
-  DVR_WRAPPER_INFO("evt[sn:%ld, playbck, evt:0x%x]\n", evt.sn, evt.playback.event);
+  DVR_WRAPPER_INFO("evt[sn:%ld, playback, evt:0x%x]\n", evt.sn, evt.playback.event);
   return ctx_addPlaybackEvent(&evt);
 }
 

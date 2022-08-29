@@ -82,10 +82,10 @@ int dvr_unregister_rw_sys()
  *   - error
  */
 
-int dvr_rgister_rw_prop(DVR_Read_Prop_Cb RCb, DVR_Write_Prop_Cb WCb)
+int dvr_register_rw_prop(DVR_Read_Prop_Cb RCb, DVR_Write_Prop_Cb WCb)
 {
   if (RCb == NULL || WCb == NULL) {
-    DVR_INFO("dvr_rgister_rw_prop error param is NULL !!");
+    DVR_INFO("dvr_register_rw_prop error param is NULL !!");
     return DVR_FAILURE;
   }
 
@@ -94,7 +94,7 @@ int dvr_rgister_rw_prop(DVR_Read_Prop_Cb RCb, DVR_Write_Prop_Cb WCb)
   if (!rwPropCb.writePropCb)
     rwPropCb.writePropCb = WCb;
 
-  DVR_INFO("dvr_rgister_rw_prop !!");
+  DVR_INFO("dvr_register_rw_prop !!");
   return DVR_SUCCESS;
 }
 

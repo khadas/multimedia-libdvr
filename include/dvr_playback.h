@@ -140,7 +140,7 @@ typedef void* DVR_PlaybackHandle_t;
 typedef enum
 {
   DVR_PLAYBACK_PID_ERROR,            /**< uninit state */
-  DVR_PLAYBACK_FMT_ERROR           /**< fmt not surport backword */
+  DVR_PLAYBACK_FMT_ERROR           /**< fmt not support backword */
 } DVR_PlaybackError_t;
 
 

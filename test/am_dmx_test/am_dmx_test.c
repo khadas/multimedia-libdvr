@@ -165,7 +165,7 @@ static void dump_bytes(int dev_no, int fid, const uint8_t *data, int len, void *
 #if 1
     if (bat & PARA_PR) {
         if (data[0] == 0x4a) {
-            printf("sec:tabid:0x%02x,bunqid:0x%02x%02x,section num:%4d,lat_section_num:%4d\n", data[0],
+            printf("sec:tabid:0x%02x,bouquet_id:0x%02x%02x,section num:%4d,lat_section_num:%4d\n", data[0],
                 data[3], data[4], data[6], data[7]);
         }
 

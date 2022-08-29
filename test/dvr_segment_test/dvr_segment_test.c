@@ -31,7 +31,7 @@ int main(int argc, char **argv)
   Segment_OpenParams_t params;
 
   memset(params.location, 0, DVR_MAX_LOCATION_SIZE);
-  strncpy(params.location, "/data/pvr/tsthal_rec1", strlen("/data/pvr/tsthal_rec1"));
+  strncpy(params.location, "/data/pvr/test_hal_rec1", strlen("/data/pvr/test_hal_rec1"));
 
   params.segment_id = (uint64_t)id;
   params.mode = SEGMENT_MODE_READ;

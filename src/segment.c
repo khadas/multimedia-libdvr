@@ -48,7 +48,7 @@ typedef enum {
   SEGMENT_FILE_TYPE_INDEX,                    /**< Used for store index data*/
   SEGMENT_FILE_TYPE_DAT,                      /**< Used for store information data, such as duration etc*/
   SEGMENT_FILE_TYPE_ONGOING,                  /**< Used for store information data, such as duration etc*/
-  SEGMENT_FILE_TYPE_ALLDAT,                  /**< Used for store all information data*/
+  SEGMENT_FILE_TYPE_ALL_DATA,                  /**< Used for store all information data*/
 } Segment_FileType_t;
 
 static void segment_get_fname(char fname[MAX_SEGMENT_PATH_SIZE],
@@ -61,7 +61,7 @@ static void segment_get_fname(char fname[MAX_SEGMENT_PATH_SIZE],
   memset(fname, 0, MAX_SEGMENT_PATH_SIZE);
   strncpy(fname, location, strlen(location));
   offset = strlen(location);
-  if (type != SEGMENT_FILE_TYPE_ALLDAT) {
+  if (type != SEGMENT_FILE_TYPE_ALL_DATA) {
     strncpy(fname + offset, "-", 1);
     offset += 1;
     sprintf(fname + offset, "%04llu", segment_id);
@@ -76,7 +76,7 @@ static void segment_get_fname(char fname[MAX_SEGMENT_PATH_SIZE],
     strncpy(fname + offset, ".dat", 4);
   else if (type == SEGMENT_FILE_TYPE_ONGOING)
     strncpy(fname + offset, ".going", 6);
-  else if (type == SEGMENT_FILE_TYPE_ALLDAT)
+  else if (type == SEGMENT_FILE_TYPE_ALL_DATA)
     strncpy(fname + offset, ".dat", 4);
 
 }
@@ -127,7 +127,7 @@ int segment_open(Segment_OpenParams_t *params, Segment_Handle_t *p_handle)
   segment_get_fname(dat_fname, params->location, params->segment_id, SEGMENT_FILE_TYPE_DAT);
 
   memset(all_dat_fname, 0, sizeof(all_dat_fname));
-  segment_get_fname(all_dat_fname, params->location, params->segment_id, SEGMENT_FILE_TYPE_ALLDAT);
+  segment_get_fname(all_dat_fname, params->location, params->segment_id, SEGMENT_FILE_TYPE_ALL_DATA);
 
 
   memset(going_name, 0, sizeof(going_name));
@@ -158,7 +158,7 @@ int segment_open(Segment_OpenParams_t *params, Segment_Handle_t *p_handle)
     p_ctx->last_record_pts = ULLONG_MAX;
     p_ctx->avg_rate = 0.0;
   } else {
-    DVR_INFO("%s, unknow mode use default", __func__);
+    DVR_INFO("%s, unknown mode use default", __func__);
     p_ctx->ts_fd = open(ts_fname, O_RDONLY);
     p_ctx->index_fp = fopen(index_fname, "r");
     p_ctx->dat_fp = fopen(dat_fname, "r");

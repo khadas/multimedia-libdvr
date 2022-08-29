@@ -128,9 +128,6 @@ typedef uint16_t DVR_Pid_t;
 /**PTS.*/
 typedef uint64_t DVR_Pts_t;
 
-/**Invalid PTS value.*/
-#define DVR_INVALID_PTS 0xffffffffffffffffull
-
 /**Stream type.*/
 typedef enum {
   DVR_STREAM_TYPE_VIDEO,     /**< Video stream.*/
