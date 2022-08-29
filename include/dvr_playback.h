@@ -357,6 +357,8 @@ typedef struct
   DVR_Bool_t                 need_seek_start;
   //init fake pid
   int                         fake_pid;
+  //Audio presentation id, used for dolby AC4 audio
+  int32_t                     audio_presentation_id;
 } DVR_Playback_t;
 /**\endcond*/
 
@@ -585,6 +587,14 @@ uint64_t segmentid, int dur);
  * \return DVR_FALSE or DVR_TRUE
  */
 DVR_Bool_t dvr_playback_check_limit(DVR_PlaybackHandle_t handle);
+
+/**\brief set ac4 audio preselection id for playback
+ * \param[in] handle, DVR playback session handle
+ * \param[in] presel_id, ac4 preselection id
+ * \return DVR_SUCCESS on success
+ * \return error code on failure
+ */
+int dvr_playback_set_ac4_preselection_id(DVR_PlaybackHandle_t handle, int presel_id);
 
 #ifdef __cplusplus
 }
