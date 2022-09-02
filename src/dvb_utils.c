@@ -67,20 +67,21 @@ int dvb_enable_ciplus(int enable)
  */
 int dvb_set_demux_source(int dmx_idx, DVB_DemuxSource_t src)
 {
-    char node[32];
-    struct stat st;
+    char node[32] = {0};
+    char node2[20] = {0};
+    int fd = -1;
+    int fd2 = -1;
     int r;
 
     snprintf(node, sizeof(node), "/sys/class/stb/demux%d_source", dmx_idx);
+    snprintf(node2, sizeof(node2), "/dev/dvb0.demux%d", dmx_idx);
 
-    r = stat(node, &st);
-    if (r == -1)
+    fd = open(node, O_RDONLY);
+    if (fd == -1)
     {
-        int fd, source, input = 0;
-        memset(node, 0, sizeof(node));
-        snprintf(node, sizeof(node), "/dev/dvb0.demux%d", dmx_idx);
-        fd = open(node, O_WRONLY);
-        if (fd != -1)
+        int source, input = 0;
+        fd2 = open(node2, O_WRONLY);
+        if (fd2 != -1)
         {
             if (src >= DVB_DEMUX_SOURCE_TS0 &&
                 src <= DVB_DEMUX_SOURCE_TS7) {
@@ -110,7 +111,7 @@ int dvb_set_demux_source(int dmx_idx, DVB_DemuxSource_t src)
                 assert(0);
             }
 
-            if (ioctl(fd, DMX_SET_INPUT, input) == -1)
+            if (ioctl(fd2, DMX_SET_INPUT, input) == -1)
             {
                  DVR_INFO("dvb_set_demux_source ioctl DMX_SET_INPUT:%d error:%d", input, errno);
                  r = -1;
@@ -120,7 +121,7 @@ int dvb_set_demux_source(int dmx_idx, DVB_DemuxSource_t src)
                  DVR_INFO("dvb_set_demux_source ioctl succeeded src:%d DMX_SET_INPUT:%d dmx_idx:%d", src, input, dmx_idx);
                  r = 0;
             }
-            if (ioctl(fd, DMX_SET_HW_SOURCE, source) == -1)
+            if (ioctl(fd2, DMX_SET_HW_SOURCE, source) == -1)
             {
                 DVR_INFO("dvb_set_demux_source ioctl DMX_SET_HW_SOURCE:%d error:%d", source, errno);
                 r = -1;
@@ -130,16 +131,18 @@ int dvb_set_demux_source(int dmx_idx, DVB_DemuxSource_t src)
                 DVR_INFO("dvb_set_demux_source ioctl succeeded src:%d DMX_SET_HW_SOURCE:%d dmx_idx:%d", src, source, dmx_idx);
                 r = 0;
             }
-            close(fd);
+            close(fd2);
         }
         else
         {
-            DVR_INFO("dvb_set_demux_source open \"%s\" failed, error:%d", node, errno);
+            DVR_ERROR("dvb_set_demux_source open \"%s\" failed, error:%d", node, errno);
         }
     }
     else
     {
         char *val;
+
+        close(fd);
 
         if (ciplus_enable)
         {
@@ -205,21 +208,23 @@ int dvb_set_demux_source(int dmx_idx, DVB_DemuxSource_t src)
 int dvb_get_demux_source(int dmx_idx, DVB_DemuxSource_t *src)
 {
     char node[32] = {0};
+    char node2[20] = {0};
+    int fd = -1;
+    int fd2 = -1;
     char buf[32] = {0};
-    struct stat st;
     int r, source_no;
 
     snprintf(node, sizeof(node), "/sys/class/stb/demux%d_source", dmx_idx);
-    r = stat(node, &st);
-    if (r == -1)
+    snprintf(node2, sizeof(node2), "/dev/dvb0.demux%d", dmx_idx);
+
+    fd = open(node, O_RDONLY);
+    if (fd == -1)
     {
-        int fd, source;
-        memset(node, 0, sizeof(node));
-        snprintf(node, sizeof(node), "/dev/dvb0.demux%d", dmx_idx);
-        fd = open(node, O_RDONLY);
-        if (fd != -1)
+        int source;
+        fd2 = open(node2, O_RDONLY);
+        if (fd2 != -1)
         {
-            if (ioctl(fd, DMX_GET_HW_SOURCE, &source) != -1)
+            if (ioctl(fd2, DMX_GET_HW_SOURCE, &source) != -1)
             {
                 switch (source)
                 {
@@ -301,17 +306,18 @@ int dvb_get_demux_source(int dmx_idx, DVB_DemuxSource_t *src)
             }
             else
             {
-                DVR_INFO("ioctl DMX_GET_HW_SOURCE:%d error:%d", source, errno);
+                DVR_ERROR("ioctl DMX_GET_HW_SOURCE:%d error:%d", source, errno);
             }
-            close(fd);
+            close(fd2);
         }
         else
         {
-            DVR_INFO("open \"%s\" failed, error:%d", node, errno);
+            DVR_ERROR("opening \"%s\" failed with errno:%d", node2, errno);
         }
     }
     else
     {
+        close(fd);
         r = dvr_file_read(node, buf, sizeof(buf));
         if (r != -1)
         {

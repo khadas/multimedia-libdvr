@@ -97,14 +97,11 @@ int dvr_segment_get_list(const char *location, uint32_t *p_segment_nb, uint64_t 
   DVR_RETURN_IF_FALSE(p_segment_nb);
   DVR_RETURN_IF_FALSE(pp_segment_ids);
 
-  //DVR_INFO("%s location:%s", __func__, location);
   memset(fpath, 0, sizeof(fpath));
   sprintf(fpath, "%s.list", location);
 
-  if (access(fpath, 0) != -1) {
-    /*the list file is exist*/
-    fp = fopen(fpath, "r");
-    DVR_RETURN_IF_FALSE(fp);
+  fp = fopen(fpath, "r");
+  if (fp != NULL) { /*the list file exists*/
     /*get segment numbers*/
     while (fgets(buf, sizeof(buf), fp) != NULL) {
       i++;
@@ -123,16 +120,15 @@ int dvr_segment_get_list(const char *location, uint32_t *p_segment_nb, uint64_t 
     *pp_segment_ids = p;
     fclose(fp);
     DVR_INFO("%s location:%s segments:%d",  __func__, location, i);
-  } else {
+  } else { /*the list file does not exist*/
     uint32_t id = 0;
-    /*the list file does not exist*/
     memset(cmd, 0, sizeof(cmd));
     sprintf(cmd, "ls -l %s-*.ts | wc -l", location);
     fp = popen(cmd, "r");
     DVR_RETURN_IF_FALSE(fp);
     memset(buf, 0, sizeof(buf));
     if (fgets(buf, sizeof(buf), fp) != NULL) {
-      i = strtoull(buf, NULL, 10);
+      i = strtoul(buf, NULL, 10);
       pclose(fp);
     } else {
       pclose(fp);
@@ -140,7 +136,6 @@ int dvr_segment_get_list(const char *location, uint32_t *p_segment_nb, uint64_t 
       return DVR_FAILURE;
     }
     n = i;
-    //DVR_INFO("%s location:%s   i: %d ls buf:%s", __func__, location, i, buf);
 
     /*try to get the 1st segment id*/
     memset(cmd, 0, sizeof(cmd));
@@ -155,13 +150,11 @@ int dvr_segment_get_list(const char *location, uint32_t *p_segment_nb, uint64_t 
     DVR_RETURN_IF_FALSE(p != NULL);
 
     while (fgets(buf, sizeof(buf), fp) != NULL) {
-      //DVR_INFO("%s buf:%s", __func__, buf);
       if (sscanf(buf, fpath, &id) != 1) {
         DVR_INFO("%s location:%s  buf:%s not get id", __func__, location, buf);
         id = 0;
         n = n -1;
       } else {
-        //DVR_INFO("%s location:%s  buf:%s get id:%d", __func__, location, buf, id);
         p[j++] = id;
       }
       memset(buf, 0, sizeof(buf));

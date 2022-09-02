@@ -138,13 +138,11 @@ int segment_open(Segment_OpenParams_t *params, Segment_Handle_t *p_handle)
 
   memset(dir_name, 0, sizeof(dir_name));
   segment_get_dirname(dir_name, params->location);
+
+  mkdir(dir_name, 0666);
   if (access(dir_name, F_OK) == -1) {
-    DVR_WARN("%s dir %s does not exist, so create it", __func__, dir_name);
-    if (mkdir(dir_name, 0666) < 0) {
-      DVR_ERROR("%s fails to create dir %s. errno:%d(%s)", __func__,
-          dir_name,errno,strerror(errno));
-      return DVR_FAILURE;
-    }
+    DVR_WARN("%s dir %s does not exist", __func__, dir_name);
+    return DVR_FAILURE;
   }
 
   if (params->mode == SEGMENT_MODE_READ) {
@@ -780,7 +778,7 @@ int segment_load_info(Segment_Handle_t handle, Segment_StoreInfo_t *p_info)
   DVR_RETURN_IF_FALSE(p1);
   p1 = strstr(buf, "nb_pids=");
   DVR_RETURN_IF_FALSE(p1);
-  p_info->nb_pids = strtoull(p1 + 8, NULL, 10);
+  p_info->nb_pids = strtoul(p1 + 8, NULL, 10);
 
   /*Save pid information*/
   for (i = 0; i < p_info->nb_pids; i++) {
