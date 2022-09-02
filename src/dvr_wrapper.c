@@ -849,7 +849,12 @@ static int wrapper_addPlaybackSegment(DVR_WrapperCtx_t *ctx,
   p_seg->seg_info = *seg_info;
   /*generate the segment info used in playback*/
   p_seg->playback_info.segment_id = p_seg->seg_info.id;
-  strncpy(p_seg->playback_info.location, ctx->playback.param_open.location, sizeof(p_seg->playback_info.location));
+  const int len = strlen(ctx->playback.param_open.location);
+  if (len >= DVR_MAX_LOCATION_SIZE || len <= 0) {
+    DVR_WRAPPER_ERROR("Invalid playback.param_open.location length %d", len);
+    return DVR_FAILURE;
+  }
+  strncpy(p_seg->playback_info.location, ctx->playback.param_open.location, len+1);
   p_seg->playback_info.pids = *p_pids;
   p_seg->playback_info.flags = flags;
   list_add(&p_seg->head, &ctx->segments);
@@ -1179,7 +1184,13 @@ int dvr_wrapper_start_record (DVR_WrapperRecord_t rec, DVR_WrapperRecordStartPar
 
   start_param = &ctx->record.param_start;
   memset(start_param, 0, sizeof(*start_param));
-  strncpy(start_param->location, ctx->record.param_open.location, sizeof(start_param->location));
+  const int len = strlen(ctx->record.param_open.location);
+  if (len >= DVR_MAX_LOCATION_SIZE || len <= 0) {
+    DVR_WRAPPER_ERROR("Invalid record.param_open.location length %d",len);
+    pthread_mutex_unlock(&ctx->wrapper_lock);
+    return DVR_FAILURE;
+  }
+  strncpy(start_param->location, ctx->record.param_open.location, len+1);
   start_param->segment.segment_id = ctx->record.next_segment_id++;
   start_param->segment.nb_pids = params->pids_info.nb_pids;
   for (i = 0; i < params->pids_info.nb_pids; i++) {
@@ -1391,7 +1402,13 @@ int dvr_wrapper_update_record_pids (DVR_WrapperRecord_t rec, DVR_WrapperUpdatePi
   }
 
   memset(start_param, 0, sizeof(*start_param));
-  strncpy(start_param->location, ctx->record.param_open.location, sizeof(start_param->location));
+  const int len = strlen(ctx->record.param_open.location);
+  if (len >= DVR_MAX_LOCATION_SIZE || len <= 0) {
+    DVR_WRAPPER_ERROR("Invalid record.param_open.location length %d",len);
+    pthread_mutex_unlock(&ctx->wrapper_lock);
+    return DVR_FAILURE;
+  }
+  strncpy(start_param->location, ctx->record.param_open.location, len+1);
   start_param->segment.segment_id = ctx->record.next_segment_id++;
   start_param->segment.nb_pids = params->nb_pids;
   for (i = 0; i < params->nb_pids; i++) {

@@ -767,7 +767,13 @@ static int _dvr_open_segment(DVR_PlaybackHandle_t handle, uint64_t segment_id)
       player->cur_segment_id = segment->segment_id;
       player->cur_segment.segment_id = segment->segment_id;
       player->cur_segment.flags = segment->flags;
-      strncpy(player->cur_segment.location, segment->location, sizeof(segment->location));//DVR_MAX_LOCATION_SIZE
+      const int len = strlen(segment->location);
+      if (len >= DVR_MAX_LOCATION_SIZE || len <= 0) {
+        DVR_PB_ERROR("Invalid segment.location length %d",len);
+        pthread_mutex_unlock(&player->segment_lock);
+        return DVR_FAILURE;
+      }
+      strncpy(player->cur_segment.location, segment->location, len+1);
       //pids
       memcpy(&player->cur_segment.pids, &segment->pids, sizeof(DVR_PlaybackPids_t));
       DVR_PB_INFO("cur found location [%s]id[%lld]flag[%x]", player->cur_segment.location, player->cur_segment.segment_id,player->cur_segment.flags);
@@ -780,8 +786,14 @@ static int _dvr_open_segment(DVR_PlaybackHandle_t handle, uint64_t segment_id)
     return DVR_FAILURE;
   }
   memset(params.location, 0, DVR_MAX_LOCATION_SIZE);
-  //cp cur segment path to location
-  strncpy(params.location, player->cur_segment.location, sizeof(player->cur_segment.location));
+
+  const int len2 = strlen(player->cur_segment.location);
+  if (len2 >= DVR_MAX_LOCATION_SIZE || len2 <= 0) {
+    DVR_PB_ERROR("Invalid cur_segment.location length %d",len2);
+    pthread_mutex_unlock(&player->segment_lock);
+    return DVR_FAILURE;
+  }
+  strncpy(params.location, player->cur_segment.location, len2+1);
   params.segment_id = (uint64_t)player->cur_segment.segment_id;
   params.mode = SEGMENT_MODE_READ;
   DVR_PB_INFO("open segment location[%s][%lld]cur flag[0x%x]", params.location, params.segment_id, player->cur_segment.flags);

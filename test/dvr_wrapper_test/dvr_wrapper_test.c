@@ -475,7 +475,12 @@ static int start_recording()
     if (is_timeshifting(mode))
         rec_open_params.flags |= DVR_RECORD_FLAG_ACCURATE;
 
-    strncpy(rec_open_params.location, pfilename, sizeof(rec_open_params.location));
+    const int len = strlen(pfilename);
+    if (len >= DVR_MAX_LOCATION_SIZE || len <= 0) {
+      ERR( "Invalid file name length %d\n", len);
+      return -1;
+    }
+    strncpy(rec_open_params.location, pfilename, len+1);
 
     rec_open_params.is_timeshift = (is_timeshifting(mode)) ? DVR_TRUE : DVR_FALSE;
 
@@ -603,8 +608,13 @@ static int start_playback(int apid, int afmt, int vpid, int vfmt)
     play_pids.video.type = DVR_STREAM_TYPE_VIDEO;
     play_pids.audio.type = DVR_STREAM_TYPE_AUDIO;
 
+    const int len = strlen(pfilename);
+    if (len >= DVR_MAX_LOCATION_SIZE || len <= 0) {
+      ERR( "Invalid file name length %d\n", len);
+      return -1;
+    }
+    strncpy(play_params.location, pfilename, len+1);
     if (is_timeshifting(mode)) {
-        strncpy(play_params.location, pfilename, sizeof(play_params.location));
         play_params.is_timeshift = DVR_TRUE;
 
         play_pids.video.pid = vpid;
@@ -612,7 +622,6 @@ static int start_playback(int apid, int afmt, int vpid, int vfmt)
         play_pids.audio.pid = apid;
         play_pids.audio.format = afmt;
     } else {
-        strncpy(play_params.location, pfilename, sizeof(play_params.location));
         play_params.is_timeshift = DVR_FALSE;
         {
             int vpid = 0x1fff, apid = 0x1fff, vfmt = 0, afmt = 0;
