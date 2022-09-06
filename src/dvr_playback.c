@@ -743,11 +743,7 @@ static int _dvr_open_segment(DVR_PlaybackHandle_t handle, uint64_t segment_id)
     return DVR_SUCCESS;
   }
   uint64_t id = segment_id;
-  if (id < 0) {
-    DVR_PB_INFO("not found segment info");
-    return DVR_FAILURE;
-  }
-  DVR_PB_INFO("start found segment[%lld]info", id);
+  DVR_PB_INFO("start finding segment[%lld] info", id);
   pthread_mutex_lock(&player->segment_lock);
 
   DVR_PlaybackSegmentInfo_t *segment;
@@ -4120,14 +4116,9 @@ int dvr_dump_segmentinfo(DVR_PlaybackHandle_t handle, uint64_t segment_id) {
   DVR_PlaybackSegmentInfo_t *segment;
   list_for_each_entry(segment, &player->segment_list, head)
   {
-    if (segment_id >= 0) {
-      if (segment->segment_id == segment_id) {
-        _dvr_dump_segment(segment);
-       break;
-      }
-    } else {
-      //printf segment info
+    if (segment->segment_id == segment_id) {
       _dvr_dump_segment(segment);
+      break;
     }
   }
   return 0;

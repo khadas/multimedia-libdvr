@@ -196,7 +196,7 @@ int start_test(void)
 {
     DVR_Bool_t go = DVR_TRUE;
     char buf[256];
-    int error;
+    int error = 0;
 
     display_usage();
 
@@ -457,7 +457,7 @@ static int start_recording()
     DVR_WrapperRecordStartParams_t rec_start_params;
     DVR_WrapperPidsInfo_t *pids_info;
     char cmd[256];
-    int error;
+    int error = 0;
 
     sprintf(cmd, "echo ts%d > /sys/class/stb/demux%d_source", ts_src, DMX_DEV_DVR);
     //system(cmd);
@@ -808,7 +808,7 @@ int main(int argc, char **argv)
     if (!mode) {
         mode = TIMESHIFTING;
         INF( " timeshifting");
-        pfilename = pfilename;
+        pfilename = rec_filename;
     }
 
     INF( " 0x%x\n", mode);
@@ -833,11 +833,19 @@ int main(int argc, char **argv)
             pause);
     }
 
-    if (has_recording(mode))
+    if (has_recording(mode)) {
         error = start_recording();
+        if (error != 0) {
+          ERR("start_recording failed with return value %d",error);
+        }
+    }
 
-    if (is_playback(mode))
+    if (is_playback(mode)) {
         error = start_playback(0, 0, 0, 0);
+        if (error != 0) {
+          ERR("start_playback failed with return value %d",error);
+        }
+    }
 
     if (is_timeshifting(mode))
         playback_pending = 1;

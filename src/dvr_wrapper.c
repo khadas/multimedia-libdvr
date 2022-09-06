@@ -1029,6 +1029,9 @@ static int wrapper_removeRecordSegment(DVR_WrapperCtx_t *ctx, DVR_WrapperRecordS
         && ctx_playback->sn == sn_timeshift_playback
         && !list_empty(&ctx_playback->segments)) {
         error = wrapper_removePlaybackSegment(ctx_playback, &seg_info->info);
+        if (error != DVR_SUCCESS) {
+          DVR_WRAPPER_ERROR("wrapper_removePlaybackSegment failed with return value %d",error);
+        }
       }
       ctx_playback->playback.tf_full = DVR_FALSE;
       wrapper_mutex_unlock(&ctx_playback->wrapper_lock);

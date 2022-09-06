@@ -183,6 +183,9 @@ int dvr_segment_get_info(const char *location, uint64_t segment_id, DVR_RecordSe
   ret = segment_open(&open_params, &segment_handle);
   if (ret == DVR_SUCCESS) {
     ret = segment_load_info(segment_handle, p_info);
+    if (ret != DVR_SUCCESS) {
+      DVR_ERROR("segment_load_info failed with return value %d",ret);
+    }
   }
   DVR_DEBUG("%s, id:%lld, nb_pids:%d, duration:%ld ms, size:%zu, nb_packets:%d",
       __func__, p_info->id, p_info->nb_pids, p_info->duration, p_info->size, p_info->nb_packets);
