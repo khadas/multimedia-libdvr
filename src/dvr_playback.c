@@ -1513,7 +1513,7 @@ rewrite:
       if (CONTROL_SPEED_ENABLE == 1) {
 check0:
             if (!player->is_running) {
-                DVR_PB_DG(1, "playback thread exit");
+                //DVR_PB_DEBUG(1, "playback thread exit");
                 break;
             }
             if (_dvr_check_speed_con((DVR_PlaybackHandle_t)player) == DVR_FALSE){
@@ -1537,7 +1537,7 @@ check0:
       if (CONTROL_SPEED_ENABLE == 1) {
 check1:
         if (!player->is_running) {
-            DVR_PB_DG(1, "playback thread exit");
+            //DVR_PB_DEBUG(1, "playback thread exit");
             break;
         }
         if (_dvr_check_speed_con((DVR_PlaybackHandle_t)player) == DVR_FALSE){
