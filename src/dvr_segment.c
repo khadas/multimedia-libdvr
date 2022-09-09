@@ -17,6 +17,10 @@ void *dvr_segment_thread(void *arg)
 {
   int ret;
   DVR_SegmentFile_t *segment_file = (DVR_SegmentFile_t*)arg;
+  if (segment_file == NULL) {
+    DVR_ERROR("Invalid segment_file pointer");
+    return NULL;
+  }
 
   pthread_detach(pthread_self());
   DVR_INFO("%s try to delete [%s-%lld]", __func__, segment_file->location, segment_file->id);
