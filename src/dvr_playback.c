@@ -1010,6 +1010,7 @@ static void* _dvr_playback_thread(void *arg)
   int real_read = 0;
   DVR_Bool_t goto_rewrite = DVR_FALSE;
   char prop_buf[10];
+	int read = 0;
 
   memset(prop_buf, 0 ,sizeof(prop_buf));
   dvr_prop_read("vendor.tv.libdvr.writetm", prop_buf, sizeof(prop_buf));
@@ -1282,7 +1283,7 @@ static void* _dvr_playback_thread(void *arg)
     dvr_mutex_lock(&player->lock);
     pthread_mutex_lock(&player->segment_lock);
     //DVR_PB_INFO("start read");
-    int read = segment_read(player->r_handle, buf + real_read, buf_len - real_read);
+    read = segment_read(player->r_handle, buf + real_read, buf_len - real_read);
     real_read = real_read + read;
     player->ts_cache_len = real_read;
     //DVR_PB_INFO("start read end [%d]", read);

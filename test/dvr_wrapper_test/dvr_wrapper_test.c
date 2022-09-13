@@ -628,7 +628,10 @@ static int start_playback(int apid, int afmt, int vpid, int vfmt)
     } else {
         play_params.is_timeshift = DVR_FALSE;
         {
-            int vpid = 0x1fff, apid = 0x1fff, vfmt = 0, afmt = 0;
+            vpid = 0x1fff;
+						apid = 0x1fff;
+						vfmt = 0;
+						afmt = 0;
             get_dvr_info(pfilename, &apid, &afmt, &vpid, &vfmt);
 
             play_pids.video.pid = vpid;
