@@ -582,6 +582,7 @@ DVB_RESULT AML_DMX_Close(int dev_no)
     }
 
     pthread_mutex_unlock(&dev->lock);
+    pthread_mutex_destroy(&dev->lock);
 
     return ret;
 }

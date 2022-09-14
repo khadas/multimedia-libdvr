@@ -66,7 +66,7 @@ static Record_DeviceContext_t record_ctx[MAX_RECORD_DEVICE_COUNT] = {
   }
 };
 /*define sec dmx function api ptr*/
-static int SECDMX_API_INIT = 0;
+static void* secdmx_handle = NULL;
 int (*SECDMX_Init_Ptr)(void);
 int (*SECDMX_Deinit_Ptr)(void);
 int (*SECDMX_AllocateDVRBuffer_Ptr)(int sid, size_t size, size_t *addr);
@@ -77,12 +77,11 @@ int (*SECDMX_RemoveOutputBuffer_Ptr)(size_t handle);
 int (*SECDMX_GetOutputBufferStatus_Ptr)(size_t handle, size_t *start_addr, size_t *len);
 int (*SECDMX_ProcessData_Ptr)(int sid, size_t wp);
 
-int load_secdmx_api(void)
+static void* load_secdmx_api(void)
 {
-  if (SECDMX_API_INIT == 1) {
-    return 0;
+  if (secdmx_handle != NULL) {
+    return secdmx_handle;
   }
-  SECDMX_API_INIT = 1;
   void* handle = NULL;
   handle = dlopen("libdmx_client_sys.so", RTLD_NOW);//RTLD_NOW  RTLD_LAZY
 
@@ -93,7 +92,7 @@ int load_secdmx_api(void)
 
   if (handle == NULL) {
     DVR_ERROR("load_secdmx_api load libdmx_client error[%s] no:%d", strerror(errno), errno);
-    return 0;
+    return NULL;
   }
 
   SECDMX_Init_Ptr = dlsym(handle, "SECDMX_Init");
@@ -106,7 +105,18 @@ int load_secdmx_api(void)
   SECDMX_GetOutputBufferStatus_Ptr = dlsym(handle, "SECDMX_GetOutputBufferStatus");
   SECDMX_ProcessData_Ptr = dlsym(handle, "SECDMX_ProcessData");
 
-  return 0;
+  return handle;
+}
+
+static int unload_secdmx_api(void)
+{
+  int ret=0;
+  if (secdmx_handle == NULL) {
+    return 0;
+  }
+  ret = dlclose(secdmx_handle);
+  secdmx_handle = NULL;
+  return ret;
 }
 
 int add_dvr_pids(Record_DeviceContext_t *p_ctx)
@@ -289,6 +299,9 @@ int record_device_close(Record_DeviceHandle_t handle)
   p_ctx->fend_dev_id = -1;
   p_ctx->state = RECORD_DEVICE_STATE_CLOSED;
   pthread_mutex_unlock(&p_ctx->lock);
+
+  unload_secdmx_api();
+
   return DVR_SUCCESS;
 }
 

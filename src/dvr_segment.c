@@ -36,21 +36,22 @@ int dvr_segment_delete(const char *location, uint64_t segment_id)
 
   pthread_t thread;
   DVR_SegmentFile_t *segment;
-  //this segment will be free at del thread when used end.if thread
-  //creat error.will be free now.
-  segment = (DVR_SegmentFile_t *)malloc(sizeof(DVR_SegmentFile_t));
 
-  DVR_INFO("%s in, %s,id:%lld", __func__, location, segment_id);
-  DVR_RETURN_IF_FALSE(segment);
   DVR_RETURN_IF_FALSE(location);
   DVR_RETURN_IF_FALSE(strlen(location) < DVR_MAX_LOCATION_SIZE);
+  DVR_INFO("In function %s, segment %s's id is %lld", __func__, location, segment_id);
+
+  // Memory allocated here will be freed in segment deletion thread under normal conditions.
+  // In case of thread creation failure, it will be freed right away.
+  segment = (DVR_SegmentFile_t *)malloc(sizeof(DVR_SegmentFile_t));
+  DVR_RETURN_IF_FALSE(segment != NULL);
+
   memset(segment->location, 0, sizeof(segment->location));
   memcpy(segment->location, location, strlen(location));
   segment->id = segment_id;
 
   int ret = pthread_create(&thread, NULL, dvr_segment_thread, segment);
   if (ret != 0) {
-    //creat thread error,need free segment
     if (segment != NULL) {
       free(segment);
       segment = NULL;
@@ -134,9 +135,9 @@ int dvr_segment_get_list(const char *location, uint32_t *p_segment_nb, uint64_t 
       DVR_INFO("%s location:%s get null",  __func__, location);
       return DVR_FAILURE;
     }
-    //DVR_INFO("%s location:%s   i: %d ls buf:%s", __func__, location, i, buf);
     n = i;
-    p = malloc(n * sizeof(uint64_t));
+    //DVR_INFO("%s location:%s   i: %d ls buf:%s", __func__, location, i, buf);
+
     /*try to get the 1st segment id*/
     memset(cmd, 0, sizeof(cmd));
     sprintf(cmd, "ls %s-*.ts", location);
@@ -145,6 +146,10 @@ int dvr_segment_get_list(const char *location, uint32_t *p_segment_nb, uint64_t 
     memset(buf, 0, sizeof(buf));
     j = 0;
     snprintf(fpath, sizeof(fpath), "%s-%%d.ts", location);
+
+    p = malloc(n * sizeof(uint64_t));
+    DVR_RETURN_IF_FALSE(p != NULL);
+
     while (fgets(buf, sizeof(buf), fp) != NULL) {
       //DVR_INFO("%s buf:%s", __func__, buf);
       if (sscanf(buf, fpath, &id) != 1) {

@@ -582,6 +582,10 @@ static int get_dvr_info(char *location, int *apid, int *afmt, int *vpid, int *vf
     if (vfmt)
         *vfmt = vft;
 
+    if (p_segment_ids != NULL) {
+      free(p_segment_ids);
+      p_segment_ids=NULL;
+    }
     return 0;
 }
 static uint64_t dvr_time_getClock(void)
@@ -590,7 +594,7 @@ static uint64_t dvr_time_getClock(void)
   uint64_t ms;
 
   clock_gettime(CLOCK_REALTIME, &ts);
-  ms = ts.tv_sec*1000+ts.tv_nsec/1000000;
+  ms = ts.tv_sec*1000LLU+ts.tv_nsec/1000000LLU;
   INF("dvr_time_getClock:sec:%ld.\n", ts.tv_sec);
   return ms;
 }
