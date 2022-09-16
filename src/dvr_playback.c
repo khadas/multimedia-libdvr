@@ -177,6 +177,10 @@ void _dvr_tsplayer_callback_test(void *user_data, am_tsplayer_event *event)
       }
       case AM_TSPLAYER_EVENT_TYPE_FIRST_FRAME:
       {
+          if (player == NULL) {
+            DVR_PB_WARN("player is null at line %d",__LINE__);
+            break;
+          }
           DVR_PB_INFO("[evt] test  AM_TSPLAYER_EVENT_TYPE_FIRST_FRAME\n");
           player->first_frame = 1;
           break;
@@ -190,7 +194,7 @@ void _dvr_tsplayer_callback(void *user_data, am_tsplayer_event *event)
   DVR_Playback_t *player = NULL;
   if (user_data != NULL) {
     player = (DVR_Playback_t *) user_data;
-    DVR_PB_INFO("play speed [%f] in-- callback", player->speed);
+    DVR_PB_INFO("playing speed is [%f] in callback", player->speed);
   }
   switch (event->type) {
     case AM_TSPLAYER_EVENT_TYPE_VIDEO_CHANGED:
@@ -204,6 +208,10 @@ void _dvr_tsplayer_callback(void *user_data, am_tsplayer_event *event)
     case AM_TSPLAYER_EVENT_TYPE_FIRST_FRAME:
     {
         DVR_PB_INFO("[evt] AM_TSPLAYER_EVENT_TYPE_FIRST_FRAME\n");
+        if (player == NULL) {
+          DVR_PB_WARN("player is null at line %d",__LINE__);
+          break;
+        }
         if (player->first_trans_ok == DVR_FALSE) {
           player->first_trans_ok = DVR_TRUE;
           _dvr_playback_sent_transition_ok((DVR_PlaybackHandle_t)player, DVR_FALSE);
@@ -216,6 +224,10 @@ void _dvr_tsplayer_callback(void *user_data, am_tsplayer_event *event)
     }
     case AM_TSPLAYER_EVENT_TYPE_DECODE_FIRST_FRAME_AUDIO:
         DVR_PB_INFO("[evt]AM_TSPLAYER_EVENT_TYPE_DECODE_FIRST_FRAME_AUDIO [%d]\n", event->type);
+        if (player == NULL) {
+          DVR_PB_WARN("player is null at line %d",__LINE__);
+          break;
+        }
         if (player->first_trans_ok == DVR_FALSE && player->has_video == DVR_FALSE) {
           player->first_trans_ok = DVR_TRUE;
           _dvr_playback_sent_transition_ok((DVR_PlaybackHandle_t)player, DVR_FALSE);
@@ -231,12 +243,12 @@ void _dvr_tsplayer_callback(void *user_data, am_tsplayer_event *event)
       break;
   }
   if (player&&player->player_callback_func) {
-    DVR_PB_INFO("player is nonull, --call callback\n");
+    DVR_PB_INFO("calling callback");
     player->player_callback_func(player->player_callback_userdata, event);
   } else if (player == NULL){
-    DVR_PB_INFO("player is null, get userdata error\n");
+    DVR_PB_WARN("player pointer %p is invalid",player);
   } else {
-    DVR_PB_INFO("player callback is null, get callback error\n");
+    DVR_PB_WARN("player callback function %p is invalid",player->player_callback_func);
   }
 }
 
@@ -444,13 +456,13 @@ static int _dvr_playback_sent_playtime(DVR_PlaybackHandle_t handle, DVR_Bool_t i
 {
   DVR_Playback_t *player = (DVR_Playback_t *) handle;
 
+  if (player == NULL) {
+    DVR_PB_ERROR("player is NULL");
+    return DVR_FAILURE;
+  }
   if (player->openParams.is_notify_time == DVR_FALSE) {
     if (CONTROL_SPEED_ENABLE == 0)
        return DVR_SUCCESS;
-  }
-  if (player == NULL) {
-    DVR_PB_INFO("player is NULL");
-    return DVR_FAILURE;
   }
 
   if (player->send_time == 0) {
@@ -2259,7 +2271,7 @@ int dvr_playback_only_update_segment_pids(DVR_PlaybackHandle_t handle, uint64_t 
     if (segment->segment_id == segment_id) {
       if (player->cur_segment_id == segment_id) {
         if (player->cmd.state == DVR_PLAYBACK_STATE_FF
-          || player->cmd.state == DVR_PLAYBACK_STATE_FF) {
+          || player->cmd.state == DVR_PLAYBACK_STATE_FB) {
           //do nothing when ff fb
           DVR_PB_INFO("unlock now is ff fb, not to update cur segment info\r\n");
           dvr_mutex_unlock(&player->lock);
@@ -2305,7 +2317,7 @@ int dvr_playback_update_segment_pids(DVR_PlaybackHandle_t handle, uint64_t segme
 
       if (player->cur_segment_id == segment_id) {
         if (player->cmd.state == DVR_PLAYBACK_STATE_FF
-          || player->cmd.state == DVR_PLAYBACK_STATE_FF) {
+          || player->cmd.state == DVR_PLAYBACK_STATE_FB) {
           //do nothing when ff fb
           DVR_PB_INFO("unlock now is ff fb, not to update cur segment info\r\n");
           dvr_mutex_unlock(&player->lock);
@@ -3174,7 +3186,7 @@ int dvr_playback_seek(DVR_PlaybackHandle_t handle, uint64_t segment_id, uint32_t
       player->seek_pause = DVR_TRUE;
     DVR_PB_INFO("set state pause in seek vpid[0x%x]apid[0x%x]",video_params.pid, audio_params.pid);
   } else if (player->cmd.cur_cmd == DVR_PLAYBACK_CMD_FF ||
-    player->cmd.cur_cmd == DVR_PLAYBACK_CMD_FF ||
+    player->cmd.cur_cmd == DVR_PLAYBACK_CMD_FB ||
     player->speed > 1.0f||
     player->speed <= -1.0f) {
     DVR_PB_INFO("not set cmd to seek");

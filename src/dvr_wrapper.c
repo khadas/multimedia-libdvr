@@ -876,14 +876,13 @@ static int wrapper_addPlaybackSegment(DVR_WrapperCtx_t *ctx,
 static int wrapper_addRecordSegment(DVR_WrapperCtx_t *ctx, DVR_RecordSegmentInfo_t *seg_info)
 {
   DVR_WrapperRecordSegmentInfo_t *p_seg;
-  int error;
+  int error = DVR_SUCCESS;
   int sn = 0;
 
-  error = 0;
   p_seg = (DVR_WrapperRecordSegmentInfo_t *)calloc(1, sizeof(DVR_WrapperRecordSegmentInfo_t));
   if (!p_seg) {
-    error = DVR_FAILURE;
-    DVR_WRAPPER_INFO("memory fail\n");
+    DVR_WRAPPER_ERROR("memory allocation failed");
+    return DVR_FAILURE;
   }
   p_seg->info = *seg_info;
   list_add(&p_seg->head, &ctx->segments);
