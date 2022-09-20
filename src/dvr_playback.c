@@ -1241,9 +1241,11 @@ static void* _dvr_playback_thread(void *arg)
         dvr_mutex_unlock(&player->lock);
         goto_rewrite = DVR_FALSE;
         real_read = 0;
+        pthread_mutex_lock(&player->segment_lock);
         player->ts_cache_len = 0;
         player->play_flag = player->play_flag & (~DVR_PLAYBACK_STARTED_PAUSEDLIVE);
         player->first_frame = 0;
+        pthread_mutex_unlock(&player->segment_lock);
         _dvr_playback_fffb((DVR_PlaybackHandle_t)player);
         dvr_mutex_lock(&player->lock);
         player->fffb_play = DVR_FALSE;
@@ -1429,7 +1431,9 @@ static void* _dvr_playback_thread(void *arg)
     if (input_buffer.buf_size <= 0 || input_buffer.buf_data == NULL) {
       DVR_PB_INFO("error occur read_read [%d],buf=[%p]",input_buffer.buf_size, input_buffer.buf_data);
       real_read = 0;
+      pthread_mutex_lock(&player->segment_lock);
       player->ts_cache_len = 0;
+      pthread_mutex_unlock(&player->segment_lock);
       continue;
     }
     //if need write whole block size, we need check read buf len is eq block size.
@@ -1498,9 +1502,11 @@ rewrite:
       //need drop ts data when seek occur.we need read next loop,drop this ts data
       goto_rewrite = DVR_FALSE;
       real_read = 0;
+      pthread_mutex_lock(&player->segment_lock);
       player->ts_cache_len = 0;
       player->drop_ts = DVR_FALSE;
-    DVR_PB_INFO("----drop ts");
+      pthread_mutex_unlock(&player->segment_lock);
+      DVR_PB_INFO("----drop ts");
       continue;
     }
 

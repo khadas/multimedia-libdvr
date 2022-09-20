@@ -276,7 +276,9 @@ AM_ErrorCode_t AM_SMC_Open(int dev_no, const AM_SMC_OpenPara_t *para)
 
     dev->enable_thread = para->enable_thread;
     dev->openned = AM_TRUE;
+    pthread_mutex_lock(&dev->lock);
     dev->flags = 0;
+    pthread_mutex_unlock(&dev->lock);
 
     if (dev->enable_thread)
     {
