@@ -243,7 +243,7 @@ int start_test(void)
                 DVR_WrapperPlaybackStatus_t status;
                 INF("playback status:\n");
                 error = dvr_wrapper_get_playback_status(player, &status);
-                RESULT("state:%d\n", status.state);
+                RESULT("state:%d=(%d)\n", status.state, error);
                 RESULT("curr(time/size/pkts):%lu:%llu:%u\n",
                     status.info_cur.time,
                     status.info_cur.size,
@@ -538,6 +538,7 @@ static int get_dvr_info(char *location, int *apid, int *afmt, int *vpid, int *vf
     if (!error && segment_nb) {
         error = dvr_segment_get_info(location, p_segment_ids[0], &seg_info);
         free(p_segment_ids);
+        p_segment_ids = NULL;
     }
     if (!error) {
         int i;

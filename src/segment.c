@@ -65,22 +65,22 @@ static void segment_get_fname(char fname[MAX_SEGMENT_PATH_SIZE],
   DVR_ASSERT(offset + DVR_MAX_LOCATION_SIZE < MAX_SEGMENT_PATH_SIZE);
 
   if (type != SEGMENT_FILE_TYPE_ALL_DATA) {
-    strncpy(fname + offset, "-", 1);
+    strncpy(fname + offset, "-", 2);
     offset += 1;
     sprintf(fname + offset, "%04llu", segment_id);
     offset += strlen(fname + offset);
   }
 
   if (type == SEGMENT_FILE_TYPE_TS)
-    strncpy(fname + offset, ".ts", 3);
+    strncpy(fname + offset, ".ts", 4);
   else if (type == SEGMENT_FILE_TYPE_INDEX)
-    strncpy(fname + offset, ".idx", 4);
+    strncpy(fname + offset, ".idx", 5);
   else if (type == SEGMENT_FILE_TYPE_DAT)
-    strncpy(fname + offset, ".dat", 4);
+    strncpy(fname + offset, ".dat", 5);
   else if (type == SEGMENT_FILE_TYPE_ONGOING)
-    strncpy(fname + offset, ".going", 6);
+    strncpy(fname + offset, ".going", 7);
   else if (type == SEGMENT_FILE_TYPE_ALL_DATA)
-    strncpy(fname + offset, ".dat", 4);
+    strncpy(fname + offset, ".dat", 5);
 
 }
 
@@ -110,6 +110,7 @@ int segment_open(Segment_OpenParams_t *params, Segment_Handle_t *p_handle)
   char all_dat_fname[MAX_SEGMENT_PATH_SIZE];
   char dir_name[MAX_SEGMENT_PATH_SIZE];
   char going_name[MAX_SEGMENT_PATH_SIZE];
+  int ret = 0;
 
   DVR_RETURN_IF_FALSE(params);
   DVR_RETURN_IF_FALSE(p_handle);
@@ -139,9 +140,15 @@ int segment_open(Segment_OpenParams_t *params, Segment_Handle_t *p_handle)
   memset(dir_name, 0, sizeof(dir_name));
   segment_get_dirname(dir_name, params->location);
 
-  mkdir(dir_name, 0666);
+  ret = mkdir(dir_name, 0666);
+  if (ret == -1) {
+    DVR_WARN("mkdir of %s returns %d due to errno:%d,%s",
+        dir_name,ret,errno,strerror(errno));
+  }
   if (access(dir_name, F_OK) == -1) {
-    DVR_WARN("%s dir %s does not exist", __func__, dir_name);
+    DVR_ERROR("%s dir %s does not exist", __func__, dir_name);
+    free(p_ctx);
+    p_ctx = NULL;
     return DVR_FAILURE;
   }
 

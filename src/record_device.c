@@ -657,8 +657,8 @@ int record_device_set_secure_buffer(Record_DeviceHandle_t handle, uint8_t *sec_b
   pthread_mutex_lock(&p_ctx->lock);
   if (p_ctx->state != RECORD_DEVICE_STATE_OPENED &&
       p_ctx->state != RECORD_DEVICE_STATE_STOPPED) {
-    pthread_mutex_unlock(&p_ctx->lock);
     DVR_INFO("%s, %d, wrong state:%d", __func__, __LINE__,p_ctx->state);
+    pthread_mutex_unlock(&p_ctx->lock);
     return DVR_FAILURE;
   }
 
@@ -673,10 +673,11 @@ int record_device_set_secure_buffer(Record_DeviceHandle_t handle, uint8_t *sec_b
     memset(node, 0, sizeof(node));
     snprintf(node, sizeof(node), "/dev/dvb0.demux%d", p_ctx->dmx_dev_id);
     fd = open(node, O_RDONLY);
-		if (fd<0) {
-			DVR_ERROR("opening %d returns failure. errno:%d, %s", fd, errno, strerror(errno));
-			return DVR_FAILURE;
-		}
+    if (fd<0) {
+      DVR_ERROR("opening %d returns failure. errno:%d, %s", fd, errno, strerror(errno));
+      pthread_mutex_unlock(&p_ctx->lock);
+      return DVR_FAILURE;
+    }
     //DVR_INFO("%s libdvrFilterTrace open2 \"%s\",p_ctx->dmx_dev_id: 0x%x, fd: 0x%x ", __func__,node, p_ctx->dmx_dev_id, fd);
     if (SECDMX_AllocateDVRBuffer_Ptr != NULL) {
     for (i = 0; i < MAX_RECORD_DEVICE_COUNT; i++) {

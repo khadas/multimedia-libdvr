@@ -852,6 +852,8 @@ static int wrapper_addPlaybackSegment(DVR_WrapperCtx_t *ctx,
   const int len = strlen(ctx->playback.param_open.location);
   if (len >= DVR_MAX_LOCATION_SIZE || len <= 0) {
     DVR_WRAPPER_ERROR("Invalid playback.param_open.location length %d", len);
+    free(p_seg);
+    p_seg = NULL;
     return DVR_FAILURE;
   }
   strncpy(p_seg->playback_info.location, ctx->playback.param_open.location, len+1);
@@ -1715,6 +1717,7 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
             ctx->playback.param_open.location, error);
           for (i = 0; i < segment_nb; i++) {
             DVR_RecordSegmentInfo_t seg_info;
+            memset((void*)&seg_info,0,sizeof(seg_info));
 
             error = dvr_segment_get_info(ctx->playback.param_open.location, p_segment_ids[i], &seg_info);
             if (error) {
@@ -1763,11 +1766,11 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
           }
     } else {
         for (i = 0; i < segment_nb; i++) {
-          DVR_RecordSegmentInfo_t *seg_info;
+          DVR_RecordSegmentInfo_t *p_seg_info;
           int found = 0;
-          list_for_each_entry(seg_info, &info_list, head)
+          list_for_each_entry(p_seg_info, &info_list, head)
           {
-            if (seg_info->id == p_segment_ids[i]) {
+            if (p_seg_info->id == p_segment_ids[i]) {
               found = 1;
               DVR_WRAPPER_INFO("get segment info::%d", i);
               break;
@@ -1777,6 +1780,7 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
             //last info is not found if when recording occured power off.
             if (p_segment_ids[i] == segment_nb - 1) {
               DVR_RecordSegmentInfo_t seg_info;
+              memset((void*)&seg_info,0,sizeof(seg_info));
 
               error = dvr_segment_get_info(ctx->playback.param_open.location, p_segment_ids[i], &seg_info);
               if (error) {
@@ -1825,20 +1829,20 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
           //add check if has audio  or video pid. if not exist. not add segment to playback
           int ii = 0;
           int has_av = 0;
-          for (ii = 0; ii < seg_info->nb_pids; ii++) {
-            int type = (seg_info->pids[ii].type >> 24) & 0x0f;
+          for (ii = 0; ii < p_seg_info->nb_pids; ii++) {
+            int type = (p_seg_info->pids[ii].type >> 24) & 0x0f;
             if (type == DVR_STREAM_TYPE_VIDEO ||
               type == DVR_STREAM_TYPE_AUDIO ||
               type == DVR_STREAM_TYPE_AD) {
             DVR_WRAPPER_INFO("success to get seg av info \n");
-              DVR_WRAPPER_INFO("success to get seg av info type[0x%x][%d] [%d][%d][%d]\n",(seg_info->pids[ii].type >> 24)&0x0f,seg_info->pids[ii].pid,
+              DVR_WRAPPER_INFO("success to get seg av info type[0x%x][%d] [%d][%d][%d]\n",(p_seg_info->pids[ii].type >> 24)&0x0f,p_seg_info->pids[ii].pid,
               DVR_STREAM_TYPE_VIDEO,
               DVR_STREAM_TYPE_AUDIO,
               DVR_STREAM_TYPE_AD);
               has_av = 1;
               //break;
             } else {
-              DVR_WRAPPER_INFO("error to get seg av info type[0x%x][%d] [%d][%d][%d]\n",(seg_info->pids[ii].type >> 24)&0x0f,seg_info->pids[ii].pid,
+              DVR_WRAPPER_INFO("error to get seg av info type[0x%x][%d] [%d][%d][%d]\n",(p_seg_info->pids[ii].type >> 24)&0x0f,p_seg_info->pids[ii].pid,
               DVR_STREAM_TYPE_VIDEO,
               DVR_STREAM_TYPE_AUDIO,
               DVR_STREAM_TYPE_AD);
@@ -1851,13 +1855,13 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
             DVR_WRAPPER_INFO("success to get seg av info \n");
           }
           segflags = DVR_PLAYBACK_SEGMENT_DISPLAYABLE | DVR_PLAYBACK_SEGMENT_CONTINUOUS;
-          error = wrapper_addPlaybackSegment(ctx, seg_info, p_pids, segflags);
+          error = wrapper_addPlaybackSegment(ctx, p_seg_info, p_pids, segflags);
           if (error)
             break;
 
           /*copy the 1st segment*/
           if (got_1st_seg == 0) {
-              seg_info_1st = *seg_info;
+              seg_info_1st = *p_seg_info;
               got_1st_seg = 1;
           }
         }
@@ -2005,7 +2009,7 @@ int dvr_wrapper_restart_timeshift(DVR_WrapperPlayback_t playback, DVR_PlaybackFl
   //clear play statue
   ctx = ctx_getPlayback((unsigned long)playback);
   if (ctx) {
-    //clear old playback status
+    //reset old playback status
     //     struct {
     //   DVR_WrapperPlaybackOpenParams_t param_open;
     //   DVR_PlaybackHandle_t            player;
@@ -2023,8 +2027,8 @@ int dvr_wrapper_restart_timeshift(DVR_WrapperPlayback_t playback, DVR_PlaybackFl
     //   DVR_WrapperInfo_t               obsolete;
     //   DVR_Bool_t                      tf_full;
     // } playback;
-    ctx->playback.tf_full == DVR_FALSE;
-    ctx->playback.reach_end == DVR_FALSE;
+    ctx->playback.tf_full = DVR_FALSE;
+    ctx->playback.reach_end = DVR_FALSE;
     memset(&(ctx->playback.last_event), 0, sizeof(DVR_PlaybackEvent_t));
     memset(&(ctx->playback.seg_status), 0, sizeof(DVR_PlaybackStatus_t));
     memset(&(ctx->playback.status), 0, sizeof(DVR_WrapperPlaybackStatus_t));

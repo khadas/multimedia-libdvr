@@ -710,7 +710,7 @@ retry:
     player->r_handle = NULL;
   }
 
-  memset(params.location, 0, DVR_MAX_LOCATION_SIZE);
+  memset((void*)&params,0,sizeof(params));
   //cp current segment path to location
   memcpy(params.location, player->cur_segment.location, DVR_MAX_LOCATION_SIZE);
   params.segment_id = (uint64_t)player->cur_segment.segment_id;
@@ -793,7 +793,7 @@ static int _dvr_open_segment(DVR_PlaybackHandle_t handle, uint64_t segment_id)
     pthread_mutex_unlock(&player->segment_lock);
     return DVR_FAILURE;
   }
-  memset(params.location, 0, DVR_MAX_LOCATION_SIZE);
+  memset((void*)&params,0,sizeof(params));
 
   const int len2 = strlen(player->cur_segment.location);
   if (len2 >= DVR_MAX_LOCATION_SIZE || len2 <= 0) {
@@ -1099,7 +1099,7 @@ static void* _dvr_playback_thread(void *arg)
             if (seg_size>0) {
                 progress = (float)read_ptr*100/seg_size;
             }
-            _nchar=sprintf(_pbuf,"%lld(%.1f%), ",_segment->segment_id,progress);
+            _nchar=sprintf(_pbuf,"%lld(%.1f%%), ",_segment->segment_id,progress);
           } else {
             _nchar=sprintf(_pbuf,"%lld, ",_segment->segment_id);
           }

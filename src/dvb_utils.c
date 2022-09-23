@@ -71,7 +71,7 @@ int dvb_set_demux_source(int dmx_idx, DVB_DemuxSource_t src)
     char node2[20] = {0};
     int fd = -1;
     int fd2 = -1;
-    int r;
+    int r = 0;
 
     snprintf(node, sizeof(node), "/sys/class/stb/demux%d_source", dmx_idx);
     snprintf(node2, sizeof(node2), "/dev/dvb0.demux%d", dmx_idx);
@@ -212,7 +212,8 @@ int dvb_get_demux_source(int dmx_idx, DVB_DemuxSource_t *src)
     int fd = -1;
     int fd2 = -1;
     char buf[32] = {0};
-    int r, source_no;
+    int r = 0;
+    int source_no = 0;
 
     snprintf(node, sizeof(node), "/sys/class/stb/demux%d_source", dmx_idx);
     snprintf(node2, sizeof(node2), "/dev/dvb0.demux%d", dmx_idx);

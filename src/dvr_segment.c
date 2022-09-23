@@ -147,7 +147,12 @@ int dvr_segment_get_list(const char *location, uint32_t *p_segment_nb, uint64_t 
     snprintf(fpath, sizeof(fpath), "%s-%%d.ts", location);
 
     p = malloc(n * sizeof(uint64_t));
-    DVR_RETURN_IF_FALSE(p != NULL);
+    if (p == NULL) {
+      DVR_ERROR("%s, Failed to allocate memory with errno:%d (%s)",
+          __func__,errno,strerror(errno));
+      pclose(fp);
+      return DVR_FAILURE;
+    }
 
     while (fgets(buf, sizeof(buf), fp) != NULL) {
       if (sscanf(buf, fpath, &id) != 1) {
