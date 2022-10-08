@@ -1648,7 +1648,7 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
   int got_1st_seg=0;
   DVR_WrapperCtx_t *ctx_record;/*for timeshift*/
   DVR_Bool_t is_timeshift = DVR_FALSE;
-	DVR_PlaybackSegmentFlag_t segflags = 0;
+  DVR_PlaybackSegmentFlag_t segflags = 0;
 
   DVR_RETURN_IF_FALSE(playback);
   DVR_RETURN_IF_FALSE(p_pids);
@@ -1715,6 +1715,9 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
           error = DVR_FAILURE;
           DVR_WRAPPER_INFO("fail to get all seg info (location:%s), (error:%d)\n",
             ctx->playback.param_open.location, error);
+          // Tainted data issue originating from fgets seem false positive, so we
+          // just suppress it here.
+          // coverity[tainted_data]
           for (i = 0; i < segment_nb; i++) {
             DVR_RecordSegmentInfo_t seg_info;
             memset((void*)&seg_info,0,sizeof(seg_info));
@@ -1729,6 +1732,9 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
             //add check if has audio  or video pid. if not exist. not add segment to playback
             int ii = 0;
             int has_av = 0;
+            // Tainted data issue originating from fgets seem false positive, so we
+            // just suppress it here.
+            // coverity[tainted_data]
             for (ii = 0; ii < seg_info.nb_pids; ii++) {
               int type = (seg_info.pids[ii].type >> 24) & 0x0f;
               if (type == DVR_STREAM_TYPE_VIDEO ||
@@ -1765,6 +1771,9 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
             }
           }
     } else {
+        // Tainted data issue originating from fgets seem false positive, so we
+        // just suppress it here.
+        // coverity[tainted_data]
         for (i = 0; i < segment_nb; i++) {
           DVR_RecordSegmentInfo_t *p_seg_info;
           int found = 0;
@@ -1793,6 +1802,9 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
               //add check if has audio  or video pid. if not exist. not add segment to playback
               int ii = 0;
               int has_av = 0;
+              // Tainted data issue originating from fgets seem false positive, so we
+              // just suppress it here.
+              // coverity[tainted_data]
               for (ii = 0; ii < seg_info.nb_pids; ii++) {
                 int type = (seg_info.pids[ii].type >> 24) & 0x0f;
                 if (type == DVR_STREAM_TYPE_VIDEO ||
@@ -2513,6 +2525,9 @@ int dvr_wrapper_segment_get_info_by_location (const char *location, DVR_WrapperI
       DVR_WRAPPER_INFO("fail to get seg info (location:%s, seg:%llu), (error:%d)\n",
         location, 0, error);
 
+      // Tainted data issue originating from fgets seem false positive, so we
+      // just suppress it here.
+      // coverity[tainted_data]
       for (i = 0; i < n_ids; i++) {
           error = dvr_segment_get_info(location, p_ids[i], &info);
           if (!error) {
@@ -2526,6 +2541,9 @@ int dvr_wrapper_segment_get_info_by_location (const char *location, DVR_WrapperI
       }
     } else {
       DVR_WRAPPER_INFO("get list segment_nb::%d",n_ids);
+      // Tainted data issue originating from fgets seem false positive, so we
+      // just suppress it here.
+      // coverity[tainted_data]
       for (i = 0; i < n_ids; i++) {
 
           DVR_RecordSegmentInfo_t *seg_info;

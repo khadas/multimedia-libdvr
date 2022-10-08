@@ -542,6 +542,7 @@ static int get_dvr_info(char *location, int *apid, int *afmt, int *vpid, int *vf
     }
     if (!error) {
         int i;
+        // coverity[tainted_data]
         for (i = 0; i < seg_info.nb_pids; i++) {
             switch (DVR_STREAM_TYPE_TO_TYPE(seg_info.pids[i].type))
             {

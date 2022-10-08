@@ -130,9 +130,10 @@ int dvr_segment_get_list(const char *location, uint32_t *p_segment_nb, uint64_t 
     if (fgets(buf, sizeof(buf), fp) != NULL) {
       i = strtoul(buf, NULL, 10);
       pclose(fp);
+      DVR_RETURN_IF_FALSE(i>0);
     } else {
       pclose(fp);
-      DVR_INFO("%s location:%s get null",  __func__, location);
+      DVR_ERROR("%s location:%s get null",  __func__, location);
       return DVR_FAILURE;
     }
     n = i;
@@ -146,6 +147,9 @@ int dvr_segment_get_list(const char *location, uint32_t *p_segment_nb, uint64_t 
     j = 0;
     snprintf(fpath, sizeof(fpath), "%s-%%d.ts", location);
 
+    // Tainted data issue originating from fgets seem false positive, so we
+    // just suppress it here.
+    // coverity[tainted_data]
     p = malloc(n * sizeof(uint64_t));
     if (p == NULL) {
       DVR_ERROR("%s, Failed to allocate memory with errno:%d (%s)",
@@ -187,6 +191,11 @@ int dvr_segment_get_info(const char *location, uint64_t segment_id, DVR_RecordSe
   memcpy(open_params.location, location, strlen(location));
   open_params.segment_id = segment_id;
   open_params.mode = SEGMENT_MODE_READ;
+
+  // Previous location strlen checking againest DVR_MAX_LOCATION_SIZE and
+  // latter memset on open_params ensure that open_params.locatin is
+  // null-terminated, so the Coverity STRING_NULL error is suppressed here.
+  // coverity[string_null]
   ret = segment_open(&open_params, &segment_handle);
   if (ret == DVR_SUCCESS) {
     ret = segment_load_info(segment_handle, p_info);
@@ -217,6 +226,11 @@ int dvr_segment_get_allInfo(const char *location, struct list_head *list)
   memcpy(open_params.location, location, strlen(location));
   open_params.segment_id = 0;
   open_params.mode = SEGMENT_MODE_READ;
+
+  // Previous location strlen checking againest DVR_MAX_LOCATION_SIZE and
+  // latter memset on open_params ensure that open_params.locatin is
+  // null-terminated, so the Coverity STRING_NULL error is suppressed here.
+  // coverity[string_null]
   ret = segment_open(&open_params, &segment_handle);
   if (ret == DVR_SUCCESS) {
     ret = segment_load_allInfo(segment_handle, list);

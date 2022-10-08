@@ -196,7 +196,7 @@ int segment_open(Segment_OpenParams_t *params, Segment_Handle_t *p_handle)
     return DVR_FAILURE;
   }
   p_ctx->segment_id = params->segment_id;
-  strncpy(p_ctx->location, params->location, strlen(params->location));
+  strncpy(p_ctx->location, params->location, strlen(params->location)+1);
   p_ctx->force_sysclock = params->force_sysclock;
 
   //DVR_INFO("%s, open file success p_ctx->location [%s]", __func__, p_ctx->location, params->mode);
@@ -527,6 +527,9 @@ loff_t segment_tell_position_time(Segment_Handle_t handle, loff_t position)
     if (position <= offset
         &&position >= offset_p
         && offset - offset_p > 0) {
+      // Tainted data issue originating from fgets seem false positive, so we
+      // just suppress it here.
+      // coverity[tainted_data]
       ret = pts_p + (pts - pts_p) * (position - offset_p) / (offset - offset_p);
       //DVR_INFO("tell cur time=%llu, pts_p = %llu, offset=%lld, position=%lld offset_p+%lld\n", pts, pts_p, offset, position, offset_p);
       return ret;
@@ -788,6 +791,10 @@ int segment_load_info(Segment_Handle_t handle, Segment_StoreInfo_t *p_info)
   p_info->nb_pids = strtoul(p1 + 8, NULL, 10);
 
   /*Save pid information*/
+
+  // Tainted data issue originating from fgets seem false positive, so we
+  // just suppress it here.
+  // coverity[tainted_data]
   for (i = 0; i < p_info->nb_pids; i++) {
     p1 = fgets(buf, sizeof(buf), p_ctx->dat_fp);
     DVR_RETURN_IF_FALSE(p1);
@@ -882,6 +889,9 @@ int segment_load_allInfo(Segment_Handle_t handle, struct list_head *list)
     p_info->nb_pids = strtoull(p1 + 8, NULL, 10);
 
     /*Save pid information*/
+    // Tainted data issue originating from fgets seem false positive, so we
+    // just suppress it here.
+    // coverity[tainted_data]
     for (i = 0; i < p_info->nb_pids; i++) {
       p1 = fgets(buf, sizeof(buf), p_ctx->all_dat_fp);
       DVR_RETURN_IF_FALSE(p1);
