@@ -58,11 +58,11 @@ static void segment_get_fname(char fname[MAX_SEGMENT_PATH_SIZE],
 {
   int offset;
 
-  memset(fname, 0, MAX_SEGMENT_PATH_SIZE);
-  strncpy(fname, location, strlen(location));
   offset = strlen(location);
+  DVR_ASSERT(offset < DVR_MAX_LOCATION_SIZE);
 
-  DVR_ASSERT(offset + DVR_MAX_LOCATION_SIZE < MAX_SEGMENT_PATH_SIZE);
+  memset(fname, 0, MAX_SEGMENT_PATH_SIZE);
+  strncpy(fname, location, offset);
 
   if (type != SEGMENT_FILE_TYPE_ALL_DATA) {
     strncpy(fname + offset, "-", 2);
