@@ -34,9 +34,9 @@ static void smc_cb(int dev_no, AM_SMC_CardStatus_t status, void *data)
 static int smc_test(AM_Bool_t sync)
 {
     AM_SMC_OpenPara_t para;
-    uint8_t atr[AM_SMC_MAX_ATR_LEN];
+    uint8_t atr[AM_SMC_MAX_ATR_LEN] = {0};
     int i, len;
-    AM_SMC_CardStatus_t status;
+    AM_SMC_CardStatus_t status = AM_SMC_CARD_OUT;
 //    uint8_t sbuf[5]={0x80, 0x44, 0x00, 0x00, 0x08};
     uint8_t sbuf[5] = {0xD0, 0x58, 0x00, 0x00, 0x4A};
     uint8_t rbuf[256];

@@ -482,7 +482,7 @@ static int wrapper_requestThread(DVR_WrapperThreadCtx_t *ctx, void *(thread_fn)(
 {
   pthread_mutex_lock(&ctx->lock);
   if (ctx->running == 0) {
-    pthread_condattr_t attr;
+    pthread_condattr_t attr = {0};
     pthread_condattr_setclock(&attr, CLOCK_MONOTONIC);
     pthread_cond_init(&ctx->cond, &attr);
     pthread_condattr_destroy(&attr);
@@ -853,7 +853,6 @@ static int wrapper_addPlaybackSegment(DVR_WrapperCtx_t *ctx,
   if (len >= DVR_MAX_LOCATION_SIZE || len <= 0) {
     DVR_WRAPPER_ERROR("Invalid playback.param_open.location length %d", len);
     free(p_seg);
-    p_seg = NULL;
     return DVR_FAILURE;
   }
   strncpy(p_seg->playback_info.location, ctx->playback.param_open.location, len+1);
@@ -910,7 +909,10 @@ static int wrapper_addRecordSegment(DVR_WrapperCtx_t *ctx, DVR_RecordSegmentInfo
           flags = DVR_PLAYBACK_SEGMENT_DISPLAYABLE | DVR_PLAYBACK_SEGMENT_CONTINUOUS;
           if (ctx->record.param_open.flags & DVR_RECORD_FLAG_SCRAMBLED)
             flags |= DVR_PLAYBACK_SEGMENT_ENCRYPTED;
-          wrapper_addPlaybackSegment(ctx_playback, seg_info, &ctx_playback->playback.pids_req, flags);
+          error = wrapper_addPlaybackSegment(ctx_playback, seg_info, &ctx_playback->playback.pids_req, flags);
+          if (error == DVR_FAILURE) {
+            DVR_WRAPPER_WARN("adding playback segment fails");
+          }
         } else {
           DVR_WRAPPER_INFO("rec(sn:%ld) add_seg: playback(sn:%ld) list empty\n", ctx->sn, sn);
         }
@@ -1158,7 +1160,7 @@ int dvr_wrapper_close_record (DVR_WrapperRecord_t rec)
   WRAPPER_RETURN_IF_FALSE_WITH_UNLOCK(ctx_valid(ctx), &ctx->wrapper_lock);
 
   memset(&seg_info, 0, sizeof(seg_info));
-  error = dvr_record_stop_segment(ctx->record.recorder, &seg_info);
+  dvr_record_stop_segment(ctx->record.recorder, &seg_info);
 
   error = dvr_record_close(ctx->record.recorder);
 
@@ -1612,7 +1614,7 @@ int dvr_wrapper_close_playback (DVR_WrapperPlayback_t playback)
     sn_timeshift_playback = 0;
 
   /*try stop first*/
-  error = dvr_playback_stop(ctx->playback.player, DVR_TRUE);
+  dvr_playback_stop(ctx->playback.player, DVR_TRUE);
 
   {
     /*remove all segments*/
@@ -1762,8 +1764,10 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
             }
             segflags = DVR_PLAYBACK_SEGMENT_DISPLAYABLE | DVR_PLAYBACK_SEGMENT_CONTINUOUS;
             error = wrapper_addPlaybackSegment(ctx, &seg_info, p_pids, segflags);
-            if (error)
+            if (error == DVR_FAILURE) {
+              DVR_WRAPPER_WARN("adding playback segment fails");
               break;
+            }
             /*copy the 1st segment*/
             if (got_1st_seg == 0) {
                 seg_info_1st = seg_info;
@@ -1832,8 +1836,10 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
               }
               segflags = DVR_PLAYBACK_SEGMENT_DISPLAYABLE | DVR_PLAYBACK_SEGMENT_CONTINUOUS;
               error = wrapper_addPlaybackSegment(ctx, &seg_info, p_pids, segflags);
-              if (error)
+              if (error == DVR_FAILURE) {
+                DVR_WRAPPER_WARN("adding playback segment fails");
                 break;
+              }
             }
             continue;
           }
@@ -1868,8 +1874,10 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
           }
           segflags = DVR_PLAYBACK_SEGMENT_DISPLAYABLE | DVR_PLAYBACK_SEGMENT_CONTINUOUS;
           error = wrapper_addPlaybackSegment(ctx, p_seg_info, p_pids, segflags);
-          if (error)
+          if (error == DVR_FAILURE) {
+            DVR_WRAPPER_WARN("adding playback segment fails");
             break;
+          }
 
           /*copy the 1st segment*/
           if (got_1st_seg == 0) {
@@ -1915,7 +1923,7 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
         wrapper_mutex_lock(&ctx->wrapper_lock);
         error = dvr_playback_start(ctx->playback.player, flags);
       } else {
-        error = dvr_playback_seek(ctx->playback.player, seg_info_1st.id, 0);
+        dvr_playback_seek(ctx->playback.player, seg_info_1st.id, 0);
         error = dvr_playback_start(ctx->playback.player, flags);
         DVR_WRAPPER_INFO("playback(sn:%ld) seek(seg:%llu 0) for start (%d)\n",
           ctx->sn, seg_info_1st.id, error);
@@ -1947,7 +1955,7 @@ int dvr_wrapper_stop_timeshift (DVR_WrapperPlayback_t playback)
 
   //stop timeshift record
   ctx_record = ctx_getRecord(sn_timeshift_record);
-  error = dvr_wrapper_stop_record((DVR_WrapperRecord_t)sn_timeshift_record);
+  dvr_wrapper_stop_record((DVR_WrapperRecord_t)sn_timeshift_record);
 
   DVR_WRAPPER_INFO("stop timeshift ...stop play\n");
   //stop play
@@ -2518,7 +2526,8 @@ int dvr_wrapper_segment_get_info_by_location (const char *location, DVR_WrapperI
     //we need free info list buf when we used end.
     error = dvr_segment_get_allInfo(location, &info_list);
     if (error == DVR_FAILURE) {
-      DVR_RecordSegmentInfo_t info;
+      DVR_RecordSegmentInfo_t info = { .id = 0, .nb_pids = 0,
+        .pids = {0}, .duration = 0, .size = 0, .nb_packets = 0 };
 
       memset(&info, 0, sizeof(info));
       error = DVR_FAILURE;
@@ -2559,7 +2568,8 @@ int dvr_wrapper_segment_get_info_by_location (const char *location, DVR_WrapperI
           if (!found) {
               DVR_WRAPPER_INFO("get segment info::%d [%d]n_ids[%d]error", i, p_ids[i], n_ids);
               if (p_ids[i] == n_ids - 1) {
-                DVR_RecordSegmentInfo_t info;
+                DVR_RecordSegmentInfo_t info = { .id = 0, .nb_pids = 0,
+                  .pids = {0}, .duration = 0, .size = 0, .nb_packets = 0 };
                 DVR_WRAPPER_INFO("get last segment info::%d [%d]n_ids[%d] from subfile", i, p_ids[i], n_ids);
                 error = dvr_segment_get_info(location, p_ids[i], &info);
                 if (!error) {
@@ -2605,21 +2615,27 @@ int dvr_wrapper_segment_get_info_by_location (const char *location, DVR_WrapperI
 
 static DVR_Result_t wrapper_record_event_handler(DVR_RecordEvent_t event, void *params, void *userdata)
 {
-  DVR_WrapperEventCtx_t evt;
+  DVR_WrapperEventCtx_t evt = {
+    .sn = (unsigned long)userdata,
+    .type = W_REC,
+    .record.event = event,
+    .record.status = *(DVR_RecordStatus_t *)params
+  };
 
   DVR_RETURN_IF_FALSE(userdata);
 
-  evt.sn = (unsigned long)userdata;
-  evt.type = W_REC;
-  evt.record.event = event;
-  evt.record.status = *(DVR_RecordStatus_t *)params;
   DVR_WRAPPER_INFO("evt[sn:%ld, record, evt:0x%x]\n", evt.sn, evt.record.event);
   return ctx_addRecordEvent(&evt);
 }
 
 static DVR_Result_t wrapper_playback_event_handler(DVR_PlaybackEvent_t event, void *params, void *userdata)
 {
-  DVR_WrapperEventCtx_t evt;
+  DVR_WrapperEventCtx_t evt = {
+    .sn = (unsigned long)userdata,
+    .type = W_PLAYBACK,
+    .playback.event = event,
+    .playback.status = *(DVR_Play_Notify_t *)params
+  };
 
   DVR_RETURN_IF_FALSE(userdata);
 

@@ -142,7 +142,6 @@ static int record_save_pcr(DVR_RecordContext_t *p_ctx, uint8_t *buf, loff_t pos)
       has_pcr = 1;
     }
 
-    p += adp_field_len;
     len -= adp_field_len;
 
     if (len < 0) {
@@ -737,6 +736,7 @@ int dvr_record_start_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t 
   }
 
   ret = segment_store_info(p_ctx->segment_handle, &p_ctx->segment_info);
+  DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
 
   p_ctx->state = DVR_RECORD_STATE_STARTED;
   if (!p_ctx->is_vod)
@@ -783,7 +783,7 @@ int dvr_record_next_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t *
 
   ret = segment_store_info(p_ctx->segment_handle, p_info);
   DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
-  ret = segment_store_allInfo(p_ctx->segment_handle, p_info);
+  segment_store_allInfo(p_ctx->segment_handle, p_info);
   DVR_INFO("%s dump segment info, id:%lld, nb_pids:%d, duration:%ld ms, size:%zu, nb_packets:%d params->segment.nb_pids:%d",
       __func__, p_info->id, p_info->nb_pids, p_info->duration, p_info->size, p_info->nb_packets, params->segment.nb_pids);
 
@@ -839,6 +839,7 @@ int dvr_record_next_segment(DVR_RecordHandle_t handle, DVR_RecordStartParams_t *
   //DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
   /*Update segment info*/
   ret = segment_store_info(p_ctx->segment_handle, &p_ctx->segment_info);
+  DVR_RETURN_IF_FALSE(ret == DVR_SUCCESS);
   if (p_ctx->pts != ULLONG_MAX)
     segment_update_pts(p_ctx->segment_handle, p_ctx->pts, 0);
 

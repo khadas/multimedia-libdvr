@@ -30,7 +30,6 @@ void *dvr_segment_thread(void *arg)
   if (segment_file != NULL) {
     //malloc at delete api.free at this
     free(segment_file);
-    segment_file = NULL;
   }
   return NULL;
 }
@@ -58,7 +57,6 @@ int dvr_segment_delete(const char *location, uint64_t segment_id)
   if (ret != 0) {
     if (segment != NULL) {
       free(segment);
-      segment = NULL;
     }
   }
   return DVR_SUCCESS;

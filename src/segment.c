@@ -148,7 +148,6 @@ int segment_open(Segment_OpenParams_t *params, Segment_Handle_t *p_handle)
   if (access(dir_name, F_OK) == -1) {
     DVR_ERROR("%s dir %s does not exist", __func__, dir_name);
     free(p_ctx);
-    p_ctx = NULL;
     return DVR_FAILURE;
   }
 

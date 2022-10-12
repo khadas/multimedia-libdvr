@@ -21,7 +21,6 @@ static int get_diff_time(struct timeval start_tv, struct timeval end_tv)
 int main(int argc, char **argv)
 {
     char * Filename = "arecord.data";
-    int ts_fd = -1;
     int ret = 0;
 
     struct timeval t1, t2;
@@ -33,7 +32,7 @@ int main(int argc, char **argv)
         printf("filename: %s \n",Filename);
     }
 
-    ts_fd = open(Filename, O_CREAT | O_RDWR | O_TRUNC , 0644);
+    int ts_fd = open(Filename, O_CREAT | O_RDWR | O_TRUNC , 0644);
         if (ts_fd < 0) {
         printf("open %s failed\n",Filename);
         return -1;
@@ -54,7 +53,6 @@ int main(int argc, char **argv)
     }
     gettimeofday(&endTime, NULL);
     close(ts_fd);
-    ts_fd = -1;
     printf("write over, check data now\n");
     printf("TotalSize %dm,cost total Time: %dms\n", WRITE_TOTAL_SIZE / 1024 / 1024, get_diff_time(beginTime, endTime));
     printf("Bitrate %dm bps\n", WRITE_TOTAL_SIZE / 1024 /1024 * 8 * 1000 / get_diff_time(beginTime, endTime));

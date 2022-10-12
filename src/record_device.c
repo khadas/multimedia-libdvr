@@ -665,7 +665,7 @@ int record_device_set_secure_buffer(Record_DeviceHandle_t handle, uint8_t *sec_b
   if (dvr_check_dmx_isNew() == 1) {
     //new dmx drive,used io to set sec buf.
     int result = DVR_SUCCESS;
-    size_t dvr_buf;
+    size_t dvr_buf = 0;
     size_t op_handle = 0;
     int sid = p_ctx->fend_dev_id;
     int fd;

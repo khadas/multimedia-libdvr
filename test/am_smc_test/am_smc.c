@@ -199,7 +199,7 @@ smc_status_thread(void *arg)
 
     while (dev->enable_thread)
     {
-        AM_SMC_CardStatus_t status;
+        AM_SMC_CardStatus_t status = AM_SMC_CARD_OUT;
         AM_ErrorCode_t ret;
 
         pthread_mutex_lock(&dev->lock);
@@ -556,11 +556,11 @@ AM_SMC_WriteEx(int dev_no, const uint8_t *data, int len, int timeout)
  */
 AM_ErrorCode_t AM_SMC_TransferT0(int dev_no, const uint8_t *send, int slen, uint8_t *recv, int *rlen)
 {
-    AM_SMC_Device_t *dev;
+    AM_SMC_Device_t *dev = NULL;
     AM_ErrorCode_t ret = AM_SUCCESS;
-    uint8_t byte;
-    uint8_t *dst;
-    int left;
+    uint8_t byte = 0;
+    uint8_t *dst = NULL;
+    int left = 0;
     AM_Bool_t sent = AM_FALSE;
 
     assert(send && recv && rlen && (slen >= 5));
@@ -581,7 +581,7 @@ AM_ErrorCode_t AM_SMC_TransferT0(int dev_no, const uint8_t *send, int slen, uint
         {
             continue;
         }
-        else if (((byte & 0xF0) == 0x60) || ((byte & 0xF0) == 0x90))
+        if (((byte & 0xF0) == 0x60) || ((byte & 0xF0) == 0x90))
         {
             if (left < 2)
             {
@@ -592,7 +592,6 @@ AM_ErrorCode_t AM_SMC_TransferT0(int dev_no, const uint8_t *send, int slen, uint
             dst[0] = byte;
             AM_TRY_FINAL(smc_read(dev, &dst[1], 1, NULL, 1000));
             dst += 2;
-            left -= 2;
             break;
         }
         else if (byte == send[1])

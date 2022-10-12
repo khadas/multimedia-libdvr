@@ -40,7 +40,7 @@ int dvb_enable_ciplus(int enable)
 
         for (i = 0; i < 3; i ++)
         {
-            DVB_DemuxSource_t src;
+            DVB_DemuxSource_t src = DVB_DEMUX_SOURCE_TS0;
 
             dvb_get_demux_source(i, &src);
             if (src != DVB_DEMUX_SOURCE_DMA0)
@@ -69,22 +69,20 @@ int dvb_set_demux_source(int dmx_idx, DVB_DemuxSource_t src)
 {
     char node[32] = {0};
     char node2[20] = {0};
-    int fd = -1;
-    int fd2 = -1;
     int r = 0;
 
     snprintf(node, sizeof(node), "/sys/class/stb/demux%d_source", dmx_idx);
     snprintf(node2, sizeof(node2), "/dev/dvb0.demux%d", dmx_idx);
 
-    fd = open(node, O_RDONLY);
+    int fd = open(node, O_RDONLY);
     if (fd == -1)
     {
-        int source, input = 0;
-        fd2 = open(node2, O_WRONLY);
+        int source = 0;
+        int input = 0;
+        int fd2 = open(node2, O_WRONLY);
         if (fd2 != -1)
         {
-            if (src >= DVB_DEMUX_SOURCE_TS0 &&
-                src <= DVB_DEMUX_SOURCE_TS7) {
+            if (src <= DVB_DEMUX_SOURCE_TS7) {
                 source = FRONTEND_TS0 + src - DVB_DEMUX_SOURCE_TS0;
                 input = INPUT_DEMOD;
             } else if (src >= DVB_DEMUX_SOURCE_DMA0 &&
@@ -140,7 +138,7 @@ int dvb_set_demux_source(int dmx_idx, DVB_DemuxSource_t src)
     }
     else
     {
-        char *val;
+        char *val = NULL;
 
         close(fd);
 
@@ -153,7 +151,7 @@ int dvb_set_demux_source(int dmx_idx, DVB_DemuxSource_t src)
 
             for (i = 0; i < 3; i ++)
             {
-                DVB_DemuxSource_t dmx_src;
+                DVB_DemuxSource_t dmx_src = DVB_DEMUX_SOURCE_TS0;
 
                 if (i == dmx_idx)
                     dmx_src = src;
@@ -209,8 +207,6 @@ int dvb_get_demux_source(int dmx_idx, DVB_DemuxSource_t *src)
 {
     char node[32] = {0};
     char node2[20] = {0};
-    int fd = -1;
-    int fd2 = -1;
     char buf[32] = {0};
     int r = 0;
     int source_no = 0;
@@ -218,11 +214,11 @@ int dvb_get_demux_source(int dmx_idx, DVB_DemuxSource_t *src)
     snprintf(node, sizeof(node), "/sys/class/stb/demux%d_source", dmx_idx);
     snprintf(node2, sizeof(node2), "/dev/dvb0.demux%d", dmx_idx);
 
-    fd = open(node, O_RDONLY);
+    int fd = open(node, O_RDONLY);
     if (fd == -1)
     {
         int source;
-        fd2 = open(node2, O_RDONLY);
+        int fd2 = open(node2, O_RDONLY);
         if (fd2 != -1)
         {
             if (ioctl(fd2, DMX_GET_HW_SOURCE, &source) != -1)

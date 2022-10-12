@@ -207,7 +207,7 @@ int start_test(void)
                 go = DVR_FALSE;
                 continue;
             }
-            else if (!strncmp(buf, "pause", 5)) {
+            if (!strncmp(buf, "pause", 5)) {
                 error = dvr_wrapper_pause_playback(player);
                 INF( "pause=(%d)\n", error);
             }
@@ -306,7 +306,7 @@ static void tsplayer_callback(void *user_data, am_tsplayer_event *event)
               TSP_EVT("[evt] AM_TSPLAYER_EVENT_TYPE_USERDATA_AFD: %x-%x-%x-%x ,size %d\n",
                   pbuf[0], pbuf[1], pbuf[2], pbuf[3], size);
               USERDATA_AFD_t afd = *((USERDATA_AFD_t *)pbuf);
-              afd.reserved = afd.pts = 0;
+              afd.reserved = 0;
               TSP_EVT("[evt] video afd changed: flg[0x%x] fmt[0x%x]\n", afd.af_flag, afd.af);
               break;
           }
@@ -648,7 +648,8 @@ static int start_playback(int apid, int afmt, int vpid, int vfmt)
 
      /*open TsPlayer*/
     {
-       uint32_t versionM, versionL;
+       uint32_t versionM = 0;
+       uint32_t versionL = 0;
        am_tsplayer_init_params init_param =
        {
           .source = TS_MEMORY,
@@ -674,7 +675,7 @@ static int start_playback(int apid, int afmt, int vpid, int vfmt)
           (result)? "FAIL" : "OK",
           result);
 
-       result = AmTsPlayer_registerCb(tsplayer_handle,
+       AmTsPlayer_registerCb(tsplayer_handle,
           tsplayer_callback,
           "tsp0");
 
