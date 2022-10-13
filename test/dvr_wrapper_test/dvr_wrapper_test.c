@@ -631,9 +631,10 @@ static int start_playback(int apid, int afmt, int vpid, int vfmt)
         play_params.is_timeshift = DVR_FALSE;
         {
             vpid = 0x1fff;
-						apid = 0x1fff;
-						vfmt = 0;
-						afmt = 0;
+            apid = 0x1fff;
+            vfmt = 0;
+            afmt = 0;
+            // coverity[format_string_injection]
             get_dvr_info(pfilename, &apid, &afmt, &vpid, &vfmt);
 
             play_pids.video.pid = vpid;

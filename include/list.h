@@ -94,7 +94,7 @@ extern void __list_add(struct list_head *c_new,
  */
 static inline void list_add(struct list_head *c_new, struct list_head *head)
 {
-    __list_add(c_new, head, head->c_next);
+    __list_add((struct list_head*)c_new, head, head->c_next);
 }
 
 

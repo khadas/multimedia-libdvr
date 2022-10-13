@@ -870,9 +870,10 @@ int segment_load_allInfo(Segment_Handle_t handle, struct list_head *list)
     DVR_RecordSegmentInfo_t *p_info;
 
     p_info = malloc(sizeof(DVR_RecordSegmentInfo_t));
+    DVR_RETURN_IF_FALSE(p_info);
     memset(p_info, 0, sizeof(DVR_RecordSegmentInfo_t));
 
-    list_add_tail(&p_info->head, list);
+    list_add_tail(p_info, list);
 
     /*Load segment id*/
     DVR_RETURN_IF_FALSE(p1);

@@ -94,6 +94,7 @@ static void* load_secdmx_api(void)
     DVR_ERROR("load_secdmx_api load libdmx_client error[%s] no:%d", strerror(errno), errno);
     return NULL;
   }
+  secdmx_handle = handle;
 
   SECDMX_Init_Ptr = dlsym(handle, "SECDMX_Init");
   SECDMX_Deinit_Ptr = dlsym(handle, "SECDMX_Deinit");

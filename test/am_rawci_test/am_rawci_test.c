@@ -50,6 +50,7 @@ static void* ci_data_thread(void *arg)
         return NULL;
     }
     int dec = 0;
+    // coverity[loop_condition]
     while (dev->running)
     {
         AM_CI_Detect(0, &dec);
@@ -85,7 +86,6 @@ DVB_RESULT AM_CI_Open(int dev_no)
     if (dev->fd == -1)
     {
         DVB_DEBUG("cannot open \"%s\" (%s)", dev_name, strerror(errno));
-        pthread_mutex_unlock(&dev->lock);
         return DVB_FAILURE;
     }
     pthread_create(&dev->thread, NULL, ci_data_thread, dev);

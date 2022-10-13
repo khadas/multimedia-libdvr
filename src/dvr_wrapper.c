@@ -67,6 +67,10 @@ wrapper_mutex_init (DVR_WrapperMutex_t *lock)
   pthread_cond_init(&lock->cond, &cattr);
   pthread_condattr_destroy(&cattr);
 
+  // It is not necessary to protect code block below with
+  // DVR_WrapperMutex_t.lock, so the following annotation
+  // is given to surpress related Coverity complaint.
+  // coverity[missing_lock]
   lock->locked = 0;
   lock->inited = 1;
 }
@@ -75,6 +79,9 @@ static int
 wrapper_mutex_lock (DVR_WrapperMutex_t *lock)
 {
   pthread_mutex_lock(&lock->lock);
+  // This couldn't be a infinite loop as Coverity reported.
+  // Loop can finish when another thread calls wrapper_mutex_unlock.
+  // coverity[loop_condition]
   while (lock->locked) {
     pthread_cond_wait(&lock->cond, &lock->lock);
   }
@@ -351,7 +358,7 @@ static int ctx_addEvent(struct list_head *list, pthread_mutex_t *lock, DVR_Wrapp
 
   *padd = *evt;
   pthread_mutex_lock(lock);
-  list_add_tail(&padd->head, list);
+  list_add_tail(padd, list);
   pthread_mutex_unlock(lock);
   return DVR_SUCCESS;
 }
@@ -722,6 +729,10 @@ static int wrapper_updatePlaybackSegment(DVR_WrapperCtx_t *ctx, DVR_RecordSegmen
   if (p_seg->seg_info.id == seg_info->id) {
     _updatePlaybackSegment(p_seg, seg_info, update_flags, ctx);
   } else {
+    // This error is surpressed as the macro code is picked from kernel.
+    // prefetch() here incurring self_assign is used to avoid some compiling
+    // warnings.
+    // coverity[self_assign]
     list_for_each_entry_reverse(p_seg, &ctx->segments, head) {
       if (p_seg->seg_info.id == seg_info->id) {
         _updatePlaybackSegment(p_seg, seg_info, update_flags, ctx);
@@ -788,6 +799,10 @@ static int wrapper_updateRecordSegment(DVR_WrapperCtx_t *ctx, DVR_RecordSegmentI
     if (p_seg->info.id == seg_info->id) {
       _updateRecordSegment(p_seg, seg_info, update_flags, ctx);
     } else {
+      // This error is surpressed as the macro code is picked from kernel.
+      // prefetch() here incurring self_assign is used to avoid some compiling
+      // warnings.
+      // coverity[self_assign]
       list_for_each_entry_reverse(p_seg, &ctx->segments, head) {
         if (p_seg->info.id == seg_info->id) {
           _updateRecordSegment(p_seg, seg_info, update_flags, ctx);
@@ -858,9 +873,9 @@ static int wrapper_addPlaybackSegment(DVR_WrapperCtx_t *ctx,
   strncpy(p_seg->playback_info.location, ctx->playback.param_open.location, len+1);
   p_seg->playback_info.pids = *p_pids;
   p_seg->playback_info.flags = flags;
-  list_add(&p_seg->head, &ctx->segments);
-  DVR_WRAPPER_INFO("start to add segment %lld\n", p_seg->playback_info.segment_id);
   p_seg->playback_info.duration = p_seg->seg_info.duration;
+  list_add(p_seg, &ctx->segments);
+  DVR_WRAPPER_INFO("start to add segment %lld\n", p_seg->playback_info.segment_id);
 
   error = dvr_playback_add_segment(ctx->playback.player, &p_seg->playback_info);
   if (error) {
@@ -886,7 +901,7 @@ static int wrapper_addRecordSegment(DVR_WrapperCtx_t *ctx, DVR_RecordSegmentInfo
     return DVR_FAILURE;
   }
   p_seg->info = *seg_info;
-  list_add(&p_seg->head, &ctx->segments);
+  list_add(p_seg, &ctx->segments);
 
   if (ctx->record.param_open.is_timeshift ||
       (sn = ctx_isRecord_playing(ctx->record.param_open.location))) {
@@ -1620,6 +1635,10 @@ int dvr_wrapper_close_playback (DVR_WrapperPlayback_t playback)
     /*remove all segments*/
     DVR_WrapperPlaybackSegmentInfo_t *p_seg;
 
+    // This error is surpressed as the macro code is picked from kernel.
+    // prefetch() here incurring self_assign is used to avoid some compiling
+    // warnings.
+    // coverity[self_assign]
     list_for_each_entry(p_seg, &ctx->segments, head) {
       error = dvr_playback_remove_segment(ctx->playback.player, p_seg->playback_info.segment_id);
       DVR_WRAPPER_INFO("playback(sn:%ld) remove seg(%lld) (%d)\n",
@@ -1781,6 +1800,10 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
         for (i = 0; i < segment_nb; i++) {
           DVR_RecordSegmentInfo_t *p_seg_info;
           int found = 0;
+          // This error is surpressed as the macro code is picked from kernel.
+          // prefetch() here incurring self_assign is used to avoid some compiling
+          // warnings.
+          // coverity[self_assign]
           list_for_each_entry(p_seg_info, &info_list, head)
           {
             if (p_seg_info->id == p_segment_ids[i]) {
@@ -2078,6 +2101,10 @@ int dvr_wrapper_stop_playback (DVR_WrapperPlayback_t playback)
     /*remove all segments*/
     DVR_WrapperPlaybackSegmentInfo_t *p_seg;
 
+    // This error is surpressed as the macro code is picked from kernel.
+    // prefetch() here incurring self_assign is used to avoid some compiling
+    // warnings.
+    // coverity[self_assign]
     list_for_each_entry(p_seg, &ctx->segments, head) {
       error = dvr_playback_remove_segment(ctx->playback.player, p_seg->playback_info.segment_id);
       DVR_WRAPPER_INFO("playback(sn:%ld) remove seg(%lld) (%d)\n",
@@ -2253,6 +2280,10 @@ int dvr_wrapper_seek_playback (DVR_WrapperPlayback_t playback, uint32_t time_off
     }
   }
 
+  // This error is surpressed as the macro code is picked from kernel.
+  // prefetch() here incurring self_assign is used to avoid some compiling
+  // warnings.
+  // coverity[self_assign]
   list_for_each_entry_reverse(p_seg, &ctx->segments, head) {
     segment_id = p_seg->seg_info.id;
 
@@ -2305,6 +2336,10 @@ int dvr_wrapper_update_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackPid
   ctx->playback.pids_req = *p_pids;
 
   error = 0;
+  // This error is surpressed as the macro code is picked from kernel.
+  // prefetch() here incurring self_assign is used to avoid some compiling
+  // warnings.
+  // coverity[self_assign]
   list_for_each_entry_reverse(p_seg, &ctx->segments, head) {
     /*should update the whole list of segments*/
     /*if (p_seg->seg_info.id == ctx->current_segment_id)*/ {
@@ -2358,6 +2393,10 @@ int dvr_wrapper_only_update_playback (DVR_WrapperPlayback_t playback, DVR_Playba
   ctx->playback.pids_req = *p_pids;
 
   error = 0;
+  // This error is surpressed as the macro code is picked from kernel.
+  // prefetch() here incurring self_assign is used to avoid some compiling
+  // warnings.
+  // coverity[self_assign]
   list_for_each_entry_reverse(p_seg, &ctx->segments, head) {
     /*should update the whole list of segments*/
     /*if (p_seg->seg_info.id == ctx->current_segment_id)*/ {
@@ -2558,6 +2597,10 @@ int dvr_wrapper_segment_get_info_by_location (const char *location, DVR_WrapperI
           DVR_RecordSegmentInfo_t *seg_info;
           DVR_PlaybackSegmentFlag_t flags;
           int found = 0;
+          // This error is surpressed as the macro code is picked from kernel.
+          // prefetch() here incurring self_assign is used to avoid some compiling
+          // warnings.
+          // coverity[self_assign]
           list_for_each_entry(seg_info, &info_list, head)
           {
             if (seg_info->id == p_ids[i]) {
@@ -2742,6 +2785,10 @@ static int process_generateRecordStatus(DVR_WrapperCtx_t *ctx, DVR_WrapperRecord
     sizeof(ctx->record.status.pids.pids));
   ctx->current_segment_id = ctx->record.seg_status.info.id;
 
+  // This error is surpressed as the macro code is picked from kernel.
+  // prefetch() here incurring self_assign is used to avoid some compiling
+  // warnings.
+  // coverity[self_assign]
   list_for_each_entry_reverse(p_seg, &ctx->segments, head) {
     if (p_seg->info.id != ctx->record.seg_status.info.id) {
       ctx->record.status.info.time += p_seg->info.duration;
@@ -2926,6 +2973,10 @@ static int process_generatePlaybackStatus(DVR_WrapperCtx_t *ctx, DVR_WrapperPlay
   ctx->playback.status.flags = ctx->playback.seg_status.flags;
   ctx->current_segment_id = ctx->playback.seg_status.segment_id;
 
+  // This error is surpressed as the macro code is picked from kernel.
+  // prefetch() here incurring self_assign is used to avoid some compiling
+  // warnings.
+  // coverity[self_assign]
   list_for_each_entry_reverse(p_seg, &ctx->segments, head) {
     if (p_seg->seg_info.id == ctx->playback.seg_status.segment_id) {
         DVR_WRAPPER_INFO("calculate cur time :[%lld]time[%d]\n", p_seg->seg_info.id, p_seg->seg_info.duration);
@@ -2936,6 +2987,10 @@ static int process_generatePlaybackStatus(DVR_WrapperCtx_t *ctx, DVR_WrapperPlay
     ctx->playback.status.info_cur.size += p_seg->seg_info.size;
     ctx->playback.status.info_cur.pkts += p_seg->seg_info.nb_packets;
   }
+  // This error is surpressed as the macro code is picked from kernel.
+  // prefetch() here incurring self_assign is used to avoid some compiling
+  // warnings.
+  // coverity[self_assign]
   list_for_each_entry_reverse(p_seg, &ctx->segments, head) {
     ctx->playback.status.info_full.time += p_seg->seg_info.duration;
     ctx->playback.status.info_full.size += p_seg->seg_info.size;

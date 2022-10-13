@@ -25,13 +25,14 @@ int main(int argc, char **argv)
 
     struct timeval t1, t2;
     struct timeval beginTime, endTime;
-    char data[ONCE_WRITE_SIZE] = {'1'} ;
+    char *data;
 
     if (argc > 1)  {
         Filename = argv[1];
         printf("filename: %s \n",Filename);
     }
 
+    // coverity[path_manipulation_sink]
     int ts_fd = open(Filename, O_CREAT | O_RDWR | O_TRUNC , 0644);
         if (ts_fd < 0) {
         printf("open %s failed\n",Filename);
@@ -39,6 +40,14 @@ int main(int argc, char **argv)
     }
 
     int write_count  = WRITE_TOTAL_SIZE / ONCE_WRITE_SIZE;
+
+    data = malloc(ONCE_WRITE_SIZE);
+    if (data == NULL) {
+        printf("Failed to allocate memory");
+        close(ts_fd);
+        return -1;
+    }
+    memset(data,1,ONCE_WRITE_SIZE);
 
     gettimeofday(&beginTime, NULL);
     for (int i = 0; i < write_count;  i++) {
@@ -56,5 +65,7 @@ int main(int argc, char **argv)
     printf("write over, check data now\n");
     printf("TotalSize %dm,cost total Time: %dms\n", WRITE_TOTAL_SIZE / 1024 / 1024, get_diff_time(beginTime, endTime));
     printf("Bitrate %dm bps\n", WRITE_TOTAL_SIZE / 1024 /1024 * 8 * 1000 / get_diff_time(beginTime, endTime));
+
+    free(data);
     return 0;
 }
