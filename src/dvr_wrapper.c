@@ -69,7 +69,7 @@ wrapper_mutex_init (DVR_WrapperMutex_t *lock)
 
   // It is not necessary to protect code block below with
   // DVR_WrapperMutex_t.lock, so the following annotation
-  // is given to surpress related Coverity complaint.
+  // is given to suppress related Coverity complaint.
   // coverity[missing_lock]
   lock->locked = 0;
   lock->inited = 1;
@@ -729,7 +729,7 @@ static int wrapper_updatePlaybackSegment(DVR_WrapperCtx_t *ctx, DVR_RecordSegmen
   if (p_seg->seg_info.id == seg_info->id) {
     _updatePlaybackSegment(p_seg, seg_info, update_flags, ctx);
   } else {
-    // This error is surpressed as the macro code is picked from kernel.
+    // This error is suppressed as the macro code is picked from kernel.
     // prefetch() here incurring self_assign is used to avoid some compiling
     // warnings.
     // coverity[self_assign]
@@ -799,7 +799,7 @@ static int wrapper_updateRecordSegment(DVR_WrapperCtx_t *ctx, DVR_RecordSegmentI
     if (p_seg->info.id == seg_info->id) {
       _updateRecordSegment(p_seg, seg_info, update_flags, ctx);
     } else {
-      // This error is surpressed as the macro code is picked from kernel.
+      // This error is suppressed as the macro code is picked from kernel.
       // prefetch() here incurring self_assign is used to avoid some compiling
       // warnings.
       // coverity[self_assign]
@@ -1635,7 +1635,7 @@ int dvr_wrapper_close_playback (DVR_WrapperPlayback_t playback)
     /*remove all segments*/
     DVR_WrapperPlaybackSegmentInfo_t *p_seg;
 
-    // This error is surpressed as the macro code is picked from kernel.
+    // This error is suppressed as the macro code is picked from kernel.
     // prefetch() here incurring self_assign is used to avoid some compiling
     // warnings.
     // coverity[self_assign]
@@ -1800,7 +1800,7 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
         for (i = 0; i < segment_nb; i++) {
           DVR_RecordSegmentInfo_t *p_seg_info;
           int found = 0;
-          // This error is surpressed as the macro code is picked from kernel.
+          // This error is suppressed as the macro code is picked from kernel.
           // prefetch() here incurring self_assign is used to avoid some compiling
           // warnings.
           // coverity[self_assign]
@@ -2101,7 +2101,7 @@ int dvr_wrapper_stop_playback (DVR_WrapperPlayback_t playback)
     /*remove all segments*/
     DVR_WrapperPlaybackSegmentInfo_t *p_seg;
 
-    // This error is surpressed as the macro code is picked from kernel.
+    // This error is suppressed as the macro code is picked from kernel.
     // prefetch() here incurring self_assign is used to avoid some compiling
     // warnings.
     // coverity[self_assign]
@@ -2280,7 +2280,7 @@ int dvr_wrapper_seek_playback (DVR_WrapperPlayback_t playback, uint32_t time_off
     }
   }
 
-  // This error is surpressed as the macro code is picked from kernel.
+  // This error is suppressed as the macro code is picked from kernel.
   // prefetch() here incurring self_assign is used to avoid some compiling
   // warnings.
   // coverity[self_assign]
@@ -2336,7 +2336,7 @@ int dvr_wrapper_update_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackPid
   ctx->playback.pids_req = *p_pids;
 
   error = 0;
-  // This error is surpressed as the macro code is picked from kernel.
+  // This error is suppressed as the macro code is picked from kernel.
   // prefetch() here incurring self_assign is used to avoid some compiling
   // warnings.
   // coverity[self_assign]
@@ -2393,7 +2393,7 @@ int dvr_wrapper_only_update_playback (DVR_WrapperPlayback_t playback, DVR_Playba
   ctx->playback.pids_req = *p_pids;
 
   error = 0;
-  // This error is surpressed as the macro code is picked from kernel.
+  // This error is suppressed as the macro code is picked from kernel.
   // prefetch() here incurring self_assign is used to avoid some compiling
   // warnings.
   // coverity[self_assign]
@@ -2597,7 +2597,7 @@ int dvr_wrapper_segment_get_info_by_location (const char *location, DVR_WrapperI
           DVR_RecordSegmentInfo_t *seg_info;
           DVR_PlaybackSegmentFlag_t flags;
           int found = 0;
-          // This error is surpressed as the macro code is picked from kernel.
+          // This error is suppressed as the macro code is picked from kernel.
           // prefetch() here incurring self_assign is used to avoid some compiling
           // warnings.
           // coverity[self_assign]
@@ -2785,7 +2785,7 @@ static int process_generateRecordStatus(DVR_WrapperCtx_t *ctx, DVR_WrapperRecord
     sizeof(ctx->record.status.pids.pids));
   ctx->current_segment_id = ctx->record.seg_status.info.id;
 
-  // This error is surpressed as the macro code is picked from kernel.
+  // This error is suppressed as the macro code is picked from kernel.
   // prefetch() here incurring self_assign is used to avoid some compiling
   // warnings.
   // coverity[self_assign]
@@ -2973,7 +2973,7 @@ static int process_generatePlaybackStatus(DVR_WrapperCtx_t *ctx, DVR_WrapperPlay
   ctx->playback.status.flags = ctx->playback.seg_status.flags;
   ctx->current_segment_id = ctx->playback.seg_status.segment_id;
 
-  // This error is surpressed as the macro code is picked from kernel.
+  // This error is suppressed as the macro code is picked from kernel.
   // prefetch() here incurring self_assign is used to avoid some compiling
   // warnings.
   // coverity[self_assign]
@@ -2987,7 +2987,7 @@ static int process_generatePlaybackStatus(DVR_WrapperCtx_t *ctx, DVR_WrapperPlay
     ctx->playback.status.info_cur.size += p_seg->seg_info.size;
     ctx->playback.status.info_cur.pkts += p_seg->seg_info.nb_packets;
   }
-  // This error is surpressed as the macro code is picked from kernel.
+  // This error is suppressed as the macro code is picked from kernel.
   // prefetch() here incurring self_assign is used to avoid some compiling
   // warnings.
   // coverity[self_assign]

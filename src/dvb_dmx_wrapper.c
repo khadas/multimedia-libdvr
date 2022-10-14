@@ -105,7 +105,7 @@ static void* dmx_data_thread(void *arg)
                fds[cnt].events = POLLIN | POLLERR;
                // It is not necessary to protect code block below with
                // Record_DeviceContext_t.lock, so the following annotation
-               // is given to surpress related Coverity complaint.
+               // is given to suppress related Coverity complaint.
                // coverity[missing_lock]
                fds[cnt].fd = dmx->filter[fid].fd;
                fids[cnt] = fid;

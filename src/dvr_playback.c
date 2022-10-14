@@ -546,7 +546,7 @@ static int _dvr_has_next_segmentId(DVR_PlaybackHandle_t handle, int segmentid) {
 
   int found = 0;
   int found_eq_id = 0;
-  // This error is surpressed as the macro code is picked from kernel.
+  // This error is suppressed as the macro code is picked from kernel.
   // prefetch() here incurring self_assign is used to avoid some compiling
   // warnings.
   // coverity[self_assign]
@@ -616,7 +616,7 @@ static int _dvr_get_next_segmentId(DVR_PlaybackHandle_t handle) {
   int found = 0;
   int found_eq_id = 0;
 
-  // This error is surpressed as the macro code is picked from kernel.
+  // This error is suppressed as the macro code is picked from kernel.
   // prefetch() here incurring self_assign is used to avoid some compiling
   // warnings.
   // coverity[self_assign]
@@ -769,7 +769,7 @@ static int _dvr_open_segment(DVR_PlaybackHandle_t handle, uint64_t segment_id)
 
   int found = 0;
 
-  // This error is surpressed as the macro code is picked from kernel.
+  // This error is suppressed as the macro code is picked from kernel.
   // prefetch() here incurring self_assign is used to avoid some compiling
   // warnings.
   // coverity[self_assign]
@@ -851,7 +851,7 @@ static int _dvr_playback_get_playinfo(DVR_PlaybackHandle_t handle,
 
   int found = 0;
 
-  // This error is surpressed as the macro code is picked from kernel.
+  // This error is suppressed as the macro code is picked from kernel.
   // prefetch() here incurring self_assign is used to avoid some compiling
   // warnings.
   // coverity[self_assign]
@@ -1105,7 +1105,7 @@ static void* _dvr_playback_thread(void *arg)
         char* _pbuf=_logbuf;
         int _nchar=0;
         DVR_PlaybackSegmentInfo_t* _segment;
-        // This error is surpressed as the macro code is picked from kernel.
+        // This error is suppressed as the macro code is picked from kernel.
         // prefetch() here incurring self_assign is used to avoid some compiling
         // warnings.
         // coverity[self_assign]
@@ -2071,7 +2071,7 @@ int dvr_playback_update_segment_flags(DVR_PlaybackHandle_t handle,
   DVR_PlaybackSegmentInfo_t *segment;
   DVR_PB_DEBUG("lock");
   dvr_mutex_lock(&player->lock);
-  // This error is surpressed as the macro code is picked from kernel.
+  // This error is suppressed as the macro code is picked from kernel.
   // prefetch() here incurring self_assign is used to avoid some compiling
   // warnings.
   // coverity[self_assign]
@@ -2290,7 +2290,7 @@ int dvr_playback_only_update_segment_pids(DVR_PlaybackHandle_t handle, uint64_t 
   DVR_PB_DEBUG("lock");
   dvr_mutex_lock(&player->lock);
   DVR_PB_INFO("get lock update segment id: %lld cur id %lld", segment_id, player->cur_segment_id);
-  // This error is surpressed as the macro code is picked from kernel.
+  // This error is suppressed as the macro code is picked from kernel.
   // prefetch() here incurring self_assign is used to avoid some compiling
   // warnings.
   // coverity[self_assign]
@@ -2339,7 +2339,7 @@ int dvr_playback_update_segment_pids(DVR_PlaybackHandle_t handle, uint64_t segme
   dvr_mutex_lock(&player->lock);
   DVR_PB_INFO("get lock update segment id: %lld cur id %lld", segment_id, player->cur_segment_id);
 
-  // This error is surpressed as the macro code is picked from kernel.
+  // This error is suppressed as the macro code is picked from kernel.
   // prefetch() here incurring self_assign is used to avoid some compiling
   // warnings.
   // coverity[self_assign]
@@ -2988,7 +2988,7 @@ static DVR_Bool_t _dvr_check_playinfo_changed(DVR_PlaybackHandle_t handle, int s
   DVR_PlaybackSegmentInfo_t *cur_segment = NULL;
   DVR_PlaybackSegmentInfo_t *set_segment = NULL;
 
-  // This error is surpressed as the macro code is picked from kernel.
+  // This error is suppressed as the macro code is picked from kernel.
   // prefetch() here incurring self_assign is used to avoid some compiling
   // warnings.
   // coverity[self_assign]
@@ -3480,7 +3480,7 @@ uint64_t segmentid, int dur)
     return DVR_FAILURE;
   }
   //update the newest segment duration on timeshift mode
-  // This error is surpressed as the macro code is picked from kernel.
+  // This error is suppressed as the macro code is picked from kernel.
   // prefetch() here incurring self_assign is used to avoid some compiling
   // warnings.
   // coverity[self_assign]
@@ -3517,7 +3517,7 @@ static uint32_t dvr_playback_calculate_last_valid_segment(
     return DVR_SUCCESS;
   }
   DVR_PlaybackSegmentInfo_t *p_seg;
-  // This error is surpressed as the macro code is picked from kernel.
+  // This error is suppressed as the macro code is picked from kernel.
   // prefetch() here incurring self_assign is used to avoid some compiling
   // warnings.
   // coverity[self_assign]
@@ -4167,7 +4167,7 @@ int dvr_dump_segmentinfo(DVR_PlaybackHandle_t handle, uint64_t segment_id) {
   }
 
   DVR_PlaybackSegmentInfo_t *segment;
-  // This error is surpressed as the macro code is picked from kernel.
+  // This error is suppressed as the macro code is picked from kernel.
   // prefetch() here incurring self_assign is used to avoid some compiling
   // warnings.
   // coverity[self_assign]

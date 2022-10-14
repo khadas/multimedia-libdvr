@@ -191,7 +191,7 @@ int dvr_segment_get_info(const char *location, uint64_t segment_id, DVR_RecordSe
   open_params.mode = SEGMENT_MODE_READ;
 
   // Previous location strlen checking againest DVR_MAX_LOCATION_SIZE and
-  // latter memset on open_params ensure that open_params.locatin is
+  // latter memset on open_params ensure that open_params.location is
   // null-terminated, so the Coverity STRING_NULL error is suppressed here.
   // coverity[string_null]
   ret = segment_open(&open_params, &segment_handle);
@@ -226,7 +226,7 @@ int dvr_segment_get_allInfo(const char *location, struct list_head *list)
   open_params.mode = SEGMENT_MODE_READ;
 
   // Previous location strlen checking againest DVR_MAX_LOCATION_SIZE and
-  // latter memset on open_params ensure that open_params.locatin is
+  // latter memset on open_params ensure that open_params.location is
   // null-terminated, so the Coverity STRING_NULL error is suppressed here.
   // coverity[string_null]
   ret = segment_open(&open_params, &segment_handle);
