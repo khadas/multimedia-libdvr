@@ -932,6 +932,13 @@ static int _dvr_check_speed_con(DVR_PlaybackHandle_t handle)
     DVR_PB_INFO("player is NULL");
     return DVR_TRUE;
   }
+  char buf[10] = {0};
+  dvr_prop_read("vendor.tv.libdvr.con", buf, sizeof(buf));
+  DVR_PB_INFO("player get prop[%d][%s]", atoi(buf), buf);
+
+  if (atoi(buf) != 1) {
+    //return DVR_TRUE;
+  }
 
   DVR_PB_INFO(":play speed: %f  ply dur: %u sys_dur: %u",
                 player->speed,
@@ -1007,17 +1014,30 @@ static void* _dvr_playback_thread(void *arg)
   #define MAX_REACHEND_TIMEOUT (3000)
   int reach_end_timeout = 0;//ms
   int cache_time = 0;
+  int timeout = 200;//ms
   int check_no_data_time = 4;
+  uint64_t write_timeout_ms = 50;
   int buf_len = player->openParams.block_size > 0 ? player->openParams.block_size : (256 * 1024);
   DVR_Bool_t b_writed_whole_block = player->openParams.block_size > 0 ? DVR_TRUE:DVR_FALSE;
   int first_write = 0;
   int dec_buf_size = buf_len + 188;
   int real_read = 0;
   DVR_Bool_t goto_rewrite = DVR_FALSE;
-  int read = 0;
+  char prop_buf[10];
+	int read = 0;
 
-  const uint64_t write_timeout_ms = (uint64_t)dvr_prop_read_int("vendor.tv.libdvr.writetm",50);
-  const int timeout = dvr_prop_read_int("vendor.tv.libdvr.waittm",200);
+  memset(prop_buf, 0 ,sizeof(prop_buf));
+  dvr_prop_read("vendor.tv.libdvr.writetm", prop_buf, sizeof(prop_buf));
+  DVR_PB_INFO("---vendor.tv.libdvr.writetm get prop[%d][%s]block_size[%d]", atoi(prop_buf), prop_buf, player->openParams.block_size);
+  if (atoi(prop_buf) > 0)
+    write_timeout_ms = atoi(prop_buf);
+
+
+  memset(prop_buf, 0 ,sizeof(prop_buf));
+  dvr_prop_read("vendor.tv.libdvr.waittm", prop_buf, sizeof(prop_buf));
+  DVR_PB_INFO("---vendor.tv.libdvr.waittm get prop[%d][%s]block_size[%d]", atoi(prop_buf), prop_buf, player->openParams.block_size);
+  if (atoi(prop_buf) > 0)
+    timeout = atoi(prop_buf);
 
   if (player->is_secure_mode) {
     if (dec_buf_size > player->secure_buffer_size) {
@@ -1624,7 +1644,18 @@ static int _stop_playback_thread(DVR_PlaybackHandle_t handle)
 
 static int getFakePid()
 {
-   return dvr_prop_read_int("vendor.tv.dtv.fake_pid",0xffff);
+   char fake_pid_prop[] = "vendor.tv.dtv.fake_pid";
+   char buf[32] = {0};
+   int pid = 0xffff;
+
+   dvr_prop_read(fake_pid_prop, buf, sizeof(buf));
+
+   if (sscanf(buf, "%i", &pid) != 1)
+   {
+      DVR_PB_INFO("get fake pid error");
+      pid = 0xffff;
+   }
+   return pid;
 }
 
 void dvr_playback_change_seek_state(DVR_PlaybackHandle_t handle,int pid) {

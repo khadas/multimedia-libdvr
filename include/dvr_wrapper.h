@@ -392,25 +392,6 @@ int dvr_wrapper_set_log_level (int level);
  */
 int dvr_wrapper_set_ac4_preselection_id(DVR_WrapperPlayback_t playback, int presel_id);
 
-/**
- * Set various libdvr properties
- * \param[in] prop_name property name
- * \param[in] prop_value property value
- * \retval DVR_SUCCESS On success.
- * \return DVR_FAILURE On failure.
- */
-int dvr_wrapper_property_set(const char* prop_name, const char* prop_value);
-
-/**
- * Get various libdvr properties
- * \param[in] prop_name property name
- * \param[out] prop_value property value. Buffer lifecycle is managed by caller.
- * \param[in] length buffer length of prop_value
- * \retval DVR_SUCCESS On success.
- * \return DVR_FAILURE On failure.
- */
-int dvr_wrapper_property_get(const char* prop_name, char* prop_value, int length);
-
 #ifdef __cplusplus
 }
 #endif

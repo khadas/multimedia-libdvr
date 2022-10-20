@@ -3129,13 +3129,3 @@ int dvr_wrapper_set_ac4_preselection_id(DVR_WrapperPlayback_t playback, int pres
   return error;
 }
 
-int dvr_wrapper_property_set(const char* prop_name, const char* prop_value)
-{
-  return dvr_prop_write(prop_name,prop_value);
-}
-
-int dvr_wrapper_property_get(const char* prop_name, char* prop_value, int length)
-{
-  return dvr_prop_read(prop_name,prop_value,length);
-}
-
