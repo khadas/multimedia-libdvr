@@ -12,6 +12,12 @@
 #include <cutils/properties.h>
 #endif
 
+#define _GNU_SOURCE
+#define __USE_GNU
+#include <search.h>
+
+static struct hsearch_data  *prop_htab = NULL;
+
 /****************************************************************************
  * Macro definitions
  ***************************************************************************/
@@ -19,94 +25,11 @@
 /****************************************************************************
  * Static functions
  ***************************************************************************/
-int (*Write_Sysfs_ptr)(const char *path, char *value);
-int (*ReadNum_Sysfs_ptr)(const char *path, char *value, int size);
-int (*Read_Sysfs_ptr)(const char *path, char *value);
-
-typedef struct dvr_rw_sysfs_cb_s
-{
-  DVR_Read_Sysfs_Cb readSysfsCb;
-  DVR_Write_Sysfs_Cb writeSysfsCb;
-}dvr_rw_sysfs_cb_t;
-
-dvr_rw_sysfs_cb_t rwSysfsCb = {.readSysfsCb = NULL, .writeSysfsCb = NULL};
-
-typedef struct dvr_rw_prop_cb_s
-{
-  DVR_Read_Prop_Cb readPropCb;
-  DVR_Write_Prop_Cb writePropCb;
-}dvr_rw_prop_cb_t;
-
-dvr_rw_prop_cb_t rwPropCb = {.readPropCb = NULL, .writePropCb = NULL};
 
 /****************************************************************************
  * API functions
  ***************************************************************************/
 
-/**\brief regist rw sysfs cb
- * \param[in] fun callback
- * \return
- *   - DVR_SUCCESS
- *   - error
- */
-int dvr_register_rw_sys(DVR_Read_Sysfs_Cb RCb, DVR_Write_Sysfs_Cb WCb)
-{
-
-  if (RCb == NULL || WCb == NULL) {
-    DVR_INFO("dvr_register_rw_sys error param is NULL !!");
-    return DVR_FAILURE;
-  }
-  if (!rwSysfsCb.readSysfsCb)
-    rwSysfsCb.readSysfsCb = RCb;
-  if (!rwSysfsCb.writeSysfsCb)
-    rwSysfsCb.writeSysfsCb = WCb;
-  DVR_INFO("dvr_register_rw_sys success !!");
-  return DVR_SUCCESS;
-}
-
-/**\brief unregist rw sys cb
- */
-int dvr_unregister_rw_sys()
-{
-  if (rwSysfsCb.readSysfsCb)
-    rwSysfsCb.readSysfsCb = NULL;
-  if (rwSysfsCb.writeSysfsCb)
-    rwSysfsCb.writeSysfsCb = NULL;
-  return DVR_SUCCESS;
-}
-
-/**\brief regist rw prop cb
- * \param[in] fun callback
- * \return
- *   - DVR_SUCCESS
- *   - error
- */
-
-int dvr_register_rw_prop(DVR_Read_Prop_Cb RCb, DVR_Write_Prop_Cb WCb)
-{
-  if (RCb == NULL || WCb == NULL) {
-    DVR_INFO("dvr_register_rw_prop error param is NULL !!");
-    return DVR_FAILURE;
-  }
-
-  if (!rwPropCb.readPropCb)
-    rwPropCb.readPropCb = RCb;
-  if (!rwPropCb.writePropCb)
-    rwPropCb.writePropCb = WCb;
-
-  DVR_INFO("dvr_register_rw_prop !!");
-  return DVR_SUCCESS;
-}
-
-/**\brief unregist rw prop cb */
-int dvr_unregister_rw_prop()
-{
-  if (rwPropCb.readPropCb)
-    rwPropCb.readPropCb = NULL;
-  if (rwPropCb.writePropCb)
-    rwPropCb.writePropCb = NULL;
-  return DVR_SUCCESS;
-}
 
 /**\brief Write a string cmd to a file
  * \param[in] name, File name
@@ -120,12 +43,6 @@ int dvr_file_echo(const char *name, const char *cmd)
   int fd, len, ret;
   if (name == NULL || cmd == NULL) {
     return DVR_FAILURE;
-  }
-
-  if (rwSysfsCb.writeSysfsCb)
-  {
-    rwSysfsCb.writeSysfsCb(name, cmd);
-    return DVR_SUCCESS;
   }
 
   fd = open(name, O_WRONLY);
@@ -166,13 +83,6 @@ int dvr_file_read(const char *name, char *buf, int len)
     return DVR_FAILURE;
   }
 
-  if (rwSysfsCb.readSysfsCb)
-  {
-    rwSysfsCb.readSysfsCb(name, buf, len);
-    return DVR_SUCCESS;
-  }
-
-
   fp = fopen(name, "r");
   if (!fp)
   {
@@ -190,59 +100,126 @@ int dvr_file_read(const char *name, char *buf, int len)
   return ret ? DVR_SUCCESS : DVR_FAILURE;
 }
 
-
-/**\brief Write a string cmd to a prop
- * \param[in] name, prop name
- * \param[in] cmd, String command
+/**\brief read property value
+ * \param[in] name, property name
+ * \param[out] buf, property value
  * \return DVR_SUCCESS On success
- * \return Error code On failure
+ * \return DVR_FAILURE On failure
  */
-
-int dvr_prop_echo(const char *name, const char *cmd)
-{
-  if (name == NULL || cmd == NULL) {
-    DVR_ERROR("dvr_prop_echo: error param is NULL");
-    return DVR_FAILURE;
-  }
-
-  if (rwPropCb.writePropCb)
-  {
-    rwPropCb.writePropCb(name, cmd);
-    return DVR_SUCCESS;
-  }
-
-#ifdef __ANDROID_API__
-  property_set(name, cmd);
-#endif
-  DVR_DEBUG("dvr_prop_echo: error writePropCb is NULL, used property_set");
-  return DVR_FAILURE;
-}
-
-/**\brief read prop value
- * \param[in] name, prop name
- * \param[out] buf, store prop node value
- * \return DVR_SUCCESS On success
- * \return Error code On failure
- */
-
 int dvr_prop_read(const char *name, char *buf, int len)
 {
   if (name == NULL || buf == NULL) {
-    DVR_INFO("dvr_prop_read: error param is NULL");
+    DVR_ERROR("%s, property name or value buffer is NULL",__func__);
     return DVR_FAILURE;
   }
 
-  if (rwPropCb.readPropCb)
-  {
-    rwPropCb.readPropCb(name, buf, len);
+#ifdef __ANDROID_API__
+  memset(buf,0,len);
+  property_get(name, buf, "");
+  if (strlen(buf)>0) {
+    DVR_INFO("%s, Read property, name:%s, value:%s",__func__,name,buf);
     return DVR_SUCCESS;
+  }
+#endif
+
+  if (prop_htab == NULL) {
+    prop_htab = calloc(1,sizeof(struct hsearch_data));
+    if (prop_htab == NULL) {
+      DVR_ERROR("%s, Failed to allocate memory for prop_htab",__func__);
+      return DVR_FAILURE;
+    }
+    if (0 == hcreate_r(100,prop_htab))
+    {
+      DVR_ERROR("%s, Failed to create hash table with hcreate_r",__func__);
+      return DVR_FAILURE;
+    }
+  }
+
+  ENTRY e, *ep;
+  e.key = name;
+  if (hsearch_r(e,FIND,&ep,prop_htab) == 0) {
+    DVR_ERROR("%s, Failed to read property %s",__func__,name);
+    return DVR_FAILURE;
+  }
+
+  strncpy(buf,ep->data,len);
+  DVR_INFO("%s, Read property from hash table, name:%s, value:%s",__func__,name,buf);
+  return DVR_SUCCESS;
+}
+
+/**\brief write property value
+ * \param[in] name, property name
+ * \param[in] value, property value
+ * \return DVR_SUCCESS On success
+ * \return DVR_FAILURE On failure
+ */
+int dvr_prop_write(const char *name, char *value)
+{
+  if (name == NULL || value == NULL) {
+    DVR_ERROR("%s: property name or value buffer is NULL",__func__);
+    return DVR_FAILURE;
   }
 
 #ifdef __ANDROID_API__
-  property_get(name, buf, "");
+  property_set(name, value);
 #endif
-  DVR_INFO("dvr_prop_read: error readPropCb is NULL, used property_get");
-  return DVR_FAILURE;
+
+  if (prop_htab == NULL) {
+    prop_htab = calloc(1,sizeof(struct hsearch_data));
+    if (prop_htab == NULL) {
+      DVR_ERROR("%s, Failed to allocate memory for prop_htab",__func__);
+      return DVR_FAILURE;
+    }
+    if (0 == hcreate_r(100,prop_htab))
+    {
+      DVR_ERROR("%s, Failed to create hash table with hcreate_r",__func__);
+      return DVR_FAILURE;
+    }
+  }
+
+  ENTRY e, *ep;
+  e.key = name;
+  if (hsearch_r(e,FIND,&ep,prop_htab) != 0) {
+    // in case matched item is found
+    free(ep->data);
+    ep->data=strdup(value);
+  } else {
+    // in case no matched item, we need to add new one to hash table
+    e.key=strdup(name);
+    e.data=strdup(value);
+    if ( e.key != NULL && e.data != NULL ) {
+      if (hsearch_r(e,ENTER,&ep,prop_htab) == 0) {
+        DVR_ERROR("%s, Failed to add an entry to hash table %s:%s",__func__,name,value);
+        return DVR_FAILURE;
+      }
+    } else {
+      if (e.key != NULL) {
+        free(e.key);
+      }
+      if (e.data != NULL) {
+        free(e.data);
+      }
+      DVR_ERROR("%s, Failed to duplicate strings %s,%s",__func__,name,value);
+      return DVR_FAILURE;
+    }
+  }
+
+  DVR_INFO("%s, Wrote property to hash table, name:%s, value:%s",__func__,name,value);
+  return DVR_SUCCESS;
+}
+
+/**\brief read int type property value
+ * \param[in] name, property name
+ * \param[in] def, default property value in case any failure
+ * \return int type property value. If any failure default value will be returned instead
+ */
+int dvr_prop_read_int(const char *name, int def)
+{
+  char buf[16] = {0};
+  if (dvr_prop_read(name,buf,sizeof(buf)) == DVR_SUCCESS) {
+    return atoi(buf);
+  }
+  return def;
 }
 
 #define NSEC_PER_SEC 1000000000L
