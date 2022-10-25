@@ -13,6 +13,7 @@
 #include "dvr_crypto.h"
 #include "dvr_playback.h"
 #include "dvr_segment.h"
+#include "dvr_utils.h"
 
 #include "AmTsPlayer.h"
 
