@@ -1670,7 +1670,7 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
   int got_1st_seg=0;
   DVR_WrapperCtx_t *ctx_record;/*for timeshift*/
   DVR_Bool_t is_timeshift = DVR_FALSE;
-  DVR_PlaybackSegmentFlag_t segflags = 0;
+  DVR_PlaybackSegmentFlag_t seg_flags = 0;
 
   DVR_RETURN_IF_FALSE(playback);
   DVR_RETURN_IF_FALSE(p_pids);
@@ -1782,8 +1782,8 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
             } else {
               DVR_WRAPPER_INFO("success to get seg av info \n");
             }
-            segflags = DVR_PLAYBACK_SEGMENT_DISPLAYABLE | DVR_PLAYBACK_SEGMENT_CONTINUOUS;
-            error = wrapper_addPlaybackSegment(ctx, &seg_info, p_pids, segflags);
+            seg_flags = DVR_PLAYBACK_SEGMENT_DISPLAYABLE | DVR_PLAYBACK_SEGMENT_CONTINUOUS;
+            error = wrapper_addPlaybackSegment(ctx, &seg_info, p_pids, seg_flags);
             if (error == DVR_FAILURE) {
               DVR_WRAPPER_WARN("adding playback segment fails");
               break;
@@ -1858,8 +1858,8 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
               } else {
                 DVR_WRAPPER_INFO("success to get seg av info \n");
               }
-              segflags = DVR_PLAYBACK_SEGMENT_DISPLAYABLE | DVR_PLAYBACK_SEGMENT_CONTINUOUS;
-              error = wrapper_addPlaybackSegment(ctx, &seg_info, p_pids, segflags);
+              seg_flags = DVR_PLAYBACK_SEGMENT_DISPLAYABLE | DVR_PLAYBACK_SEGMENT_CONTINUOUS;
+              error = wrapper_addPlaybackSegment(ctx, &seg_info, p_pids, seg_flags);
               if (error == DVR_FAILURE) {
                 DVR_WRAPPER_WARN("adding playback segment fails");
                 break;
@@ -1896,8 +1896,8 @@ int dvr_wrapper_start_playback (DVR_WrapperPlayback_t playback, DVR_PlaybackFlag
           } else {
             DVR_WRAPPER_INFO("success to get seg av info \n");
           }
-          segflags = DVR_PLAYBACK_SEGMENT_DISPLAYABLE | DVR_PLAYBACK_SEGMENT_CONTINUOUS;
-          error = wrapper_addPlaybackSegment(ctx, p_seg_info, p_pids, segflags);
+          seg_flags = DVR_PLAYBACK_SEGMENT_DISPLAYABLE | DVR_PLAYBACK_SEGMENT_CONTINUOUS;
+          error = wrapper_addPlaybackSegment(ctx, p_seg_info, p_pids, seg_flags);
           if (error == DVR_FAILURE) {
             DVR_WRAPPER_WARN("adding playback segment fails");
             break;
