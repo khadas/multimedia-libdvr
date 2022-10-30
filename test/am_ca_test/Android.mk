@@ -6,6 +6,8 @@ LOCAL_VENDOR_MODULE := true
 LOCAL_SRC_FILES:= am_ca_test.c am_inject.c am_dmx.c linux_dvb.c am_ca.c am_key.c
 
 LOCAL_MODULE:= am_ca_test
+LOCAL_LICENSE_KINDS := SPDX-license-identifier-GPL-2.0+ SPDX-license-identifier-LGPL-2.0+
+LOCAL_LICENSE_CONDITIONS := notice
 
 LOCAL_MODULE_TAGS := optional
 

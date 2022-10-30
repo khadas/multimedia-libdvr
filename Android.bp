@@ -5,6 +5,9 @@
 //
 // Description: makefile
 
+package {
+    default_applicable_licenses: ["hardware_amlogic_license"],
+}
 
 cc_library_shared {
     name: "libamdvr",

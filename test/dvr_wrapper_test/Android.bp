@@ -1,3 +1,6 @@
+package {
+    default_applicable_licenses: ["hardware_amlogic_license"],
+}
 
 cc_binary {
     name: "dvr_wrapper_test",

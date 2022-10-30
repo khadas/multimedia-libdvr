@@ -12,6 +12,8 @@ ANDROID_LOG_INCLUDE:=system/core/liblog/include\
 LOCAL_SRC_FILES:= dvr_chunk_test.c
 
 LOCAL_MODULE:= dvr_chunk_test
+LOCAL_LICENSE_KINDS := SPDX-license-identifier-GPL-2.0+ SPDX-license-identifier-LGPL-2.0+
+LOCAL_LICENSE_CONDITIONS := notice
 
 LOCAL_MODULE_TAGS := optional
 
