@@ -65,7 +65,7 @@ int dvr_segment_delete(const char *location, uint64_t segment_id)
 int dvr_segment_del_by_location(const char *location)
 {
   FILE *fp;
-  char cmd[DVR_MAX_LOCATION_SIZE + 64];
+  char cmd[DVR_MAX_LOCATION_SIZE * 2 + 64];
 
   DVR_RETURN_IF_FALSE(location);
 
