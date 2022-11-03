@@ -2947,17 +2947,23 @@ static int process_handleRecordEvent(DVR_WrapperEventCtx_t *evt, DVR_WrapperCtx_
 
 static inline int process_notifyPlayback(DVR_WrapperCtx_t *ctx, DVR_PlaybackEvent_t evt, DVR_WrapperPlaybackStatus_t *status)
 {
-  DVR_WRAPPER_INFO("notify(sn:%ld) evt(0x%x) statistics:state/cur/full/obsolete(%d/%ld/%ld/%ld)\n",
-    ctx->sn,
-    evt,
-    status->state,
-    status->info_cur.time,
-    status->info_full.time,
-    status->info_obsolete.time);
+  DVR_RETURN_IF_FALSE(ctx->playback.event_fn != NULL);
 
-  if (ctx->playback.event_fn)
-    return ctx->playback.event_fn(evt, status, ctx->playback.event_userdata);
-  return 0;
+  const time_t cur_time = status->info_cur.time;
+  const time_t full_time = status->info_full.time;
+  const time_t obsolete_time = status->info_obsolete.time;
+  const time_t origin_offset = cur_time + obsolete_time;
+  DVR_WRAPPER_INFO("playback progress notify(sn:%ld) evt(0x%x)"
+      " actual_slider_pos: %02d:%02d:%02d.%03d/%02d:%02d:%02d.%03d (%7ld ms/%7ld ms),"
+      " offset_from_origin: %02d:%02d:%02d.%03d (%7ld ms),"
+      " dump status:state/cur/full/obsolete(%d/%ld/%ld/%ld)",
+      ctx->sn,evt,cur_time/1000/3600,cur_time/1000%3600/60,cur_time/1000%60,cur_time%1000,
+      full_time/1000/3600,full_time/1000%3600/60,full_time/1000%60,full_time%1000,
+      cur_time,full_time,
+      origin_offset/1000/3600,origin_offset/1000%3600/60,origin_offset/1000%60,origin_offset%1000,
+      origin_offset,status->state,cur_time,full_time,obsolete_time);
+
+  return ctx->playback.event_fn(evt, status, ctx->playback.event_userdata);
 }
 
 /*should run periodically to update the current status*/

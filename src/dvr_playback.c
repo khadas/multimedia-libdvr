@@ -3256,10 +3256,9 @@ static int _dvr_get_play_cur_time(DVR_PlaybackHandle_t handle, uint64_t *id) {
   int64_t cache = 0;//default es buf cache 500ms
   int cur_time = 0;
   pthread_mutex_lock(&player->segment_lock);
-  loff_t tmp_pos = segment_tell_position(player->r_handle);
-  loff_t pos = tmp_pos - player->ts_cache_len;
+  loff_t pos = segment_tell_position(player->r_handle);
   uint64_t cur = 0;
-  if (player->ts_cache_len > 0 && (tmp_pos < player->ts_cache_len)) {
+  if (player->ts_cache_len > 0 && (pos < 0)) {
     //this case is open new segment end,but cache data is last segment.
     //we need used last segment len to send play time.
     cur = 0;
@@ -3302,40 +3301,16 @@ static int _dvr_get_play_cur_time(DVR_PlaybackHandle_t handle, uint64_t *id) {
     player->check_cache_flag=DVR_FALSE;
   }
 
-  DVR_PB_INFO("***get play cur time [%lld] cache:%lld cur id [%lld]"
-              " last id [%lld] pb cache len [%d] pos [%lld][%lld]",
-                          cur,
-                          cache,
-                          player->cur_segment_id,
-                          player->last_send_time_id,
-                          player->ts_cache_len,
-                          pos,
-                          tmp_pos);
   if (player->state == DVR_PLAYBACK_STATE_STOP) {
     cache = 0;
   }
-  if (cur > cache) {
-      cur_time = (int)(cur - cache);
-      *id =  player->cur_segment_id;
-  } else if (player->last_segment_total > 0) {
-      //if at fb mode,we not used last id to replace cur id if cache > cur time.
-      //this case only used for normal speed or ff speed
-      if (!IS_FB(player->speed) && player->last_segment_id <= player->cur_segment_id) {
-        if (player->last_segment_total > (cache - cur))
-          cur_time = (int)(player->last_segment_total - (cache - cur));
-        else
-          cur_time = (int)(player->last_segment_total - cur);
+  cur_time = (int)(cur - cache);
+  *id =  player->cur_segment_id;
 
-        *id = player->last_segment_id;
-      } else {//fb mode
-        cur_time = (int)(cur);
-        *id =  player->cur_segment_id;
-      }
-      DVR_PB_INFO("get play cur time[%lld][%lld][%d]", player->last_segment_id, player->cur_segment_id, player->last_segment_total);
-  } else {
-      cur_time = 0;
-      *id =  player->cur_segment_id;
-  }
+  DVR_PB_INFO("***get playback slider position within segment. segment_id [%lld],"
+      " segment_slider_pos[%7d ms] = segment_read_pos[%7lld ms] - tsplayer_cache_len[%5lld ms],"
+      " last id [%lld] pos [%lld]",
+      player->cur_segment_id,cur_time,cur,cache,player->last_send_time_id,pos);
   return cur_time;
 }
 
@@ -4041,7 +4016,7 @@ static int _dvr_playback_get_status(DVR_PlaybackHandle_t handle,
     player->last_cur_time = p_status->time_cur;
   }
   if (player->last_send_time_id == player->cur_segment_id) {
-    if (player->speed > 0.0f ) {
+    if (player->speed > 1.0f ) {
       //ff
       if (p_status->time_cur < player->last_cur_time ) {
         DVR_PB_INFO("get ff time error last[%d]cur[%d]diff[%d]",
