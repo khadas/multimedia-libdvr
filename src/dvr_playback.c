@@ -63,6 +63,7 @@ static int _dvr_playback_get_status(DVR_PlaybackHandle_t handle,
 static int _dvr_playback_sent_transition_ok(DVR_PlaybackHandle_t handle, DVR_Bool_t is_lock);
 static uint32_t dvr_playback_calculate_last_valid_segment(
   DVR_PlaybackHandle_t handle, uint64_t *segmentid, uint32_t *pos);
+static int get_effective_tsplayer_delay_time(DVR_Playback_t* playback,int64_t* time);
 
 
 
@@ -1356,22 +1357,23 @@ static void* _dvr_playback_thread(void *arg)
             _dvr_playback_sent_event((DVR_PlaybackHandle_t)player, DVR_PLAYBACK_EVENT_NODATA, &notify, DVR_FALSE);
         }
       }
-      //send reached event
-      if ((ret != DVR_SUCCESS &&
-        (player->vendor != DVR_PLAYBACK_VENDOR_AMAZON) &&
-        (delay <= MIN_TSPLAYER_DELAY_TIME ||
-          player->cmd.cur_cmd == DVR_PLAYBACK_CMD_FF) &&
-        _dvr_pauselive_decode_success((DVR_PlaybackHandle_t)player)) ||
-        (reach_end_timeout >= MAX_REACHEND_TIMEOUT )) {
-         //send end event to hal
+
+      DVR_Bool_t cond1 = (ret != DVR_SUCCESS);
+      DVR_Bool_t cond2 = (player->vendor != DVR_PLAYBACK_VENDOR_AMAZON);
+      DVR_Bool_t cond3 = (delay <= MIN_TSPLAYER_DELAY_TIME);
+      DVR_Bool_t cond4 = (player->cmd.cur_cmd == DVR_PLAYBACK_CMD_FF);
+      DVR_Bool_t cond5 = (player->delay_is_effective == DVR_TRUE);
+      DVR_Bool_t cond6 = (reach_end_timeout >= MAX_REACHEND_TIMEOUT);
+      if ((cond1 && cond2 && (cond3 || cond4) && cond5) || cond6) {
+        DVR_PB_INFO("REACHED_END conditions: cond1:%d, cond2:%d, (cond3:%d, cond4:%d),"
+            " cond5:%d, cond6:%d. delay:%d, reach_end_timeout:%d",
+            (int)cond1,(int)cond2,(int)cond3,(int)cond4,(int)cond5,(int)cond6,
+            delay,reach_end_timeout);
          DVR_Play_Notify_t notify;
          memset(&notify, 0 , sizeof(DVR_Play_Notify_t));
          notify.event = DVR_PLAYBACK_EVENT_REACHED_END;
-         //get play statue not here
          dvr_playback_pause((DVR_PlaybackHandle_t)player, DVR_FALSE);
          _dvr_playback_sent_event((DVR_PlaybackHandle_t)player, DVR_PLAYBACK_EVENT_REACHED_END, &notify, DVR_TRUE);
-         //continue,timeshift mode, when read end,need wait cur recording segment
-         DVR_PB_INFO("playback is  send end delay:[%d]reach_end_timeout[%d]ms", delay, reach_end_timeout);
          dvr_mutex_lock(&player->lock);
          _dvr_playback_timeoutwait((DVR_PlaybackHandle_t)player, timeout);
          dvr_mutex_unlock(&player->lock);
@@ -1435,7 +1437,8 @@ static void* _dvr_playback_thread(void *arg)
       continue;
     }
     //if need write whole block size, we need check read buf len is eq block size.
-    if (b_writed_whole_block == DVR_TRUE) {
+    if (b_writed_whole_block == DVR_TRUE
+        && (player->has_video || player->dec_func || player->cryptor)) {
       //buf_len is block size value.
       if (real_read < buf_len) {
         //continue to read data from file
@@ -1761,7 +1764,7 @@ int dvr_playback_open(DVR_PlaybackHandle_t *p_handle, DVR_PlaybackOpenParams_t *
   //need seek to start pos
   player->first_start_time = 0;
   player->first_start_id = UINT64_MAX;
-  player->check_cache_flag = DVR_TRUE;
+  player->delay_is_effective = DVR_FALSE;
   player->need_seek_start = DVR_TRUE;
   //fake_pid init
   player->fake_pid = getFakePid();
@@ -3267,38 +3270,13 @@ static int _dvr_get_play_cur_time(DVR_PlaybackHandle_t handle, uint64_t *id) {
   } else {
     cur = segment_tell_position_time(player->r_handle, pos);
   }
-  AmTsPlayer_getDelayTime(player->handle, &cache);
-
   pthread_mutex_unlock(&player->segment_lock);
 
-  // The idea here is to work around a weakness of AmTsPlayer_getDelayTime at
-  // starting phase of a playback in a short period of 20ms or less. During the
-  // said period, getDelayTime does NOT work as expect to return real cache
-  // length because demux isn't actually running to provide valid pts to
-  // TsPlayer. "cache==0" implies the situation that playback is NOT actually
-  // started. Under such conditions a '0' cache size may NOT reflect actual data
-  // length remaining in TsPlayer cache, therefore corresponding libdvr 'cur' is
-  // useless if data in TsPlayer cache is not considered, so it needs to be
-  // reset to a previous valid state. To make the reset operation stricter, extra
-  // AmTsPlayer_getPts invocations on both video/audio are introduced to test if
-  // TsPlayer can get valid pts which indicates the actual running status of
-  // demux. (JIRA issue: SWPL-68740)
-  if (player->first_start_id != UINT64_MAX && cache == 0
-          && player->check_cache_flag == DVR_TRUE ) {
-    uint64_t pts_a=0;
-    uint64_t pts_v=0;
-    AmTsPlayer_getPts(player->handle, TS_STREAM_AUDIO, &pts_a);
-    AmTsPlayer_getPts(player->handle, TS_STREAM_VIDEO, &pts_v);
-    if ((int64_t)pts_a <= 0 && (int64_t)pts_v <= 0) {
-      // Identified the wired situation and just return previous valid state
-      cur = player->first_start_time;
-      *id = player->first_start_id;
-      return cur;
-    }
-  }
-  if (cache != 0) {
-    // Do NOT permit to enter 'if' code block above any more
-    player->check_cache_flag=DVR_FALSE;
+  int ret = get_effective_tsplayer_delay_time(player, &cache);
+  if (player->first_start_id != UINT64_MAX && ret == DVR_FAILURE) {
+    cur = player->first_start_time;
+    *id = player->first_start_id;
+    return cur;
   }
 
   if (player->state == DVR_PLAYBACK_STATE_STOP) {
@@ -4173,3 +4151,41 @@ int dvr_playback_set_ac4_preselection_id(DVR_PlaybackHandle_t handle, int presel
 
   return DVR_SUCCESS;
 }
+
+// This function ensures a valid TsPlayer delay time is provided or else it
+// returns DVR_FAILURE. It is designed to workaround a weakness of
+// AmTsPlayer_getDelayTime at starting phase of a playback in a short period
+// of 20ms or less. During the said period, getDelayTime does NOT work as
+// expect to return real delay length because demux isn't actually running
+// to provide valid pts to TsPlayer.
+static int get_effective_tsplayer_delay_time(DVR_Playback_t* playback,int64_t* time)
+{
+  int64_t delay=0;
+  uint64_t pts_a=0;
+  uint64_t pts_v=0;
+
+  DVR_RETURN_IF_FALSE(playback != NULL);
+
+  AmTsPlayer_getDelayTime(playback->handle, &delay);
+  DVR_RETURN_IF_FALSE(*time >= 0);
+
+  if (playback->delay_is_effective) {
+    *time = delay;
+    return DVR_SUCCESS;
+  } else if (delay > 0) {
+    *time = delay;
+    playback->delay_is_effective=DVR_TRUE;
+    return DVR_SUCCESS;
+  }
+
+  AmTsPlayer_getPts(playback->handle, TS_STREAM_AUDIO, &pts_a);
+  AmTsPlayer_getPts(playback->handle, TS_STREAM_VIDEO, &pts_v);
+  if ((int64_t)pts_a > 0 || (int64_t)pts_v > 0) {
+    *time = delay;
+    playback->delay_is_effective=DVR_TRUE;
+    return DVR_SUCCESS;
+  }
+
+  return DVR_FAILURE;
+}
+

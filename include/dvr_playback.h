@@ -351,9 +351,11 @@ typedef struct
   uint32_t                   first_start_time;
   //The segment id where a playback is initially started
   uint64_t                   first_start_id;
-  //Determine whether it is needed to check the cache value from AmTsPlayer_getDelayTime
-  //It is only allowed to check cache one time in a single playback
-  DVR_Bool_t                 check_cache_flag;
+
+  // Tells whether the delay from AmTsPlayer_getDelayTime is valid.
+  // Notice it can be invalid in a short period at starting phase of a playback.
+  DVR_Bool_t                 delay_is_effective;
+
   DVR_Bool_t                 need_seek_start;
   //init fake pid
   int                         fake_pid;
