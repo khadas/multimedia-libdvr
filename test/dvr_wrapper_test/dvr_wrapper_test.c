@@ -512,6 +512,7 @@ static int start_recording()
     pids_info->pids[1].pid = apid;
     pids_info->pids[0].type = DVR_STREAM_TYPE_VIDEO << 24 | vfmt;
     pids_info->pids[1].type = DVR_STREAM_TYPE_AUDIO << 24 | afmt;
+    rec_start_params.save_rec_file=1;
     error = dvr_wrapper_start_record(recorder, &rec_start_params);
     if (error)
     {
