@@ -6,7 +6,16 @@
 // Description: makefile
 
 package {
-    default_applicable_licenses: ["hardware_amlogic_license"],
+    default_applicable_licenses: ["vendor_amlogic_libdvr_license"],
+}
+
+license {
+    name: "vendor_amlogic_libdvr_license",
+    visibility: [":__subpackages__"],
+    license_kinds: [
+        "SPDX-license-identifier-GPL-2.0",
+        "SPDX-license-identifier-LGPL-2.1",
+    ],
 }
 
 cc_library_shared {

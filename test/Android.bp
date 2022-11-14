@@ -1,5 +1,5 @@
 package {
-    default_applicable_licenses: ["hardware_amlogic_license"],
+    default_applicable_licenses: ["vendor_amlogic_libdvr_license"],
 }
 
 subdirs = [
