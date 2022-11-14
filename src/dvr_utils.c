@@ -135,8 +135,7 @@ int dvr_prop_read(const char *name, char *buf, int len)
     }
   }
 
-  ENTRY e, *ep;
-  e.key = name;
+  ENTRY e = {name,NULL}, *ep = NULL;
   if (hsearch_r(e,FIND,&ep,prop_htab) == 0) {
     DVR_ERROR("%s, Failed to read property %s",__func__,name);
     return DVR_FAILURE;
@@ -177,8 +176,7 @@ int dvr_prop_write(const char *name, char *value)
     }
   }
 
-  ENTRY e, *ep;
-  e.key = name;
+  ENTRY e = {name,NULL}, *ep = NULL;
   if (hsearch_r(e,FIND,&ep,prop_htab) != 0) {
     // in case matched item is found
     free(ep->data);
