@@ -304,7 +304,8 @@ void *record_thread(void *arg)
     gettimeofday(&t2, NULL);
 
     guarded_size_exceeded = DVR_FALSE;
-    if (p_ctx->segment_info.size+len >= p_ctx->guarded_segment_size) {
+    if ( p_ctx->guarded_segment_size > 0 &&
+        p_ctx->segment_info.size+len >= p_ctx->guarded_segment_size) {
       guarded_size_exceeded = DVR_TRUE;
     }
     /* Got data from device, record it */
@@ -588,6 +589,11 @@ int dvr_record_open(DVR_RecordHandle_t *p_handle, DVR_RecordOpenParams_t *params
   p_ctx->state = DVR_RECORD_STATE_OPENED;
   p_ctx->force_sysclock = params->force_sysclock;
   p_ctx->guarded_segment_size = params->guarded_segment_size;
+  if (p_ctx->guarded_segment_size <= 0) {
+    DVR_WARN("Odd guarded_segment_size value %lld is given. Change it to"
+        " 0 to disable segment guarding mechanism.", p_ctx->guarded_segment_size);
+    p_ctx->guarded_segment_size = 0;
+  }
   p_ctx->discard_coming_data = DVR_FALSE;
   DVR_INFO("%s, block_size:%d is_new:%d", __func__, p_ctx->block_size, p_ctx->is_new_dmx);
   *p_handle = p_ctx;
