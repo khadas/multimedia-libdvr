@@ -567,11 +567,9 @@ int record_device_read(Record_DeviceHandle_t handle, void *buf, size_t len, int 
 
   fds[0].events = fds[1].events = POLLIN | POLLERR;
   ret = poll(fds, 2, timeout);
-  if (ret <= 0) {
-    if (ret < 0)
-      DVR_INFO("%s, %d failed: %s fd %d event fd %d", __func__, __LINE__, strerror(errno), p_ctx->fd, p_ctx->evtfd);
-    else
-      DVR_INFO("%s, %d timeout", __func__, __LINE__);
+  if (ret < 0) {
+    DVR_INFO("%s, %d failed: %s fd %d event fd %d", __func__, __LINE__,
+        strerror(errno), p_ctx->fd, p_ctx->evtfd);
     return DVR_FAILURE;
   }
 

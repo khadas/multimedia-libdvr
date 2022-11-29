@@ -688,7 +688,6 @@ int segment_store_info(Segment_Handle_t handle, Segment_StoreInfo_t *p_info)
 
   /*Save segment duration*/
   memset(buf, 0, sizeof(buf));
-  DVR_INFO("duration store:[%ld]", p_info->duration);
   sprintf(buf, "duration=%ld\n", p_info->duration);
   fputs(buf, p_ctx->dat_fp);
 
@@ -743,7 +742,6 @@ int segment_store_allInfo(Segment_Handle_t handle, Segment_StoreInfo_t *p_info)
 
   /*Save segment duration*/
   memset(buf, 0, sizeof(buf));
-  DVR_INFO("duration store:[%ld]", p_info->duration);
   sprintf(buf, "duration=%ld\n", p_info->duration);
   fputs(buf, p_ctx->all_dat_fp);
 

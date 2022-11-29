@@ -63,7 +63,7 @@ static int _dvr_playback_get_status(DVR_PlaybackHandle_t handle,
 static int _dvr_playback_sent_transition_ok(DVR_PlaybackHandle_t handle, DVR_Bool_t is_lock);
 static uint32_t dvr_playback_calculate_last_valid_segment(
   DVR_PlaybackHandle_t handle, uint64_t *segmentid, uint32_t *pos);
-static int get_effective_tsplayer_delay_time(DVR_Playback_t* playback,int64_t* time);
+static int get_effective_tsplayer_delay_time(DVR_Playback_t* playback, int *time);
 
 
 
@@ -190,67 +190,43 @@ void _dvr_tsplayer_callback_test(void *user_data, am_tsplayer_event *event)
           break;
     }
 }
+
 void _dvr_tsplayer_callback(void *user_data, am_tsplayer_event *event)
 {
-  DVR_Playback_t *player = NULL;
-  if (user_data != NULL) {
-    player = (DVR_Playback_t *) user_data;
-    DVR_PB_INFO("playing speed is [%f] in callback", player->speed);
+  DVR_Playback_t *play = (DVR_Playback_t*)user_data;
+  if (play == NULL) {
+    DVR_PB_WARN("play is invalid in %s",__func__);
+    return;
   }
   switch (event->type) {
-    case AM_TSPLAYER_EVENT_TYPE_VIDEO_CHANGED:
-    {
-        DVR_PB_INFO("[evt] AM_TSPLAYER_EVENT_TYPE_VIDEO_CHANGED: %d x %d @%d\n",
-            event->event.video_format.frame_width,
-            event->event.video_format.frame_height,
-            event->event.video_format.frame_rate);
-        break;
-    }
     case AM_TSPLAYER_EVENT_TYPE_FIRST_FRAME:
-    {
-        DVR_PB_INFO("[evt] AM_TSPLAYER_EVENT_TYPE_FIRST_FRAME\n");
-        if (player == NULL) {
-          DVR_PB_WARN("player is null at line %d",__LINE__);
-          break;
-        }
-        if (player->first_trans_ok == DVR_FALSE) {
-          player->first_trans_ok = DVR_TRUE;
-          _dvr_playback_sent_transition_ok((DVR_PlaybackHandle_t)player, DVR_FALSE);
-        }
-        if (player != NULL) {
-          player->first_frame = 1;
-          player->seek_pause = DVR_FALSE;
-        }
-        break;
-    }
+      DVR_PB_INFO("Received AM_TSPLAYER_EVENT_TYPE_FIRST_FRAME");
+      if (play->first_trans_ok == DVR_FALSE) {
+        play->first_trans_ok = DVR_TRUE;
+        _dvr_playback_sent_transition_ok((DVR_PlaybackHandle_t)play, DVR_FALSE);
+      }
+      play->first_frame = 1;
+      play->seek_pause = DVR_FALSE;
+      break;
     case AM_TSPLAYER_EVENT_TYPE_DECODE_FIRST_FRAME_AUDIO:
-        DVR_PB_INFO("[evt]AM_TSPLAYER_EVENT_TYPE_DECODE_FIRST_FRAME_AUDIO [%d]\n", event->type);
-        if (player == NULL) {
-          DVR_PB_WARN("player is null at line %d",__LINE__);
-          break;
-        }
-        if (player->first_trans_ok == DVR_FALSE && player->has_video == DVR_FALSE) {
-          player->first_trans_ok = DVR_TRUE;
-          _dvr_playback_sent_transition_ok((DVR_PlaybackHandle_t)player, DVR_FALSE);
-        }
-        if (player != NULL && player->has_video == DVR_FALSE) {
-          DVR_PB_INFO("[evt]AM_TSPLAYER_EVENT_TYPE_DECODE_FIRST_FRAME_AUDIO [%d]\n", event->type);
-          player->first_frame = 1;
-          player->seek_pause = DVR_FALSE;
-        }
+      DVR_PB_INFO("Received AM_TSPLAYER_EVENT_TYPE_DECODE_FIRST_FRAME_AUDIO");
+      if (play->first_trans_ok == DVR_FALSE && play->has_video == DVR_FALSE) {
+        play->first_trans_ok = DVR_TRUE;
+        _dvr_playback_sent_transition_ok((DVR_PlaybackHandle_t)play, DVR_FALSE);
+      }
+      if (play->has_video == DVR_FALSE) {
+        play->first_frame = 1;
+        play->seek_pause = DVR_FALSE;
+      }
       break;
     default:
-      DVR_PB_INFO("[evt]unknown event [%d]\n", event->type);
       break;
   }
-  if (player&&player->player_callback_func) {
-    DVR_PB_INFO("calling callback");
-    player->player_callback_func(player->player_callback_userdata, event);
-  } else if (player == NULL){
-    DVR_PB_WARN("player pointer %p is invalid",player);
-  } else {
-    DVR_PB_WARN("player callback function %p is invalid",player->player_callback_func);
+  if (play->player_callback_func == NULL) {
+    DVR_PB_WARN("play callback function %p is invalid",play->player_callback_func);
+    return;
   }
+  play->player_callback_func(play->player_callback_userdata, event);
 }
 
 //convert video and audio fmt
@@ -369,18 +345,7 @@ static int _dvr_playback_timeoutwait(DVR_PlaybackHandle_t handle , int ms)
   dvr_mutex_restore(&player->lock, val);
   return 0;
 }
-//get tsplay delay time ms
-static int _dvr_playback_get_delaytime(DVR_PlaybackHandle_t handle ) {
-  DVR_Playback_t *player = (DVR_Playback_t *) handle;
-  int64_t cache = 0;
-  if (player == NULL || player->handle == (am_tsplayer_handle)NULL) {
-    DVR_PB_INFO("tsplayer delay time error, handle is NULL");
-    return 0;
-  }
-  AmTsPlayer_getDelayTime(player->handle, &cache);
-  DVR_PB_INFO("tsplayer cache time [%lld]ms", cache);
-  return cache;
-}
+
 //send signal
 static int _dvr_playback_sendSignal(DVR_PlaybackHandle_t handle)
 {
@@ -869,7 +834,6 @@ static int _dvr_playback_get_playinfo(DVR_PlaybackHandle_t handle,
       //get segment info
       if (player->cur_segment_id != UINT64_MAX)
         player->cur_segment_id = segment->segment_id;
-      DVR_PB_INFO("get play info id [%lld]", player->cur_segment_id);
       player->cur_segment.segment_id = segment->segment_id;
       player->cur_segment.flags = segment->flags;
       //pids
@@ -890,7 +854,9 @@ static int _dvr_playback_get_playinfo(DVR_PlaybackHandle_t handle,
       audio_param->pid = segment->pids.audio.pid;
       ad_param->codectype =_dvr_convert_stream_fmt(segment->pids.ad.format, DVR_TRUE);
       ad_param->pid =segment->pids.ad.pid;
-      DVR_PB_INFO("get play info success[0x%x]apid[0x%x]vfmt[%d]afmt[%d]", video_param->pid, audio_param->pid, video_param->codectype, audio_param->codectype);
+      DVR_PB_DEBUG("get_playinfo, segment_id:%lld, vpid[0x%x], apid[0x%x], vfmt[%d], afmt[%d]",
+          player->cur_segment_id, video_param->pid, audio_param->pid,
+          video_param->codectype, audio_param->codectype);
       found = 2;
       break;
     }
@@ -1323,26 +1289,22 @@ static void* _dvr_playback_thread(void *arg)
     if (read == 0) {
       //file end.need to play next segment
       #define MIN_CACHE_TIME (3000)
-      int _cache_time = _dvr_playback_get_delaytime((DVR_PlaybackHandle_t)player) ;
+      int delay = 0;
+      get_effective_tsplayer_delay_time(player,&delay);
       /*if cache time is > min cache time ,not read next segment,wait cache data to play*/
-      if (_cache_time > MIN_CACHE_TIME) {
+      if (delay > MIN_CACHE_TIME) {
         //dvr_mutex_lock(&player->lock);
         /*if cache time > 20s , we think get time is error,*/
-        if (_cache_time - MIN_CACHE_TIME > 20 * 1000) {
-            DVR_PB_WARN("read end but cache time is %d > 20s, this is an error at media_hal", _cache_time);
+        if (delay - MIN_CACHE_TIME > 20 * 1000) {
+            DVR_PB_WARN("read end but cache time is %d > 20s, this is an error at media_hal", delay);
         }
-        //_dvr_playback_timeoutwait((DVR_PlaybackHandle_t)player, ((_cache_time - MIN_CACHE_TIME) > MIN_CACHE_TIME ? MIN_CACHE_TIME : (_cache_time - MIN_CACHE_TIME)));
-        //dvr_mutex_unlock(&player->lock);
-       // DVR_PB_INFO("read end but cache time is %d > %d, to sleep end and continue", _cache_time, MIN_CACHE_TIME);
-        //continue;
       }
 
       int ret = _change_to_next_segment((DVR_PlaybackHandle_t)player);
       //init fffb time if change segment
        _dvr_init_fffb_time((DVR_PlaybackHandle_t)player);
 
-      int delay = _dvr_playback_get_delaytime((DVR_PlaybackHandle_t)player);
-
+      get_effective_tsplayer_delay_time(player,&delay);
       if (ret != DVR_SUCCESS && delay < MIN_TSPLAYER_DELAY_TIME) {
         player->noData++;
         DVR_PB_INFO("playback nodata[%d]", player->noData);
@@ -1369,31 +1331,32 @@ static void* _dvr_playback_thread(void *arg)
             " cond5:%d, cond6:%d. delay:%d, reach_end_timeout:%d",
             (int)cond1,(int)cond2,(int)cond3,(int)cond4,(int)cond5,(int)cond6,
             delay,reach_end_timeout);
-         DVR_Play_Notify_t notify;
-         memset(&notify, 0 , sizeof(DVR_Play_Notify_t));
-         notify.event = DVR_PLAYBACK_EVENT_REACHED_END;
-         dvr_playback_pause((DVR_PlaybackHandle_t)player, DVR_FALSE);
-         _dvr_playback_sent_event((DVR_PlaybackHandle_t)player, DVR_PLAYBACK_EVENT_REACHED_END, &notify, DVR_TRUE);
-         dvr_mutex_lock(&player->lock);
-         _dvr_playback_timeoutwait((DVR_PlaybackHandle_t)player, timeout);
-         dvr_mutex_unlock(&player->lock);
-         continue;
-       } else if (ret != DVR_SUCCESS) {
-         DVR_PB_INFO("delay:%d pauselive:%d", delay, _dvr_pauselive_decode_success((DVR_PlaybackHandle_t)player));
-         dvr_mutex_lock(&player->lock);
-         _dvr_playback_timeoutwait((DVR_PlaybackHandle_t)player, timeout);
-         dvr_mutex_unlock(&player->lock);
-         delay = _dvr_playback_get_delaytime((DVR_PlaybackHandle_t)player);
-         //not send event and pause,sleep and go to next time to recheck
-         if (delay < cache_time) {
-            //delay time is changed and then has data to play, so not start timeout
-            reach_end_timeout = 0;
-         } else {
-           reach_end_timeout = reach_end_timeout + timeout;
-         }
-         cache_time = delay;
-         continue;
-       }
+        DVR_Play_Notify_t notify;
+        memset(&notify, 0 , sizeof(DVR_Play_Notify_t));
+        notify.event = DVR_PLAYBACK_EVENT_REACHED_END;
+        dvr_playback_pause((DVR_PlaybackHandle_t)player, DVR_FALSE);
+        _dvr_playback_sent_event((DVR_PlaybackHandle_t)player, DVR_PLAYBACK_EVENT_REACHED_END, &notify, DVR_TRUE);
+        dvr_mutex_lock(&player->lock);
+        _dvr_playback_timeoutwait((DVR_PlaybackHandle_t)player, timeout);
+        dvr_mutex_unlock(&player->lock);
+        continue;
+      } else if (ret != DVR_SUCCESS) {
+        DVR_PB_INFO("delay:%d pauselive:%d", delay, _dvr_pauselive_decode_success((DVR_PlaybackHandle_t)player));
+        dvr_mutex_lock(&player->lock);
+        _dvr_playback_timeoutwait((DVR_PlaybackHandle_t)player, timeout);
+        dvr_mutex_unlock(&player->lock);
+
+        get_effective_tsplayer_delay_time(player,&delay);
+        //not send event and pause,sleep and go to next time to recheck
+        if (delay < cache_time) {
+          //delay time is changed and then has data to play, so not start timeout
+          reach_end_timeout = 0;
+        } else {
+          reach_end_timeout = reach_end_timeout + timeout;
+        }
+        cache_time = delay;
+        continue;
+      }
       reach_end_timeout = 0;
       cache_time = 0;
       //change next segment success case
@@ -1541,12 +1504,7 @@ check0:
       }
       //DVR_PB_INFO("write  write_success:%d input_buffer.buf_size:%d", write_success, input_buffer.buf_size);
     } else {
-        pthread_mutex_unlock(&player->segment_lock);
-      DVR_PB_INFO("write time out write_success:%d input_buffer.buf_size:%d systime:%u",
-                    write_success,
-                    input_buffer.buf_size,
-                    _dvr_time_getClock());
-
+      pthread_mutex_unlock(&player->segment_lock);
       write_success = 0;
       if (CONTROL_SPEED_ENABLE == 1) {
 check1:
@@ -2106,7 +2064,6 @@ static int _do_check_pid_info(DVR_PlaybackHandle_t handle, DVR_PlaybackPids_t  n
     DVR_PB_INFO("player is NULL");
     return DVR_FAILURE;
   }
-  DVR_PB_INFO(" do check");
   if (now_pid.pid == set_pid.pid) {
     //do nothing
     return 0;
@@ -3251,44 +3208,29 @@ static int _dvr_get_play_cur_time(DVR_PlaybackHandle_t handle, uint64_t *id) {
   //get cur time of segment
   DVR_Playback_t *player = (DVR_Playback_t *) handle;
 
-  if (player == NULL || player->handle == 0) {
-    DVR_PB_INFO("player is NULL");
-    return DVR_FAILURE;
-  }
+  DVR_RETURN_IF_FALSE(player != NULL);
+  DVR_RETURN_IF_FALSE(player->handle != 0);
 
-  int64_t cache = 0;//default es buf cache 500ms
-  int cur_time = 0;
   pthread_mutex_lock(&player->segment_lock);
-  loff_t pos = segment_tell_position(player->r_handle);
-  uint64_t cur = 0;
-  if (player->ts_cache_len > 0 && (pos < 0)) {
-    //this case is open new segment end,but cache data is last segment.
-    //we need used last segment len to send play time.
-    cur = 0;
-    DVR_PB_INFO("change segment [%lld][%lld]",
-                  player->last_segment_id, player->cur_segment_id);
-  } else {
-    cur = segment_tell_position_time(player->r_handle, pos);
-  }
+  const loff_t pos = segment_tell_position(player->r_handle);
+  const uint64_t cur = segment_tell_position_time(player->r_handle, pos);
   pthread_mutex_unlock(&player->segment_lock);
 
-  int ret = get_effective_tsplayer_delay_time(player, &cache);
-  if (player->first_start_id != UINT64_MAX && ret == DVR_FAILURE) {
-    cur = player->first_start_time;
-    *id = player->first_start_id;
-    return cur;
-  }
+  int cache = 0;
+  get_effective_tsplayer_delay_time(player, &cache);
 
   if (player->state == DVR_PLAYBACK_STATE_STOP) {
     cache = 0;
   }
-  cur_time = (int)(cur - cache);
-  *id =  player->cur_segment_id;
+
+  const int cur_time = (int)(cur - cache);
+  *id = player->cur_segment_id;
 
   DVR_PB_INFO("***get playback slider position within segment. segment_id [%lld],"
       " segment_slider_pos[%7d ms] = segment_read_pos[%7lld ms] - tsplayer_cache_len[%5lld ms],"
       " last id [%lld] pos [%lld]",
       player->cur_segment_id,cur_time,cur,cache,player->last_send_time_id,pos);
+
   return cur_time;
 }
 
@@ -3304,7 +3246,6 @@ static int _dvr_get_end_time(DVR_PlaybackHandle_t handle) {
 
   pthread_mutex_lock(&player->segment_lock);
   uint64_t end = segment_tell_total_time(player->r_handle);
-  DVR_PB_INFO("get total time [%lld]", end);
   pthread_mutex_unlock(&player->segment_lock);
   return (int)end;
 }
@@ -4158,31 +4099,35 @@ int dvr_playback_set_ac4_preselection_id(DVR_PlaybackHandle_t handle, int presel
 // of 20ms or less. During the said period, getDelayTime does NOT work as
 // expect to return real delay length because demux isn't actually running
 // to provide valid pts to TsPlayer.
-static int get_effective_tsplayer_delay_time(DVR_Playback_t* playback,int64_t* time)
+static int get_effective_tsplayer_delay_time(DVR_Playback_t* play, int *time)
 {
   int64_t delay=0;
   uint64_t pts_a=0;
   uint64_t pts_v=0;
 
-  DVR_RETURN_IF_FALSE(playback != NULL);
+  DVR_RETURN_IF_FALSE(play != NULL);
+  DVR_RETURN_IF_FALSE(play->handle != NULL);
 
-  AmTsPlayer_getDelayTime(playback->handle, &delay);
-  DVR_RETURN_IF_FALSE(*time >= 0);
+  AmTsPlayer_getDelayTime(play->handle, &delay);
+  // In scambled stream situation, the returned TsPlayer delay time is
+  // invalid and dirty. An additional time check agaginst 15 minutes (900s)
+  // is introduced to insure such error condition is handled properly.
+  DVR_RETURN_IF_FALSE((delay >= 0) && (delay <= 900*1000));
 
-  if (playback->delay_is_effective) {
-    *time = delay;
+  if (play->delay_is_effective) {
+    *time = (int)delay;
     return DVR_SUCCESS;
   } else if (delay > 0) {
-    *time = delay;
-    playback->delay_is_effective=DVR_TRUE;
+    *time = (int)delay;
+    play->delay_is_effective=DVR_TRUE;
     return DVR_SUCCESS;
   }
 
-  AmTsPlayer_getPts(playback->handle, TS_STREAM_AUDIO, &pts_a);
-  AmTsPlayer_getPts(playback->handle, TS_STREAM_VIDEO, &pts_v);
+  AmTsPlayer_getPts(play->handle, TS_STREAM_AUDIO, &pts_a);
+  AmTsPlayer_getPts(play->handle, TS_STREAM_VIDEO, &pts_v);
   if ((int64_t)pts_a > 0 || (int64_t)pts_v > 0) {
-    *time = delay;
-    playback->delay_is_effective=DVR_TRUE;
+    *time = (int)delay;
+    play->delay_is_effective=DVR_TRUE;
     return DVR_SUCCESS;
   }
 

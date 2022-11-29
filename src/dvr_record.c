@@ -268,30 +268,18 @@ void *record_thread(void *arg)
     /* data from dmx, normal dvr case */
     if (p_ctx->is_secure_mode) {
       if (p_ctx->is_new_dmx) {
+        /* We resolve the below invoke for dvbcore to be under safety status */
+        memset(&new_dmx_secure_buf, 0, sizeof(new_dmx_secure_buf));
+        len = record_device_read(p_ctx->dev_handle, &new_dmx_secure_buf,
+            sizeof(new_dmx_secure_buf), 10);
 
-          /* We resolve the below invoke for dvbcore to be under safety status */
-          memset(&new_dmx_secure_buf, 0, sizeof(new_dmx_secure_buf));
-          len = record_device_read(p_ctx->dev_handle, &new_dmx_secure_buf, sizeof(new_dmx_secure_buf), 10);
-      if (len == DVR_FAILURE) {
-        DVR_INFO("handle[%p] ret:%d\n", p_ctx->dev_handle, ret);
-        /*For the second recording, poll always failed which we should check
-         * dvbcore further. For now, Just ignore the fack poll fail, I think
-         * it won't influence anything. But we need adjust the poll timeout
-         * from 1000ms to 10ms.
-         */
-        //continue;
-      }
-
-      /* Read data from secure demux TA */
-      len = record_device_read_ext(p_ctx->dev_handle, &secure_buf.addr,
-                       &secure_buf.len);
-
+        /* Read data from secure demux TA */
+        len = record_device_read_ext(p_ctx->dev_handle, &secure_buf.addr,
+            &secure_buf.len);
       } else {
           memset(&secure_buf, 0, sizeof(secure_buf));
-          len = record_device_read(p_ctx->dev_handle, &secure_buf, sizeof(secure_buf), 1000);
-      }
-      if (len != DVR_FAILURE) {
-        //DVR_INFO("%s, secure_buf:%#x, size:%#x", __func__, secure_buf.addr, secure_buf.len);
+          len = record_device_read(p_ctx->dev_handle, &secure_buf,
+              sizeof(secure_buf), 1000);
       }
     } else {
       len = record_device_read(p_ctx->dev_handle, buf, block_size, 1000);
