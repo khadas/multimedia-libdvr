@@ -1105,26 +1105,6 @@ int dvr_wrapper_open_record (DVR_WrapperRecord_t *rec, DVR_WrapperRecordOpenPara
   ctx->record.event_fn = params->event_fn;
   ctx->record.event_userdata = params->event_userdata;
 
-  uint64_t new_segment_id = 0;
-
-  {
-    uint32_t segment_nb = 0;
-    uint64_t *p_segment_ids = NULL;
-    error = dvr_segment_get_list(params->location, &segment_nb, &p_segment_ids);
-    if (error == DVR_SUCCESS && segment_nb>0) {
-      // Tainted data issue originating from fgets seem false positive, so we
-      // just suppress it here.
-      // coverity[tainted_data]
-      new_segment_id = p_segment_ids[segment_nb-1]+1;
-    }
-    if (p_segment_ids != NULL) {
-      free(p_segment_ids);
-    }
-    DVR_WRAPPER_DEBUG("new_segment_id:%lld\n", new_segment_id);
-  }
-
-  ctx->record.next_segment_id = new_segment_id;
-  ctx->current_segment_id = new_segment_id;
   INIT_LIST_HEAD(&ctx->segments);
   ctx->sn = get_sn();
 
@@ -1239,14 +1219,37 @@ int dvr_wrapper_start_record (DVR_WrapperRecord_t rec, DVR_WrapperRecordStartPar
     return DVR_FAILURE;
   }
   strncpy(start_param->location, ctx->record.param_open.location, len+1);
-  start_param->segment.segment_id = ctx->record.next_segment_id++;
   start_param->segment.nb_pids = params->pids_info.nb_pids;
   for (i = 0; i < params->pids_info.nb_pids; i++) {
     start_param->segment.pids[i] = params->pids_info.pids[i];
     start_param->segment.pid_action[i] = DVR_RECORD_PID_CREATE;
   }
+
   if (params->save_rec_file == 0)//default is not save
     dvr_segment_del_by_location(start_param->location);
+
+  //wait for the file status to stabilize before set the new segment id
+  uint64_t new_segment_id = 0;
+  {
+    uint32_t segment_nb = 0;
+    uint64_t *p_segment_ids = NULL;
+    error = dvr_segment_get_list(ctx->record.param_open.location, &segment_nb, &p_segment_ids);
+    if (error == DVR_SUCCESS && segment_nb>0) {
+      // Tainted data issue originating from fgets seem false positive, so we
+      // just suppress it here.
+      // coverity[tainted_data]
+      new_segment_id = p_segment_ids[segment_nb-1]+1;
+    }
+    if (p_segment_ids != NULL) {
+      free(p_segment_ids);
+    }
+    DVR_WRAPPER_DEBUG("new_segment_id:%lld\n", new_segment_id);
+  }
+  ctx->record.next_segment_id = new_segment_id;
+  ctx->current_segment_id = new_segment_id;
+
+  start_param->segment.segment_id = ctx->record.next_segment_id++;
+
   {
     /*sync to update for further use*/
     DVR_RecordStartParams_t *update_param;
