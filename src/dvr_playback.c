@@ -922,8 +922,8 @@ static int _dvr_check_cur_segment_flag(DVR_PlaybackHandle_t handle)
     DVR_PB_INFO("player is NULL");
     return DVR_FAILURE;
   }
-  if (player->vendor == DVR_PLAYBACK_VENDOR_AML) {
-    DVR_PB_INFO("vendor is amlogic. no used segment flag to hide or show av");
+  if (player->vendor != DVR_PLAYBACK_VENDOR_DEF) {
+    DVR_PB_INFO("In case of vendor Amlogic/Amazon, do not control AV display");
     return DVR_SUCCESS;
   }
   DVR_PB_INFO("flag[0x%x]id[%lld]last[0x%x][%llu]",
@@ -1993,8 +1993,8 @@ int dvr_playback_update_segment_flags(DVR_PlaybackHandle_t handle,
     DVR_PB_INFO("player is NULL");
     return DVR_FAILURE;
   }
-  if (player->vendor == DVR_PLAYBACK_VENDOR_AML) {
-    DVR_PB_INFO("vendor is amlogic. not  hide or show av and update segment");
+  if (player->vendor != DVR_PLAYBACK_VENDOR_DEF) {
+    DVR_PB_INFO("In case of vendor Amlogic/Amazon, do not control AV display");
     return DVR_SUCCESS;
   }
 

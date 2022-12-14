@@ -170,7 +170,7 @@ typedef struct
 
 /**\brief DVR playback vendor*/
 typedef enum {
-  DVR_PLAYBACK_VENDOR_DEF    ,               /**< default*/
+  DVR_PLAYBACK_VENDOR_DEF,                    /**< default, for Irdeto*/
   DVR_PLAYBACK_VENDOR_AML,                    /**< aml*/
   DVR_PLAYBACK_VENDOR_AMAZON                  /**< amazon*/
 } DVR_PlaybackVendor_t;
