@@ -1505,6 +1505,8 @@ check0:
       //DVR_PB_INFO("write  write_success:%d input_buffer.buf_size:%d", write_success, input_buffer.buf_size);
     } else {
       pthread_mutex_unlock(&player->segment_lock);
+      DVR_PB_DEBUG("write time out write_success:%d buf_size:%d systime:%u",
+          write_success, input_buffer.buf_size, _dvr_time_getClock());
       write_success = 0;
       if (CONTROL_SPEED_ENABLE == 1) {
 check1:
@@ -3227,7 +3229,7 @@ static int _dvr_get_play_cur_time(DVR_PlaybackHandle_t handle, uint64_t *id) {
   *id = player->cur_segment_id;
 
   DVR_PB_INFO("***get playback slider position within segment. segment_id [%lld],"
-      " segment_slider_pos[%7d ms] = segment_read_pos[%7lld ms] - tsplayer_cache_len[%5lld ms],"
+      " segment_slider_pos[%7d ms] = segment_read_pos[%7lld ms] - tsplayer_cache_len[%5ld ms],"
       " last id [%lld] pos [%lld]",
       player->cur_segment_id,cur_time,cur,cache,player->last_send_time_id,pos);
 
@@ -3582,6 +3584,16 @@ static int _dvr_playback_fffb(DVR_PlaybackHandle_t handle) {
     //for fb cmd, we need open pre segment.if reach first one segment, send begin event
     int ret = _change_to_next_segment((DVR_PlaybackHandle_t)player);
     if (ret != DVR_SUCCESS && IS_FB(player->speed)) {
+
+      // An fffb_replay is required here to help finish the last FB play
+      // at beginning position of a recording. In addition to function
+      // correctness, another benefit is that after play, demux buffer
+      // is cleared due to stopVideoDecoding invocation in the process.
+      // The following resume operation will not be affected by the invalid
+      // cache length.
+      player->next_fffb_time =_dvr_time_getClock() + FFFB_SLEEP_TIME;
+      _dvr_playback_fffb_replay(handle);
+
       dvr_mutex_unlock(&player->lock);
       DVR_PB_DEBUG("unlock");
       dvr_playback_pause(handle, DVR_FALSE);
