@@ -3007,6 +3007,7 @@ int dvr_playback_seek(DVR_PlaybackHandle_t handle, uint64_t segment_id, uint32_t
       time_offset = _dvr_get_end_time(handle);
     } else {
       DVR_PB_ERROR("is not ongoing segment when seek end, return failure");
+      dvr_mutex_unlock(&player->lock);
       return DVR_FAILURE;
     }
   }
