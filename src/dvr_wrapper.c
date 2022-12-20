@@ -3142,7 +3142,7 @@ int dvr_wrapper_set_ac4_preselection_id(DVR_WrapperPlayback_t playback, int pres
   DVR_WrapperCtx_t *ctx;
   int error;
 
-  DVR_RETURN_IF_FALSE(playback==NULL);
+  DVR_RETURN_IF_FALSE(playback!=NULL);
 
   ctx = ctx_getPlayback((unsigned long)playback);
   DVR_RETURN_IF_FALSE(ctx);

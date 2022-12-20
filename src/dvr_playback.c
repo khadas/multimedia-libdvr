@@ -3226,8 +3226,12 @@ static int _dvr_get_play_cur_time(DVR_PlaybackHandle_t handle, uint64_t *id) {
     cache = 0;
   }
 
-  const int cur_time = (int)(cur - cache);
+  int cur_time = (int)(cur - cache);
   *id = player->cur_segment_id;
+
+  if (*id == 0 && cur_time<0) {
+    cur_time = 0;
+  }
 
   DVR_PB_INFO("***get playback slider position within segment. segment_id [%lld],"
       " segment_slider_pos[%7d ms] = segment_read_pos[%7lld ms] - tsplayer_cache_len[%5ld ms],"
