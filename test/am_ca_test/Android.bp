@@ -1,0 +1,33 @@
+
+
+package {
+    // See: http://go/android-license-faq
+    default_applicable_licenses: [
+        "Android-Apache-2.0",
+    ],
+}
+
+cc_binary {
+    name: "am_ca_test",
+    vendor: true,
+
+    srcs: [
+        "am_ca_test.c",
+        "am_inject.c",
+        "am_dmx.c",
+        "linux_dvb.c",
+        "am_ca.c",
+        "am_key.c",
+    ],
+
+    //LOCAL_MULTILIB := 32
+
+    cflags: [
+        "-DANDROID",
+        "-DAMLINUX",
+    ],
+    //LOCAL_C_INCLUDES :=  $(LOCAL_PATH)/../../android/ndk/include
+
+    shared_libs: ["libc"],
+
+}

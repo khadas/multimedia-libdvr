@@ -211,10 +211,11 @@ enum ca_sc2_dsc_type {
  * @ca_index:    return slot index.
  */
 struct ca_sc2_alloc {
-    unsigned int pid;
-    enum ca_sc2_algo_type algo;
-    enum ca_sc2_dsc_type dsc_type;
-    unsigned int ca_index;
+	unsigned int pid;
+	enum ca_sc2_algo_type algo;
+	enum ca_sc2_dsc_type dsc_type;
+	unsigned int ca_index;
+	unsigned char loop;
 };
 
 /**
