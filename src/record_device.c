@@ -301,8 +301,6 @@ int record_device_close(Record_DeviceHandle_t handle)
   p_ctx->state = RECORD_DEVICE_STATE_CLOSED;
   pthread_mutex_unlock(&p_ctx->lock);
 
-  unload_secdmx_api();
-
   return DVR_SUCCESS;
 }
 
