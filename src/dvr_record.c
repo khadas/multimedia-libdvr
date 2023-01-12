@@ -12,8 +12,6 @@
 #include <sys/time.h>
 #include "am_crypt.h"
 
-#define CONTROL_SPEED_ENABLE 0
-
 #define CHECK_PTS_MAX_COUNT  (20)
 
 //#define DEBUG_PERFORMANCE
@@ -212,15 +210,13 @@ void *record_thread(void *arg)
   DVR_SecureBuffer_t secure_buf = {0,0};
   DVR_NewDmxSecureBuffer_t new_dmx_secure_buf;
   int first_read = 0;
-  if (CONTROL_SPEED_ENABLE == 0)
-    p_ctx->index_type = DVR_INDEX_TYPE_INVALID;
-  else
-    p_ctx->index_type = DVR_INDEX_TYPE_LOCAL_CLOCK;
 
   // Force to use LOCAL_CLOCK as index type if force_sysclock is on. Please
   // refer to SWPL-75327
   if (p_ctx->force_sysclock)
     p_ctx->index_type = DVR_INDEX_TYPE_LOCAL_CLOCK;
+  else
+    p_ctx->index_type = DVR_INDEX_TYPE_INVALID;
   buf = (uint8_t *)malloc(block_size);
   if (!buf) {
     DVR_INFO("%s, malloc failed", __func__);

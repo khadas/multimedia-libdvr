@@ -230,6 +230,7 @@ typedef struct
   void                        *event_userdata;    /**< event userdata*/
   DVR_PlaybackVendor_t         vendor;    /**< vendor type,default is 0*/
   DVR_Bool_t                 is_notify_time;  /**< notify play time info true or not*/
+  DVR_Bool_t                 control_speed_enable;  /**< 1: system clock, 0: libdvr can determine index time source based on actual situation*/
 } DVR_PlaybackOpenParams_t;
 
 /**\brief playback play state*/
@@ -361,6 +362,9 @@ typedef struct
   int                         fake_pid;
   //Audio presentation id, used for dolby AC4 audio
   int32_t                     audio_presentation_id;
+
+  /**< 1: system clock, 0: libdvr can determine index time source based on actual situation*/
+  DVR_Bool_t                 control_speed_enable;
 } DVR_Playback_t;
 /**\endcond*/
 

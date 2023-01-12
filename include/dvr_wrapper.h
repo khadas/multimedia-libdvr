@@ -118,6 +118,7 @@ typedef struct {
   void                        *event_userdata;             /**< event userdata*/
   DVR_Bool_t              is_notify_time;                  /**< 0:not notify time, 1 : notify*/
   DVR_PlaybackVendor_t    vendor;                          /**< vendor type*/
+  DVR_Bool_t              control_speed_enable;            /**< 1: system clock, 0: libdvr can determine index time source based on actual situation*/
 } DVR_WrapperPlaybackOpenParams_t;
 
 /**

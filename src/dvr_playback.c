@@ -26,8 +26,6 @@
 
 #define VALID_PID(_pid_) ((_pid_)>0 && (_pid_)<0x1fff)
 
-#define CONTROL_SPEED_ENABLE    0
-
 #define FF_SPEED (2.0f)
 #define FB_SPEED (-1.0f)
 #define IS_FFFB(_SPEED_) ((_SPEED_) > FF_SPEED && (_SPEED_) < FB_SPEED)
@@ -427,12 +425,12 @@ static int _dvr_playback_sent_playtime(DVR_PlaybackHandle_t handle, DVR_Bool_t i
     return DVR_FAILURE;
   }
   if (player->openParams.is_notify_time == DVR_FALSE) {
-    if (CONTROL_SPEED_ENABLE == 0)
+    if (player->control_speed_enable == 0)
        return DVR_SUCCESS;
   }
 
   if (player->send_time == 0) {
-    if (CONTROL_SPEED_ENABLE == 0)
+    if (player->control_speed_enable == 0)
       player->send_time = _dvr_time_getClock() + 500;
     else
       player->send_time = _dvr_time_getClock() + 20;
@@ -444,7 +442,7 @@ static int _dvr_playback_sent_playtime(DVR_PlaybackHandle_t handle, DVR_Bool_t i
       return DVR_SUCCESS;
     }
   }
-  if (CONTROL_SPEED_ENABLE == 0)
+  if (player->control_speed_enable == 0)
     player->send_time = _dvr_time_getClock() + 500;
   else
     player->send_time = _dvr_time_getClock() + 20;
@@ -1488,7 +1486,7 @@ rewrite:
       pthread_mutex_unlock(&player->segment_lock);
       real_read = 0;
       write_success++;
-      if (CONTROL_SPEED_ENABLE == 1) {
+      if (player->control_speed_enable == 1) {
 check0:
             if (!player->is_running) {
                 //DVR_PB_DEBUG(1, "playback thread exit");
@@ -1508,7 +1506,7 @@ check0:
       DVR_PB_DEBUG("write time out write_success:%d buf_size:%d systime:%u",
           write_success, input_buffer.buf_size, _dvr_time_getClock());
       write_success = 0;
-      if (CONTROL_SPEED_ENABLE == 1) {
+      if (player->control_speed_enable == 1) {
 check1:
         if (!player->is_running) {
             //DVR_PB_DEBUG(1, "playback thread exit");
@@ -1654,6 +1652,7 @@ int dvr_playback_open(DVR_PlaybackHandle_t *p_handle, DVR_PlaybackOpenParams_t *
   player->has_pids = params->has_pids;
 
   player->handle = params->player_handle ;
+  player->control_speed_enable = params->control_speed_enable;
 
   AmTsPlayer_getCb(player->handle, &player->player_callback_func, &player->player_callback_userdata);
   //for test get callback
@@ -1711,7 +1710,7 @@ int dvr_playback_open(DVR_PlaybackHandle_t *p_handle, DVR_PlaybackOpenParams_t *
   player->seek_pause = DVR_FALSE;
 
   //speed con init
-  if (CONTROL_SPEED_ENABLE == 1) {
+  if (player->control_speed_enable == 1) {
     player->con_spe.ply_dur = 0;
     player->con_spe.ply_sta = 0;
     player->con_spe.sys_dur = 0;
@@ -3923,7 +3922,7 @@ static int _dvr_playback_get_status(DVR_PlaybackHandle_t handle,
   p_status->time_end = _dvr_get_end_time(handle);
   p_status->time_cur = _dvr_get_play_cur_time(handle, &segment_id);
 
-  if (CONTROL_SPEED_ENABLE == 1) {
+  if (player->control_speed_enable == 1) {
     if (player->con_spe.ply_sta == 0) {
           DVR_PB_INFO("player dur[%u] sta[%u] cur[%d] -----reinit",
                         player->con_spe.ply_dur,

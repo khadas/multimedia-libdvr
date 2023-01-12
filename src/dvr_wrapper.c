@@ -1612,6 +1612,7 @@ int dvr_wrapper_open_playback (DVR_WrapperPlayback_t *playback, DVR_WrapperPlayb
     open_param.cleariv = params->cleariv;
     open_param.keylen = params->keylen;
   }
+  open_param.control_speed_enable = params->control_speed_enable;
 
   error = dvr_playback_open(&ctx->playback.player, &open_param);
   if (error) {
