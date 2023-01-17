@@ -275,8 +275,8 @@ typedef struct
 {
   uint32_t       sys_dur;     /**< system duration */
   uint32_t       sys_sta;     /**< system start time */
-  uint32_t       ply_dur;     /**< play duration */
-  uint32_t       ply_sta;     /**< play start time */
+  int32_t       ply_dur;     /**< play duration */
+  int32_t       ply_sta;     /**< play start time */
 } DVR_PlaybackConSpe_t;
 
 

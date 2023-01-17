@@ -707,6 +707,10 @@ retry:
       DVR_PB_INFO("seek pos [%d]", total - FB_DEFAULT_LEFT_TIME);
   }
   player->dur = total;
+  player->con_spe.ply_dur = 0;
+  player->con_spe.ply_sta = 0;
+  player->con_spe.sys_dur = 0;
+  player->con_spe.sys_sta = 0;
   pthread_mutex_unlock(&player->segment_lock);
   DVR_PB_INFO("next segment dur [%d] flag [0x%x]", player->dur, player->cur_segment.flags);
   return ret;
@@ -898,7 +902,7 @@ static int _dvr_check_speed_con(DVR_PlaybackHandle_t handle)
     return DVR_TRUE;
   }
 
-  DVR_PB_INFO(":play speed: %f  ply dur: %u sys_dur: %u",
+  DVR_PB_INFO(":play speed: %f  ply dur: %d sys_dur: %u",
                 player->speed,
                 player->con_spe.ply_dur,
                 player->con_spe.sys_dur);
@@ -3924,14 +3928,14 @@ static int _dvr_playback_get_status(DVR_PlaybackHandle_t handle,
 
   if (player->control_speed_enable == 1) {
     if (player->con_spe.ply_sta == 0) {
-          DVR_PB_INFO("player dur[%u] sta[%u] cur[%d] -----reinit",
+          DVR_PB_INFO("player dur[%d] sta[%d] cur[%d] -----reinit",
                         player->con_spe.ply_dur,
                         player->con_spe.ply_sta,
                         p_status->time_cur);
           player->con_spe.ply_sta = p_status->time_cur;
       } else if (player->speed == 1.0f && player->con_spe.ply_sta < p_status->time_cur) {
         player->con_spe.ply_dur += (p_status->time_cur - player->con_spe.ply_sta);
-        DVR_PB_INFO("player dur[%u] sta[%u] cur[%d]",
+        DVR_PB_INFO("player dur[%d] sta[%d] cur[%d]",
                       player->con_spe.ply_dur,
                       player->con_spe.ply_sta,
                       p_status->time_cur);
