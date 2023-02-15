@@ -1292,6 +1292,8 @@ int dvr_wrapper_stop_record (DVR_WrapperRecord_t rec)
   error = dvr_record_stop_segment(ctx->record.recorder, &seg_info);
   wrapper_updateRecordSegment(ctx, &seg_info, U_ALL);
 
+  ctx_freeSegments(ctx);
+
   DVR_WRAPPER_INFO("record(sn:%ld) stopped = (%d)\n", ctx->sn, error);
   wrapper_mutex_unlock(&ctx->wrapper_lock);
 

@@ -852,6 +852,12 @@ int dvr_record_stop_segment(DVR_RecordHandle_t handle, DVR_RecordSegmentInfo_t *
   }
   DVR_RETURN_IF_FALSE(p_ctx == &record_ctx[i]);
 
+  if (p_ctx->segment_handle == NULL) {
+    // It seems this stop function has been called twice on the same recording,
+    // so just return success.
+    return DVR_SUCCESS;
+  }
+
   DVR_INFO("%s , current state:%d p_ctx->location:%s", __func__, p_ctx->state, p_ctx->location);
   DVR_RETURN_IF_FALSE(p_ctx->state != DVR_RECORD_STATE_STOPPED);
   DVR_RETURN_IF_FALSE(p_ctx->state != DVR_RECORD_STATE_CLOSED);
