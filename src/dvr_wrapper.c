@@ -749,11 +749,13 @@ static int wrapper_updatePlaybackSegment(DVR_WrapperCtx_t *ctx, DVR_RecordSegmen
     if (
       /*there's $TIMESHIFT_DATA_DURATION_TO_RESUME more of data in the current segment playing*/
       (ctx->playback.seg_status.segment_id == seg_info->id
-      && (seg_info->duration >= ((time_t)ctx->playback.seg_status.time_cur + TIMESHIFT_DATA_DURATION_TO_RESUME)))
+      && (seg_info->duration >= ((time_t)ctx->playback.seg_status.time_cur + TIMESHIFT_DATA_DURATION_TO_RESUME))
+      && ctx->playback.speed != 0.0f)
       ||
       /*or there's a new segment and has $TIMESHIFT_DATA_DURATION_TO_RESUME of data*/
       (ctx->playback.seg_status.segment_id != seg_info->id
-      && (seg_info->duration >= TIMESHIFT_DATA_DURATION_TO_RESUME))
+      && (seg_info->duration >= TIMESHIFT_DATA_DURATION_TO_RESUME)
+      && ctx->playback.speed != 0.0f)
       )
     {
       int error;
