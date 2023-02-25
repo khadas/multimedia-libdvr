@@ -5,7 +5,7 @@ include $(CLEAR_VARS)
 LOCAL_SRC_FILES:= am_dmx_test.c
 
 LOCAL_MODULE:= aml_dmx_test
-LOCAL_LICENSE_KINDS := SPDX-license-identifier-GPL-2.0+ SPDX-license-identifier-LGPL-2.0+
+LOCAL_LICENSE_KINDS := SPDX-license-identifier-Apache-2.0
 LOCAL_LICENSE_CONDITIONS := notice
 
 LOCAL_MODULE_TAGS := optional

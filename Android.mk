@@ -15,7 +15,7 @@ endif
 
 include $(CLEAR_VARS)
 LOCAL_MODULE := libamdvr
-LOCAL_LICENSE_KINDS := SPDX-license-identifier-GPL-2.0+ SPDX-license-identifier-LGPL-2.0+
+LOCAL_LICENSE_KINDS := SPDX-license-identifier-Apache-2.0
 LOCAL_LICENSE_CONDITIONS := notice
 LOCAL_VENDOR_MODULE := true
 LOCAL_MODULE_TAGS := optional
@@ -31,7 +31,7 @@ include $(BUILD_SHARED_LIBRARY)
 
 include $(CLEAR_VARS)
 LOCAL_MODULE := libamdvr.product
-LOCAL_LICENSE_KINDS := SPDX-license-identifier-GPL-2.0+ SPDX-license-identifier-LGPL-2.0+
+LOCAL_LICENSE_KINDS := SPDX-license-identifier-Apache-2.0
 LOCAL_LICENSE_CONDITIONS := notice
 LOCAL_PRODUCT_MODULE := true
 LOCAL_MODULE_TAGS := optional
@@ -47,7 +47,7 @@ include $(BUILD_SHARED_LIBRARY)
 
 include $(CLEAR_VARS)
 LOCAL_MODULE := libamdvr.system
-LOCAL_LICENSE_KINDS := SPDX-license-identifier-GPL-2.0+ SPDX-license-identifier-LGPL-2.0+
+LOCAL_LICENSE_KINDS := SPDX-license-identifier-Apache-2.0
 LOCAL_LICENSE_CONDITIONS := notice
 ifeq ($(shell test $(PLATFORM_SDK_VERSION) -ge 30 && echo OK),OK)
 LOCAL_SYSTEM_EXT_MODULE := true

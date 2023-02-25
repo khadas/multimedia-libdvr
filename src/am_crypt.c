@@ -1,57 +1,20 @@
 #include <string.h>
 #include <stdlib.h>
-#include "des.h"
+#include <inttypes.h>
 #include "am_crypt.h"
 
 #define printf(a...) ((void)0)
 
+/*
+    Place your crypt logic in the TODO sections to complete the process
+*/
+
+
 typedef struct {
-    AVDES des_cryptor;
+    void *des_cryptor;
     uint8_t cache[188];
     int cache_len;
 } am_cryptor_t;
-
-static int av_des_crypt_ts_packet(AVDES* d, uint8_t* dst, const uint8_t *src, int decrypt)
-{
-    int afc;
-    int afc_len = 0;
-    int crypt_len = 188;
-    const uint8_t *p_in = src;
-    uint8_t *p_out = dst;
-
-    afc = (p_in[3] >> 4) & 0x3;
-    if (afc == 0x0 || afc == 0x2) {
-        /* No payload */
-        return 0;
-    }
-
-    p_in += 4;
-    p_out += 4;
-    crypt_len -= 4;
-    if (afc == 0x3) {
-        /* Adaption field followed by payload */
-        afc_len = p_in[0];
-        p_in++;
-        p_out++;
-        crypt_len--;
-        p_in += afc_len;
-        p_out += afc_len;
-        crypt_len -= afc_len;
-        if (crypt_len < 0) {
-            printf("%s illegal adaption filed len %d\n", __func__, afc_len);
-            return -1;
-        }
-    }
-
-    crypt_len = (crypt_len & 0xfffffff8);
-    if (crypt_len < 8) {
-        printf("%s payload crypt eln too short!!!\n", __func__);
-        return -1;
-    }
-    av_des_crypt(d, p_out, p_in, crypt_len/8, NULL, decrypt);
-
-    return 0;
-}
 
 
 void *am_crypt_des_open(const uint8_t *key, const uint8_t *iv, int key_bits)
@@ -59,9 +22,9 @@ void *am_crypt_des_open(const uint8_t *key, const uint8_t *iv, int key_bits)
     am_cryptor_t *cryptor = (am_cryptor_t *)malloc(sizeof(am_cryptor_t));
     if (cryptor) {
         memset(cryptor, 0, sizeof(am_cryptor_t));
-        if (av_des_init(&cryptor->des_cryptor, key, key_bits)) {
-            free(cryptor);
-            return NULL;
+
+        {
+            /*TODO:init your cryptor here*/
         }
     }
     return cryptor;
@@ -116,9 +79,11 @@ int am_crypt_des_crypt(void* cryptor, uint8_t* dst,
         /* Process cache data */
         memcpy(p_cache + *p_cache_len, p_in, 188 - ((am_cryptor_t *)cryptor)->cache_len);
         memcpy(p_out, p_cache, 188);
-        av_des_crypt_ts_packet(
-            (AVDES *)&(((am_cryptor_t *)cryptor)->des_cryptor),
-            p_out, p_cache, decrypt);
+
+        {
+            /*TODO:process your crypt on the pkt*/
+        }
+
         left -=  (188 - *p_cache_len);
         p_in += (188 - *p_cache_len);
         p_out += 188;
@@ -136,9 +101,11 @@ int am_crypt_des_crypt(void* cryptor, uint8_t* dst,
                 break;
             }
 
-            av_des_crypt_ts_packet(
-                (AVDES *)&(((am_cryptor_t *)cryptor)->des_cryptor),
-                p_out, p_in, decrypt);
+            memcpy(p_out, p_in, 188);
+            {
+                /*TODO:process your crypt on the pkt*/
+            }
+
             p_in += 188;
             p_out += 188;
             left -= 188;
