@@ -6,6 +6,7 @@
 #include <time.h>
 #include <errno.h>
 #include <sys/time.h>
+#include <sys/prctl.h>
 #include <time.h>
 
 #include "dvr_types.h"
@@ -602,6 +603,8 @@ static void *wrapper_task(void *arg)
 {
   DVR_WrapperThreadCtx_t *thread_ctx = (DVR_WrapperThreadCtx_t *)arg;
   DVR_WrapperEventCtx_t *evt;
+
+  prctl(PR_SET_NAME,"DvrWrapper");
 
   pthread_mutex_lock(&thread_ctx->lock);
 

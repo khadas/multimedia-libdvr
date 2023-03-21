@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
+#include <sys/prctl.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <poll.h>
@@ -984,6 +985,8 @@ static void* _dvr_playback_thread(void *arg)
   int real_read = 0;
   DVR_Bool_t goto_rewrite = DVR_FALSE;
   int read = 0;
+
+  prctl(PR_SET_NAME,"DvrPlayback");
 
   const uint64_t write_timeout_ms = (uint64_t)dvr_prop_read_int("vendor.tv.libdvr.writetm",50);
   const int timeout = dvr_prop_read_int("vendor.tv.libdvr.waittm",200);

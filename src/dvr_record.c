@@ -10,6 +10,7 @@
 #include "record_device.h"
 #include "segment.h"
 #include <sys/time.h>
+#include <sys/prctl.h>
 #include "am_crypt.h"
 
 #define CHECK_PTS_MAX_COUNT  (20)
@@ -210,6 +211,8 @@ void *record_thread(void *arg)
   DVR_SecureBuffer_t secure_buf = {0,0};
   DVR_NewDmxSecureBuffer_t new_dmx_secure_buf;
   int first_read = 0;
+
+  prctl(PR_SET_NAME,"DvrRecording");
 
   // Force to use LOCAL_CLOCK as index type if force_sysclock is on. Please
   // refer to SWPL-75327
