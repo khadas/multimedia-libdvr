@@ -3116,6 +3116,8 @@ int dvr_playback_seek(DVR_PlaybackHandle_t handle, uint64_t segment_id, uint32_t
   }
   DVR_PB_ERROR("seek start[0x%x]", video_params.pid);
   //add
+  int v_restarted = 0;
+  int a_restarted = 0;
   if (sync == DVR_PLAYBACK_SYNC) {
     if (VALID_PID(video_params.pid)) {
       //player->has_video;
@@ -3131,6 +3133,7 @@ int dvr_playback_seek(DVR_PlaybackHandle_t handle, uint64_t segment_id, uint32_t
       AmTsPlayer_setVideoParams(player->handle, &video_params);
       AmTsPlayer_setVideoBlackOut(player->handle, 1);
       AmTsPlayer_startVideoDecoding(player->handle);
+      v_restarted = 1;
       if (IS_KERNEL_SPEED(player->cmd.speed.speed.speed) &&
         player->cmd.speed.speed.speed != PLAYBACK_SPEED_X1) {
          AmTsPlayer_startFast(player->handle, (float)player->cmd.speed.speed.speed/(float)100);
@@ -3156,6 +3159,7 @@ int dvr_playback_seek(DVR_PlaybackHandle_t handle, uint64_t segment_id, uint32_t
         AmTsPlayer_setParams(player->handle, AM_TSPLAYER_KEY_AUDIO_PRESENTATION_ID, &player->audio_presentation_id);
       }
       AmTsPlayer_startAudioDecoding(player->handle);
+      a_restarted = 1;
       player->has_audio = DVR_TRUE;
     }
 #ifdef AVSYNC_USED_PCR
@@ -3166,6 +3170,42 @@ int dvr_playback_seek(DVR_PlaybackHandle_t handle, uint64_t segment_id, uint32_t
 #endif
   }
   if (player->state == DVR_PLAYBACK_STATE_PAUSE) {
+    if (v_restarted) {
+      switch (player->cmd.cur_cmd) {
+      case DVR_PLAYBACK_CMD_V_RESTART:
+        player->cmd.cur_cmd = DVR_PLAYBACK_CMD_NONE;
+        break;
+      case DVR_PLAYBACK_CMD_A_STOP_V_RESTART:
+        player->cmd.cur_cmd = DVR_PLAYBACK_CMD_A_STOP;
+        break;
+      case DVR_PLAYBACK_CMD_A_START_V_RESTART:
+        player->cmd.cur_cmd = DVR_PLAYBACK_CMD_A_START;
+        break;
+      case DVR_PLAYBACK_CMD_AV_RESTART:
+        player->cmd.cur_cmd = DVR_PLAYBACK_CMD_A_RESTART;
+        break;
+      default:
+        break;
+      }
+    }
+    if (a_restarted) {
+      switch (player->cmd.cur_cmd) {
+      case DVR_PLAYBACK_CMD_A_RESTART:
+        player->cmd.cur_cmd = DVR_PLAYBACK_CMD_NONE;
+        break;
+      case DVR_PLAYBACK_CMD_V_STOP_A_RESTART:
+        player->cmd.cur_cmd = DVR_PLAYBACK_CMD_V_STOP;
+        break;
+      case DVR_PLAYBACK_CMD_V_START_A_RESTART:
+        player->cmd.cur_cmd = DVR_PLAYBACK_CMD_V_START;
+        break;
+      case DVR_PLAYBACK_CMD_AV_RESTART:
+        player->cmd.cur_cmd = DVR_PLAYBACK_CMD_V_RESTART;
+        break;
+      default:
+        break;
+      }
+    }
     player->cmd.state = DVR_PLAYBACK_STATE_PAUSE;
     DVR_PLAYER_CHANGE_STATE(player,DVR_PLAYBACK_STATE_PAUSE);
     if (VALID_PID(audio_params.pid) || VALID_PID(video_params.pid))
