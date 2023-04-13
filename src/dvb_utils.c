@@ -168,12 +168,15 @@ int dvb_set_demux_source(int dmx_idx, DVB_DemuxSource_t src)
         switch (src)
         {
         case DVB_DEMUX_SOURCE_TS0:
+        case DVB_DEMUX_SOURCE_TS0_1:
             val = "ts0";
             break;
         case DVB_DEMUX_SOURCE_TS1:
+        case DVB_DEMUX_SOURCE_TS1_1:
             val = "ts1";
             break;
         case DVB_DEMUX_SOURCE_TS2:
+        case DVB_DEMUX_SOURCE_TS2_1:
             val = "ts2";
             break;
         case DVB_DEMUX_SOURCE_DMA0:
