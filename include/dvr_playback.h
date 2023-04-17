@@ -310,7 +310,7 @@ typedef struct
   DVR_PlaybackCmdInfo_t      cmd;           /**< playback cmd*/
   int                        offset;         /**< segment read offset*/
   uint32_t                   dur;         /**< segment dur*/
-  Segment_Handle_t           r_handle;           /**< playback current segment handle*/
+  Segment_Handle_t           segment_handle;           /**< playback current segment handle*/
   DVR_PlaybackOpenParams_t   openParams;           /**< playback openParams*/
   DVR_Bool_t                 has_video;    /**< has video playing*/
   DVR_Bool_t                 has_audio;    /**< has audio playing*/

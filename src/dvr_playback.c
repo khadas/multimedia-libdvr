@@ -456,23 +456,6 @@ static int _dvr_playback_sent_playtime(DVR_PlaybackHandle_t handle, DVR_Bool_t i
   return DVR_SUCCESS;
 }
 
-//check is ongoing segment
-static int _dvr_check_segment_ongoing(DVR_PlaybackHandle_t handle) {
-
-  DVR_Playback_t *player = (DVR_Playback_t *) handle;
-
-  if (player == NULL) {
-    DVR_PB_INFO("player is NULL");
-    return DVR_FAILURE;
-  }
-  int ret = segment_ongoing(player->r_handle);
-  if (ret != DVR_SUCCESS) {
-     return DVR_FALSE;
-  }
-  return DVR_TRUE;
-}
-
-
 static int _dvr_init_fffb_t(DVR_PlaybackHandle_t handle) {
   DVR_Playback_t *player = (DVR_Playback_t *) handle;
   player->fffb_start = _dvr_time_getClock();
@@ -615,8 +598,9 @@ static int _dvr_get_next_segmentId(DVR_PlaybackHandle_t handle) {
       }
       //save segment info
       player->last_segment_id = player->cur_segment_id;
-      if (player->r_handle)
-      player->last_segment_total = segment_tell_total_time(player->r_handle);
+      if (player->segment_handle) {
+        player->last_segment_total = segment_tell_total_time(player->segment_handle);
+      }
       player->last_segment.segment_id = player->cur_segment.segment_id;
       player->last_segment.flags = player->cur_segment.flags;
       memcpy(player->last_segment.location, player->cur_segment.location, DVR_MAX_LOCATION_SIZE);
@@ -676,10 +660,10 @@ retry:
     return DVR_FAILURE;
   }
 
-  if (player->r_handle != NULL) {
+  if (player->segment_handle != NULL) {
     DVR_PB_INFO("close segment");
-    segment_close(player->r_handle);
-    player->r_handle = NULL;
+    segment_close(player->segment_handle);
+    player->segment_handle = NULL;
   }
 
   memset((void*)&params,0,sizeof(params));
@@ -689,7 +673,7 @@ retry:
   params.mode = SEGMENT_MODE_READ;
   DVR_PB_INFO("open segment location[%s]id[%lld]flag[0x%x]", params.location, params.segment_id, player->cur_segment.flags);
 
-  ret = segment_open(&params, &(player->r_handle));
+  ret = segment_open(&params, &(player->segment_handle));
   if (ret == DVR_FAILURE) {
     DVR_PB_INFO("open segment error");
     goto retry;
@@ -704,7 +688,7 @@ retry:
   if (IS_FB(player->speed)) {
       //seek end pos -FB_DEFAULT_LEFT_TIME
       player->ts_cache_len = 0;
-      segment_seek(player->r_handle, total - FB_DEFAULT_LEFT_TIME, player->openParams.block_size);
+      segment_seek(player->segment_handle, total - FB_DEFAULT_LEFT_TIME, player->openParams.block_size);
       DVR_PB_INFO("seek pos [%d]", total - FB_DEFAULT_LEFT_TIME);
   }
   player->dur = total;
@@ -785,11 +769,11 @@ static int _dvr_open_segment(DVR_PlaybackHandle_t handle, uint64_t segment_id)
   params.segment_id = (uint64_t)player->cur_segment.segment_id;
   params.mode = SEGMENT_MODE_READ;
   DVR_PB_INFO("open segment location[%s][%lld]cur flag[0x%x]", params.location, params.segment_id, player->cur_segment.flags);
-  if (player->r_handle != NULL) {
-    segment_close(player->r_handle);
-    player->r_handle = NULL;
+  if (player->segment_handle != NULL) {
+    segment_close(player->segment_handle);
+    player->segment_handle = NULL;
   }
-  ret = segment_open(&params, &(player->r_handle));
+  ret = segment_open(&params, &(player->segment_handle));
   if (ret == DVR_FAILURE) {
     DVR_PB_INFO("segment open error");
   }
@@ -1063,8 +1047,8 @@ static void* _dvr_playback_thread(void *arg)
         // coverity[self_assign]
         list_for_each_entry(_segment, &player->segment_list, head) {
           if (player->cur_segment_id == _segment->segment_id) {
-            int seg_size = segment_get_cur_segment_size(player->r_handle);
-            int read_ptr = segment_tell_position(player->r_handle);
+            int seg_size = segment_get_cur_segment_size(player->segment_handle);
+            int read_ptr = segment_tell_position(player->segment_handle);
             float progress = -1.0f;
             if (seg_size>0) {
                 progress = (float)read_ptr*100/seg_size;
@@ -1260,7 +1244,7 @@ static void* _dvr_playback_thread(void *arg)
     dvr_mutex_lock(&player->lock);
     pthread_mutex_lock(&player->segment_lock);
     //DVR_PB_INFO("start read");
-    read = segment_read(player->r_handle, buf + real_read, buf_len - real_read);
+    read = segment_read(player->segment_handle, buf + real_read, buf_len - real_read);
     real_read = real_read + read;
     player->ts_cache_len = real_read;
     //DVR_PB_INFO("start read end [%d]", read);
@@ -1377,7 +1361,7 @@ static void* _dvr_playback_thread(void *arg)
       _dvr_replay_changed_pid((DVR_PlaybackHandle_t)player);
       _dvr_check_cur_segment_flag((DVR_PlaybackHandle_t)player);
       pthread_mutex_lock(&player->segment_lock);
-      read = segment_read(player->r_handle, buf + real_read, buf_len - real_read);
+      read = segment_read(player->segment_handle, buf + real_read, buf_len - real_read);
       real_read = real_read + read;
       player->ts_cache_len = real_read;
       pthread_mutex_unlock(&player->segment_lock);
@@ -1433,7 +1417,7 @@ static void* _dvr_playback_thread(void *arg)
       crypto_params.type = DVR_CRYPTO_TYPE_DECRYPT;
       memcpy(crypto_params.location, player->cur_segment.location, strlen(player->cur_segment.location));
       crypto_params.segment_id = player->cur_segment.segment_id;
-      crypto_params.offset = segment_tell_position(player->r_handle) - input_buffer.buf_size;
+      crypto_params.offset = segment_tell_position(player->segment_handle) - input_buffer.buf_size;
       if ((crypto_params.offset % (player->openParams.block_size)) != 0)
         DVR_PB_INFO("offset is not block_size %d", player->openParams.block_size);
       crypto_params.input_buffer.type = DVR_BUFFER_TYPE_NORMAL;
@@ -1587,9 +1571,9 @@ static int _stop_playback_thread(DVR_PlaybackHandle_t handle)
     _dvr_playback_sendSignal(handle);
     pthread_join(player->playback_thread, NULL);
   }
-  if (player->r_handle) {
-    segment_close(player->r_handle);
-    player->r_handle = NULL;
+  if (player->segment_handle) {
+    segment_close(player->segment_handle);
+    player->segment_handle = NULL;
   }
   DVR_PB_INFO(":end");
   return 0;
@@ -2324,7 +2308,7 @@ int dvr_playback_update_segment_pids(DVR_PlaybackHandle_t handle, uint64_t segme
                 player->ts_cache_len = 0;
                 if (player->first_start_time > 0)
                   player->first_start_time = player->first_start_time - 1;
-                segment_seek(player->r_handle, (uint64_t)(player->first_start_time), player->openParams.block_size);
+                segment_seek(player->segment_handle, (uint64_t)(player->first_start_time), player->openParams.block_size);
                 DVR_PB_ERROR("unlock segment update need seek time_offset %llu [0x%x][0x%x]", player->first_start_time, segment->pids.audio.pid, segment->pids.ad.pid);
                 pthread_mutex_unlock(&player->segment_lock);
             }
@@ -3022,7 +3006,7 @@ int dvr_playback_seek(DVR_PlaybackHandle_t handle, uint64_t segment_id, uint32_t
     return DVR_FAILURE;
   }
   if (time_offset >_dvr_get_end_time(handle) &&_dvr_has_next_segmentId(handle, segment_id) == DVR_FAILURE) {
-    if (segment_ongoing(player->r_handle) == DVR_SUCCESS) {
+    if (segment_ongoing(player->segment_handle) == DVR_SUCCESS) {
       DVR_PB_INFO("is ongoing segment when seek end, need return success");
       time_offset = _dvr_get_end_time(handle);
     } else {
@@ -3052,7 +3036,7 @@ int dvr_playback_seek(DVR_PlaybackHandle_t handle, uint64_t segment_id, uint32_t
   pthread_mutex_lock(&player->segment_lock);
   player->drop_ts = DVR_TRUE;
   player->ts_cache_len = 0;
-  int offset = segment_seek(player->r_handle, (uint64_t)time_offset, player->openParams.block_size);
+  int offset = segment_seek(player->segment_handle, (uint64_t)time_offset, player->openParams.block_size);
   DVR_PB_ERROR("seek get offset by time offset, offset=%d time_offset %u",offset, time_offset);
   pthread_mutex_unlock(&player->segment_lock);
   player->offset = offset;
@@ -3245,14 +3229,14 @@ static int _dvr_get_cur_time(DVR_PlaybackHandle_t handle) {
 
   int64_t cache = 0;//default es buf cache 500ms
   pthread_mutex_lock(&player->segment_lock);
-  loff_t pos = segment_tell_position(player->r_handle) -player->ts_cache_len;
+  loff_t pos = segment_tell_position(player->segment_handle) -player->ts_cache_len;
   uint64_t cur = 0;
   if (player->ts_cache_len > 0 && pos < 0) {
     //this case is open new segment end,but cache data is last segment.
     //we need used last segment len to send play time.
     cur = 0;
   } else {
-    cur = segment_tell_position_time(player->r_handle, pos);
+    cur = segment_tell_position_time(player->segment_handle, pos);
   }
   AmTsPlayer_getDelayTime(player->handle, &cache);
   pthread_mutex_unlock(&player->segment_lock);
@@ -3270,13 +3254,12 @@ static int _dvr_get_cur_time(DVR_PlaybackHandle_t handle) {
 static int _dvr_get_play_cur_time(DVR_PlaybackHandle_t handle, uint64_t *id) {
   //get cur time of segment
   DVR_Playback_t *player = (DVR_Playback_t *) handle;
-
   DVR_RETURN_IF_FALSE(player != NULL);
-  DVR_RETURN_IF_FALSE(player->handle != 0);
+  DVR_RETURN_IF_FALSE(player->segment_handle != NULL);
 
   pthread_mutex_lock(&player->segment_lock);
-  const loff_t pos = segment_tell_position(player->r_handle);
-  const uint64_t cur = segment_tell_position_time(player->r_handle, pos);
+  const loff_t pos = segment_tell_position(player->segment_handle);
+  const uint64_t cur = segment_tell_position_time(player->segment_handle, pos);
   pthread_mutex_unlock(&player->segment_lock);
 
   int cache = 0;
@@ -3305,6 +3288,8 @@ static int _dvr_get_play_cur_time(DVR_PlaybackHandle_t handle, uint64_t *id) {
 static int _dvr_get_end_time(DVR_PlaybackHandle_t handle) {
   //get cur time of segment
   DVR_Playback_t *player = (DVR_Playback_t *) handle;
+  DVR_RETURN_IF_FALSE(player != NULL);
+  DVR_RETURN_IF_FALSE(player->segment_handle != NULL);
 
   if (player == NULL) {
     DVR_PB_INFO("player is NULL");
@@ -3312,7 +3297,7 @@ static int _dvr_get_end_time(DVR_PlaybackHandle_t handle) {
   }
 
   pthread_mutex_lock(&player->segment_lock);
-  uint64_t end = segment_tell_total_time(player->r_handle);
+  uint64_t end = segment_tell_total_time(player->segment_handle);
   pthread_mutex_unlock(&player->segment_lock);
   return (int)end;
 }
@@ -3509,7 +3494,7 @@ static int _dvr_playback_calculate_seekpos(DVR_PlaybackHandle_t handle) {
       seek_time = 0;
     }
     //seek segment pos
-    if (player->r_handle) {
+    if (player->segment_handle) {
       pthread_mutex_lock(&player->segment_lock);
       player->ts_cache_len = 0;
       if (seek_time < FB_MIX_SEEK_TIME && IS_FB(player->speed)) {
@@ -3541,7 +3526,7 @@ static int _dvr_playback_calculate_seekpos(DVR_PlaybackHandle_t handle) {
         }
         //case can play
       }
-      if (segment_seek(player->r_handle, seek_time, player->openParams.block_size) == DVR_FAILURE) {
+      if (segment_seek(player->segment_handle, seek_time, player->openParams.block_size) == DVR_FAILURE) {
         seek_time = 0;
       }
       pthread_mutex_unlock(&player->segment_lock);
