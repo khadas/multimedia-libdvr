@@ -1235,7 +1235,8 @@ int dvr_wrapper_start_record (DVR_WrapperRecord_t rec, DVR_WrapperRecordStartPar
 
   //wait for the file status to stabilize before set the new segment id
   uint64_t new_segment_id = 0;
-  {
+
+  if (params->save_rec_file != 0) {
     uint32_t segment_nb = 0;
     uint64_t *p_segment_ids = NULL;
     error = dvr_segment_get_list(ctx->record.param_open.location, &segment_nb, &p_segment_ids);
@@ -1248,8 +1249,9 @@ int dvr_wrapper_start_record (DVR_WrapperRecord_t rec, DVR_WrapperRecordStartPar
     if (p_segment_ids != NULL) {
       free(p_segment_ids);
     }
-    DVR_WRAPPER_DEBUG("new_segment_id:%lld\n", new_segment_id);
   }
+  DVR_WRAPPER_DEBUG("new_segment_id:%lld\n", new_segment_id);
+
   ctx->record.next_segment_id = new_segment_id;
   ctx->current_segment_id = new_segment_id;
 

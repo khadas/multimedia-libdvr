@@ -6,6 +6,7 @@
 #include <pthread.h>
 #include "dvr_segment.h"
 #include <segment.h>
+#include <dirent.h>
 
 /**\brief DVR segment file information*/
 typedef struct {
@@ -64,6 +65,7 @@ int dvr_segment_delete(const char *location, uint64_t segment_id)
 
 int dvr_segment_del_by_location(const char *location)
 {
+#if 0
   FILE *fp;
   char cmd[DVR_MAX_LOCATION_SIZE * 2 + 64];
 
@@ -78,6 +80,61 @@ int dvr_segment_del_by_location(const char *location)
     DVR_RETURN_IF_FALSE(fp);
   }
   pclose(fp);
+#else
+  DVR_RETURN_IF_FALSE(location);
+
+  DVR_INFO("%s location:%s", __func__, location);
+
+  DIR *dir; // pointer to directory
+  struct dirent *entry; // pointer to file entry
+  char *ext; // pointer to file extension
+  char *loc_dname;
+  int loc_dname_len;
+  char *loc_fname;
+  int loc_fname_len;
+  char *path;
+  int path_size;
+
+  /*get the dirname and filename*/
+  loc_fname = strrchr(location, '/');// fine last slash
+  loc_fname_len = strlen(loc_fname);
+  DVR_RETURN_IF_FALSE(loc_fname_len != 0);
+
+  loc_dname_len = loc_fname - location;
+  loc_dname = malloc(loc_dname_len + 1);
+  DVR_RETURN_IF_FALSE(loc_dname != NULL);
+  memcpy(loc_dname, location, loc_dname_len);
+  loc_dname[loc_dname_len] = '\0';
+
+  path_size = strlen(location) + 32;//assume the file ext is no more than 32 bytes
+  path = malloc(path_size);
+  if (path) {
+    dir = opendir(loc_dname); // open directory
+    if (dir != NULL) {
+      while ((entry = readdir(dir)) != NULL) { // read each file entry
+        if (entry->d_type == DT_REG) { // only regular files
+          if (strncmp(entry->d_name, loc_fname, loc_fname_len) == 0) {
+            snprintf(path, path_size, "%s/%s", loc_dname, entry->d_name);
+            if (remove(path) != 0) {
+              DVR_INFO("%s cannot delete file:%s", __func__, path);
+            }
+          }
+        }
+      }
+      closedir(dir); // close directory
+    } else {
+      DVR_INFO("%s location:%s canot open", __func__, location);
+    }
+    free(path);
+
+  } else {
+
+    free(loc_dname);
+    DVR_INFO("%s mem fail", __func__);
+  }
+
+  free(loc_dname);
+#endif
   DVR_INFO("%s location:%s end", __func__, location);
   return DVR_SUCCESS;
 }
