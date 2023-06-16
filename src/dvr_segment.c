@@ -98,6 +98,10 @@ int dvr_segment_del_by_location(const char *location)
   /*get the dirname and filename*/
   loc_fname = strrchr(location, '/');// fine last slash
   loc_fname_len = strlen(loc_fname);
+  if (loc_fname) {// skip the slash
+    loc_fname += 1;
+    loc_fname_len -= 1;
+  }
   DVR_RETURN_IF_FALSE(loc_fname_len != 0);
 
   loc_dname_len = loc_fname - location;
@@ -117,6 +121,8 @@ int dvr_segment_del_by_location(const char *location)
             snprintf(path, path_size, "%s/%s", loc_dname, entry->d_name);
             if (remove(path) != 0) {
               DVR_INFO("%s cannot delete file:%s", __func__, path);
+            } else {
+              //DVR_INFO("rm [%s] ok", path);
             }
           }
         }
