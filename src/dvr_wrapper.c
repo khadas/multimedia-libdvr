@@ -3112,7 +3112,7 @@ static int process_handlePlaybackEvent(DVR_WrapperEventCtx_t *evt, DVR_WrapperCt
           process_notifyPlayback(ctx, evt->playback.event, &status);
           ctx->playback.reach_end = DVR_TRUE;
         }
-      } else if (evt->playback.event != DVR_PLAYBACK_EVENT_REACHED_BEGIN) {
+      } else {
         process_notifyPlayback(ctx, evt->playback.event, &status);
       }
     } break;
