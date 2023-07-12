@@ -16,6 +16,14 @@
 #define NAL_TYPE_IDR 5 // IDR NALU 类型
 #define NAL_TYPE_NON_IDR 1 // 非 IDR NALU 类型
 
+#define HEVC_NALU_BLA_W_LP      16
+#define HEVC_NALU_BLA_W_RADL    17
+#define HEVC_NALU_IDR_W_RADL    19
+#define HEVC_NALU_IDR_N_LP      20
+#define HEVC_NALU_TRAIL_CRA     21
+#define HEVC_NALU_SPS           33
+#define HEVC_NALU_AUD           35
+
 /**
  * Initialize the TS indexer.
  * \param ts_indexer The TS indexer to be initialized.
@@ -143,11 +151,14 @@ static void find_mpeg(uint8_t *data, int len, TS_Indexer_t *indexer, TSParser *s
 {
   int i;
   uint32_t needle = 0;
+  uint32_t needle1 = 0;
   uint8_t *haystack = data;
   int haystack_len = len;
   int left = len;
   // start code of picture header
   uint8_t arr[4] = {0x00, 0x00, 0x01, 0x00};
+  // start code of sequence header
+  uint8_t arr1[4] = {0x00, 0x00, 0x01, 0xb3};
   TS_Indexer_Event_t event;
 
   /* mpeg header needs at least 4 bytes */
@@ -165,31 +176,59 @@ static void find_mpeg(uint8_t *data, int len, TS_Indexer_t *indexer, TSParser *s
     needle += (arr[i] << (8 * i));
   }
 
+  for (i = 0; i < 4; ++i) {
+    needle1 += (arr1[i] << (8 * i));
+  }
+
   for (i = 0; i < haystack_len - sizeof(needle) + 1;) {
+    if (left < 5) {
+      INF("MPEG2 picture header across TS Packet\n");
+
+      /* MEPG2 picture header across TS packet, should cache the left data */
+      memcpy(&stream->PES.data[0], haystack + i, left);
+      stream->PES.len = left;
+      return;
+    }
+
     if (*(uint32_t *)(haystack + i) == needle) {
       // picture header found
-      if (left < 5) {
-        INF("MPEG2 picture header across TS Packet\n");
+      int frame_type = (haystack[i + 5] >> 3) & 0x7;
+      switch (frame_type) {
+        case 1:
+            INF("I frame found, offset: %lx\n", event.offset);
+            event.type = TS_INDEXER_EVENT_TYPE_MPEG2_I_FRAME;
+            break;
 
-        /* MEPG2 picture header across TS packet, should cache the left data */
-        memcpy(&stream->PES.data[0], haystack + i, left);
-        stream->PES.len = left;
-        return;
+        case 2:
+            INF("P frame found, offset: %lx\n", event.offset);
+            event.type = TS_INDEXER_EVENT_TYPE_MPEG2_P_FRAME;
+            break;
+
+        case 3:
+            INF("B frame found, offset: %lx\n", event.offset);
+            event.type = TS_INDEXER_EVENT_TYPE_MPEG2_B_FRAME;
+            break;
+
+        default:
+            i += 5;
+            left -= 5;
+            continue;
+
       }
 
-      int frame_type = (haystack[i + 5] >> 3) & 0x7;
-      INF("frame_type: %d\n", frame_type);
-      if (frame_type == 1) {
-        INF("I-frame found, offset: %ld\n", event.offset);
-        if (stream->format == TS_INDEXER_VIDEO_FORMAT_MPEG2) {
-          event.pts = stream->PES.pts;
-          event.type = TS_INDEXER_EVENT_TYPE_VIDEO_I_FRAME;
-          if (indexer->callback) {
-            indexer->callback(indexer, &event);
-          }
-        } else {
-          ERR("%s not MPEG2 video I-frame??\n", __func__);
-        }
+      event.pts = stream->PES.pts;
+      if (indexer->callback) {
+        indexer->callback(indexer, &event);
+      }
+
+      i += 5;
+      left -= 5;
+    } else if (*(uint32_t *)(haystack + i) == needle1) {
+      // sequence header found
+      event.type = TS_INDEXER_EVENT_TYPE_MPEG2_SEQUENCE;
+      event.pts = stream->PES.pts;
+      if (indexer->callback) {
+        indexer->callback(indexer, &event);
       }
 
       i += 5;
@@ -257,7 +296,7 @@ static void find_h264(uint8_t *data, size_t len, TS_Indexer_t *indexer, TSParser
 
   while (1) {
     int left = pes_data_len - (nalu - data);
-    if (left <= 4) {
+    if (left <= 5) {
       memcpy(&stream->PES.data[0], nalu, left);
       stream->PES.len = left;
       break;
@@ -269,16 +308,33 @@ static void find_h264(uint8_t *data, size_t len, TS_Indexer_t *indexer, TSParser
 
     if (nalu[0] == 0x00 && nalu[1] == 0x00 && nalu[2] == 0x01) {
       int nal_type = nalu[3] & 0x1f;
-      if (nal_type == NAL_TYPE_IDR || nal_type == NAL_TYPE_NON_IDR) {
-        int nal_ref_idr = nalu[3] & 0x60;
-        if (nal_ref_idr == 0x60) { //I-frame
-          INF("H264 I-frame found\n");
-          event.pts = stream->PES.pts;
-          event.type = TS_INDEXER_EVENT_TYPE_VIDEO_I_FRAME;
-          if (indexer->callback) {
-            indexer->callback(indexer, &event);
-          }
+
+      event.pts = stream->PES.pts;
+      if (nal_type == NAL_TYPE_IDR) {
+        INF("AVC IDR found\n");
+        event.type = TS_INDEXER_EVENT_TYPE_AVC_I_SLICE;
+      } else if (nal_type == NAL_TYPE_NON_IDR) {
+        int slice_type = (nalu[4] >> 4) & 0x3;
+        if (slice_type == 0 || slice_type == 5) {
+            event.type = TS_INDEXER_EVENT_TYPE_AVC_P_SLICE;
+        } else if (slice_type == 1 || slice_type == 6) {
+            event.type = TS_INDEXER_EVENT_TYPE_AVC_B_SLICE;
+        } else if (slice_type == 2 || slice_type == 7) {
+            event.type = TS_INDEXER_EVENT_TYPE_AVC_I_SLICE;
+        } else if (slice_type == 3 || slice_type == 8) {
+            event.type = TS_INDEXER_EVENT_TYPE_AVC_SP_SLICE;
+        } else if (slice_type == 4 || slice_type == 9) {
+            event.type = TS_INDEXER_EVENT_TYPE_AVC_SI_SLICE;
+        } else {
+            ERR("%s invalid slice_type: %d\n", __func__, slice_type);
         }
+      } else {
+        nalu += nalu_len;
+        continue;
+      }
+
+      if (indexer->callback) {
+        indexer->callback(indexer, &event);
       }
     }
 
@@ -314,20 +370,50 @@ static void find_h265(uint8_t *data, int len, TS_Indexer_t *indexer, TSParser *s
     if (nalu[0] == 0x00 && nalu[1] == 0x00 && nalu[2] == 0x01) {
       int nalu_type = (nalu[3] & 0x7E) >> 1;
       //INF("nalu[3]: %#x, nalu_type: %#x\n", nalu[3], nalu_type);
-      if (nalu_type == 19) {
-        event.pts = stream->PES.pts;
-        event.type = TS_INDEXER_EVENT_TYPE_VIDEO_I_FRAME;
-        INF("HEVC I-frame found\n");
-        if (indexer->callback) {
-          indexer->callback(indexer, &event);
-        }
-      } else {
-        //INF("%s, not HEVC video I-frame. nalu_type: %#x\n", __func__, nalu_type);
+      switch (nalu_type) {
+        case HEVC_NALU_BLA_W_LP:
+            event.type = TS_INDEXER_EVENT_TYPE_HEVC_BLA_W_LP;
+            break;
+
+        case HEVC_NALU_BLA_W_RADL:
+            event.type = TS_INDEXER_EVENT_TYPE_HEVC_BLA_W_RADL;
+            break;
+
+        case HEVC_NALU_IDR_W_RADL:
+            event.type = TS_INDEXER_EVENT_TYPE_HEVC_IDR_W_RADL;
+            //INF("HEVC I-frame found\n");
+            break;
+
+        case HEVC_NALU_IDR_N_LP:
+            event.type = TS_INDEXER_EVENT_TYPE_HEVC_IDR_N_LP;
+            break;
+
+        case HEVC_NALU_TRAIL_CRA:
+            event.type = TS_INDEXER_EVENT_TYPE_HEVC_TRAIL_CRA;
+            break;
+
+        case HEVC_NALU_SPS:
+            event.type = TS_INDEXER_EVENT_TYPE_HEVC_SPS;
+            break;
+
+        case HEVC_NALU_AUD:
+            event.type = TS_INDEXER_EVENT_TYPE_HEVC_AUD;
+            break;
+
+        default:
+            nalu += nalu_len;
+            continue;
+      }
+
+      event.pts = stream->PES.pts;
+      if (indexer->callback) {
+        indexer->callback(indexer, &event);
       }
     }
 
     nalu += nalu_len;
   }
+
   stream->PES.len = 0;
 }
 
@@ -415,10 +501,15 @@ pes_packet(TS_Indexer_t *ts_indexer, uint8_t *data, int len, TSParser *stream)
         pi->callback(pi, &event);
       }
     }
-    stream->PES.state = TS_INDEXER_STATE_PES_PTS;
+    if (stream->format != -1) {
+      stream->PES.state = TS_INDEXER_STATE_PES_PTS;
 
-    p += header_length;
-    left -= header_length;
+      p += header_length;
+      left -= header_length;
+    } else {
+      stream->PES.state = TS_INDEXER_STATE_INIT;
+      left = 0;
+    }
   }
 
   stream->PES.len = left;
@@ -442,6 +533,8 @@ pes_packet(TS_Indexer_t *ts_indexer, uint8_t *data, int len, TSParser *stream)
       break;
 
     default:
+      stream->PES.state = TS_INDEXER_STATE_INIT;
+      stream->PES.len = 0;
       break;
   }
 }
@@ -456,6 +549,7 @@ ts_packet(TS_Indexer_t *ts_indexer, uint8_t *data)
   TS_Indexer_t *pi = ts_indexer;
   int len;
   int is_start;
+  TS_Indexer_Event_t event;
 
   is_start = p[1] & 0x40;
   pid = ((p[1] & 0x1f) << 8) | p[2];
@@ -468,6 +562,14 @@ ts_packet(TS_Indexer_t *ts_indexer, uint8_t *data)
   }
 
   if (is_start) {
+    memset(&event, 0, sizeof(event));
+    event.pid = pid;
+    event.offset = pi->offset;
+    event.type = TS_INDEXER_EVENT_TYPE_START_INDICATOR;
+    if (pi->callback) {
+      pi->callback(pi, &event);
+    }
+
     if (pid == pi->video_parser.pid) {
       pi->video_parser.offset = pi->offset;
       pi->video_parser.PES.state = TS_INDEXER_STATE_TS_START;
@@ -485,6 +587,15 @@ ts_packet(TS_Indexer_t *ts_indexer, uint8_t *data)
 
   if (afc & 2) {
     int adp_field_len = p[0];
+    if (p[1] & 0x80) {
+      memset(&event, 0, sizeof(event));
+      event.pid = pid;
+      event.offset = pi->offset;
+      event.type = TS_INDEXER_EVENT_TYPE_DISCONTINUITY_INDICATOR;
+      if (pi->callback) {
+        pi->callback(pi, &event);
+      }
+    }
     p++;
     len--;
 

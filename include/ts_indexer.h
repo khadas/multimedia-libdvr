@@ -21,9 +21,26 @@ typedef enum {
 
 /**Event type.*/
 typedef enum {
-  TS_INDEXER_EVENT_TYPE_VIDEO_I_FRAME, /**< Video I frame PTS.*/
-  TS_INDEXER_EVENT_TYPE_VIDEO_PTS,     /**< Video PTS.*/
-  TS_INDEXER_EVENT_TYPE_AUDIO_PTS      /**< Audio PTS.*/
+  TS_INDEXER_EVENT_TYPE_START_INDICATOR,            /**< TS start indicator.*/
+  TS_INDEXER_EVENT_TYPE_DISCONTINUITY_INDICATOR,    /**< TS discontinuity indicator.*/
+  TS_INDEXER_EVENT_TYPE_MPEG2_I_FRAME,              /**< MPEG2 I frame.*/
+  TS_INDEXER_EVENT_TYPE_MPEG2_P_FRAME,              /**< MPEG2 P frame.*/
+  TS_INDEXER_EVENT_TYPE_MPEG2_B_FRAME,              /**< MPEG2 B frame.*/
+  TS_INDEXER_EVENT_TYPE_MPEG2_SEQUENCE,             /**< MPEG2 Video Sequence header.*/
+  TS_INDEXER_EVENT_TYPE_AVC_I_SLICE,                /**< AVC I slice.*/
+  TS_INDEXER_EVENT_TYPE_AVC_B_SLICE,                /**< AVC B slice.*/
+  TS_INDEXER_EVENT_TYPE_AVC_P_SLICE,                /**< AVC P slice.*/
+  TS_INDEXER_EVENT_TYPE_AVC_SI_SLICE,               /**< AVC SI slice.*/
+  TS_INDEXER_EVENT_TYPE_AVC_SP_SLICE,               /**< AVC SP slice.*/
+  TS_INDEXER_EVENT_TYPE_HEVC_SPS,                   /**< HEVC NAL unit type SPS_NUT.*/
+  TS_INDEXER_EVENT_TYPE_HEVC_AUD,                   /**< HEVC NAL unit type AUD_NUT.*/
+  TS_INDEXER_EVENT_TYPE_HEVC_BLA_W_LP,              /**< HEVC NAL unit type BLA_W_LP.*/
+  TS_INDEXER_EVENT_TYPE_HEVC_BLA_W_RADL,            /**< HEVC NAL unit type BLA_W_RADL.*/
+  TS_INDEXER_EVENT_TYPE_HEVC_IDR_W_RADL,            /**< HEVC NAL unit type IDR_W_RADL.*/
+  TS_INDEXER_EVENT_TYPE_HEVC_IDR_N_LP,              /**< HEVC NAL unit type IDR_N_LP.*/
+  TS_INDEXER_EVENT_TYPE_HEVC_TRAIL_CRA,             /**< HEVC NAL unit type TRAIL_CRA.*/
+  TS_INDEXER_EVENT_TYPE_VIDEO_PTS,                  /**< MEPG2/AVC/HEVC PTS.*/
+  TS_INDEXER_EVENT_TYPE_AUDIO_PTS                   /**< Audio PTS.*/
 } TS_Indexer_EventType_t;
 
 /**Stream Parser state.*/
@@ -39,7 +56,7 @@ typedef enum {
 typedef struct {
   TS_Indexer_EventType_t type;   /**< Event type.*/
   int                    pid;    /**< The PID of the stream.*/
-  uint64_t               offset; /**< The offset of the first TS packet of this frame.*/
+  uint64_t               offset; /**< the TS packet offset of this event.*/
   uint64_t               pts;    /**< The PTS of this frame.*/
 } TS_Indexer_Event_t;
 
