@@ -13,11 +13,12 @@
 
 #define ERR(fmt, ...) fprintf(stderr, fmt, ##__VA_ARGS__)
 
-#define NAL_TYPE_IDR 5 // IDR NALU 类型
-#define NAL_TYPE_NON_IDR 1 // 非 IDR NALU 类型
+#define NAL_TYPE_NON_IDR    1  // 非 IDR NALU 类型
+#define NAL_TYPE_IDR        5  // IDR NALU 类型
 
 #define HEVC_NALU_BLA_W_LP      16
 #define HEVC_NALU_BLA_W_RADL    17
+#define HEVC_NALU_BLA_N_LP      18
 #define HEVC_NALU_IDR_W_RADL    19
 #define HEVC_NALU_IDR_N_LP      20
 #define HEVC_NALU_TRAIL_CRA     21
@@ -247,23 +248,25 @@ static void find_mpeg(uint8_t *data, int len, TS_Indexer_t *indexer, TSParser *s
   }
 }
 
-static uint8_t *get_nalu(uint8_t *data, size_t len, size_t *nalu_len)
+static uint8_t *get_nalu(uint8_t *data, size_t len, size_t *nalu_len, uint8_t is_hevc)
 {
-  size_t i;
+  size_t i = 0;
   uint8_t *p = data;
 
   if (len == 0)
     return NULL;
 
   //INF("%s enter, len:%#lx\n", __func__, len);
-  for (i = 0; i < len - 4; ++i) {
-    if (p[i] == 0x00 && p[i+1] == 0x00 && p[i+2] == 0x01) {
+if (is_hevc) {
+  while (i < len - 5) {
+    if (p[i] == 0x00 && p[i+1] == 0x00 && p[i+2] == 0x00 && p[i+3] == 0x01) {
       uint8_t *frame_data = data + i;
       size_t frame_data_len = 0;
 
+      i += 4;
       //INF("%s start code prefix\n", __func__);
-      for (size_t j = i + 4; j < len - 4; ++j) {
-        if (p[j] == 0x00 && p[j+1] == 0x00 && p[j+2] == 0x01) {
+      for (size_t j = i ; j < len - 5; ++j) {
+        if (p[j] == 0x00 && p[j+1] == 0x00 && p[j+2] == 0x00 && p[j+3] == 0x01) {
           frame_data_len = j - i;
           break;
         }
@@ -277,10 +280,88 @@ static uint8_t *get_nalu(uint8_t *data, size_t len, size_t *nalu_len)
         *nalu_len = frame_data_len;
         return frame_data;
       }
+    } else {
+      i ++;
     }
   }
 
   return NULL;
+}
+
+  while ( i < len - 4) {
+    if ((p[i] == 0x00 && p[i+1] == 0x00 && p[i+2] == 0x01) ||
+        (p[i] == 0x00 && p[i+1] == 0x00 && p[i+2] == 0x00 && p[i+3] == 0x01)) {
+      uint8_t *frame_data = data + i;
+      size_t frame_data_len = 0;
+
+      if (p[i] == 0x00 && p[i+1] == 0x00 && p[i+2] == 0x01) {
+        i += 3;
+        //ERR("find 0x00 0x00 0x01 startcode\n");
+      } else {
+        i += 4;
+        //ERR("find 0x00 0x00 0x00 0x01 startcode\n");
+      }
+
+      //INF("%s start code prefix\n", __func__);
+      size_t j = i;
+      while (j < len - 4) {
+        if ((p[j] == 0x00 && p[j+1] == 0x00 && p[j+2] == 0x01) ||
+            (p[j] == 0x00 && p[j+1] == 0x00 && p[j+2] == 0x00 && p[j+3] == 0x01)) {
+          frame_data_len = j - i;
+          break;
+        }
+        j ++;
+      }
+
+      if (frame_data_len > 0) {
+        *nalu_len = frame_data_len;
+        return frame_data;
+      } else {
+        frame_data_len = len - i;
+        *nalu_len = frame_data_len;
+        return frame_data;
+      }
+    } else {
+      i ++;
+    }
+  }
+
+  return NULL;
+}
+
+uint32_t golomb_uev(uint32_t *pu4_bitstrm_ofst, uint8_t *pu1_bitstrm_buf)
+{
+  int u4_bitstream_offset = *pu4_bitstrm_ofst;
+  uint32_t leadingZeroBits = -1;
+  uint32_t codeNum = 0;
+
+  if (u4_bitstream_offset >= 8 || u4_bitstream_offset < 0) {
+    //ERR("error!!!! ofset: %d\n", *pu4_bitstrm_ofst);
+    //ERR("0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x\n",
+        //pu1_bitstrm_buf[0], pu1_bitstrm_buf[1], pu1_bitstrm_buf[2],
+        //pu1_bitstrm_buf[3], pu1_bitstrm_buf[4], pu1_bitstrm_buf[5]);
+    return -1;
+  }
+
+  /* count the leading zero bits */
+  for (uint8_t b = 0; !b && u4_bitstream_offset < 8; leadingZeroBits++ )
+  {
+    b = ((*pu1_bitstrm_buf) >> (7 - u4_bitstream_offset)) & 0x01;
+    if (!b) {
+      u4_bitstream_offset++;
+    }
+  }
+
+  for (int i = 0; i < leadingZeroBits; i++) {
+    codeNum |= (((*pu1_bitstrm_buf) >> (7 - u4_bitstream_offset - 1 - i)) & 0x01);
+    if (i < leadingZeroBits - 1)
+      codeNum <<= 1;
+  }
+
+  codeNum += ((1 << leadingZeroBits) - 1);
+  *pu4_bitstrm_ofst = (u4_bitstream_offset + leadingZeroBits + 1);
+
+  return codeNum;
 }
 
 static void find_h264(uint8_t *data, size_t len, TS_Indexer_t *indexer, TSParser *stream)
@@ -289,32 +370,60 @@ static void find_h264(uint8_t *data, size_t len, TS_Indexer_t *indexer, TSParser
   uint8_t *nalu = data;
   size_t pes_data_len = len;
   size_t nalu_len;
+  uint8_t *p = NULL;
 
   memset(&event, 0, sizeof(event));
   event.pid = stream->pid;
   event.offset = stream->offset;
 
-  while (1) {
+  for (;;) {
     int left = pes_data_len - (nalu - data);
-    if (left <= 5) {
+    if (left <= 6) {
       memcpy(&stream->PES.data[0], nalu, left);
       stream->PES.len = left;
       break;
     }
 
-    nalu = get_nalu(nalu, left, &nalu_len);
+    nalu = get_nalu(nalu, left, &nalu_len, 0);
     if (nalu == NULL)
       break;
 
     if (nalu[0] == 0x00 && nalu[1] == 0x00 && nalu[2] == 0x01) {
-      int nal_type = nalu[3] & 0x1f;
+      p = &nalu[3];
+    } else if (nalu[0] == 0x00 && nalu[1] == 0x00 && nalu[2] == 0x00 && nalu[3] == 0x01) {
+      p = &nalu[4];
+    }
+
+    uint32_t offset = 0;
+    uint8_t *pu1_bitstrm_buf = &p[1];
+    uint32_t *pu4_bitstrm_ofst = &offset;
+    if (p != NULL)
+    {
+      uint8_t nal_unit_type = (p[0] & 0x1f);
+      uint16_t u2_first_mb_in_slice;
+      uint8_t slice_type;
+
+      u2_first_mb_in_slice = golomb_uev(pu4_bitstrm_ofst, pu1_bitstrm_buf);
+      slice_type = golomb_uev(pu4_bitstrm_ofst, pu1_bitstrm_buf);
 
       event.pts = stream->PES.pts;
-      if (nal_type == NAL_TYPE_IDR) {
-        INF("AVC IDR found\n");
-        event.type = TS_INDEXER_EVENT_TYPE_AVC_I_SLICE;
-      } else if (nal_type == NAL_TYPE_NON_IDR) {
-        int slice_type = (nalu[4] >> 4) & 0x3;
+      if (nal_unit_type == NAL_TYPE_IDR) {
+        if (slice_type == 2 || slice_type == 7) {
+          event.type = TS_INDEXER_EVENT_TYPE_AVC_I_SLICE;
+        } else if (slice_type == 4 || slice_type == 9) {
+          event.type = TS_INDEXER_EVENT_TYPE_AVC_SI_SLICE;
+        } else {
+          ERR("0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x\n",
+                nalu[0], nalu[1], nalu[2], nalu[3],
+                nalu[4], nalu[5], nalu[6], nalu[7]);
+          ERR("%s line%d invalid slice_type: %d, offset: %lx\n", __func__, __LINE__, slice_type, event.offset);
+          nalu += nalu_len;
+          continue;
+        }
+      } else if (nal_unit_type == NAL_TYPE_NON_IDR) {
+          //ERR("0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x\n",
+          //      nalu[0], nalu[1], nalu[2], nalu[3],
+          //      nalu[4], nalu[5], nalu[6], nalu[7]);
         if (slice_type == 0 || slice_type == 5) {
             event.type = TS_INDEXER_EVENT_TYPE_AVC_P_SLICE;
         } else if (slice_type == 1 || slice_type == 6) {
@@ -326,7 +435,9 @@ static void find_h264(uint8_t *data, size_t len, TS_Indexer_t *indexer, TSParser
         } else if (slice_type == 4 || slice_type == 9) {
             event.type = TS_INDEXER_EVENT_TYPE_AVC_SI_SLICE;
         } else {
-            ERR("%s invalid slice_type: %d\n", __func__, slice_type);
+            ERR("%s line%d invalid slice_type: %d\n", __func__, __LINE__, slice_type);
+            nalu += nalu_len;
+            continue;
         }
       } else {
         nalu += nalu_len;
@@ -363,12 +474,12 @@ static void find_h265(uint8_t *data, int len, TS_Indexer_t *indexer, TSParser *s
       break;
     }
 
-    nalu = get_nalu(nalu, left, &nalu_len);
+    nalu = get_nalu(nalu, left, &nalu_len, 1);
     if (nalu == NULL)
       break;
 
-    if (nalu[0] == 0x00 && nalu[1] == 0x00 && nalu[2] == 0x01) {
-      int nalu_type = (nalu[3] & 0x7E) >> 1;
+    if (nalu[0] == 0x00 && nalu[1] == 0x00 && nalu[2] == 0x00 && nalu[3] == 0x01) {
+      int nalu_type = (nalu[4] & 0x7E) >> 1;
       //INF("nalu[3]: %#x, nalu_type: %#x\n", nalu[3], nalu_type);
       switch (nalu_type) {
         case HEVC_NALU_BLA_W_LP:
@@ -377,6 +488,10 @@ static void find_h265(uint8_t *data, int len, TS_Indexer_t *indexer, TSParser *s
 
         case HEVC_NALU_BLA_W_RADL:
             event.type = TS_INDEXER_EVENT_TYPE_HEVC_BLA_W_RADL;
+            break;
+
+        case HEVC_NALU_BLA_N_LP:
+            event.type = TS_INDEXER_EVENT_TYPE_HEVC_BLA_N_LP;
             break;
 
         case HEVC_NALU_IDR_W_RADL:

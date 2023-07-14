@@ -36,6 +36,7 @@ typedef enum {
   TS_INDEXER_EVENT_TYPE_HEVC_AUD,                   /**< HEVC NAL unit type AUD_NUT.*/
   TS_INDEXER_EVENT_TYPE_HEVC_BLA_W_LP,              /**< HEVC NAL unit type BLA_W_LP.*/
   TS_INDEXER_EVENT_TYPE_HEVC_BLA_W_RADL,            /**< HEVC NAL unit type BLA_W_RADL.*/
+  TS_INDEXER_EVENT_TYPE_HEVC_BLA_N_LP,              /**< HEVC NAL unit type BLA_N_LP.*/
   TS_INDEXER_EVENT_TYPE_HEVC_IDR_W_RADL,            /**< HEVC NAL unit type IDR_W_RADL.*/
   TS_INDEXER_EVENT_TYPE_HEVC_IDR_N_LP,              /**< HEVC NAL unit type IDR_N_LP.*/
   TS_INDEXER_EVENT_TYPE_HEVC_TRAIL_CRA,             /**< HEVC NAL unit type TRAIL_CRA.*/
