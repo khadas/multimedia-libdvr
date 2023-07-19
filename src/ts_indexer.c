@@ -329,31 +329,34 @@ if (is_hevc) {
   return NULL;
 }
 
-uint32_t golomb_uev(uint32_t *pu4_bitstrm_ofst, uint8_t *pu1_bitstrm_buf)
+uint32_t golomb_uev(uint32_t *pu4_bitstrm_ofst, uint32_t *pu4_bitstrm_buf)
 {
   int u4_bitstream_offset = *pu4_bitstrm_ofst;
   uint32_t leadingZeroBits = -1;
   uint32_t codeNum = 0;
+  uint32_t flip_bitstrm_value = 0;
+  uint8_t *pu1_bitstrm_buf = (uint8_t *)pu4_bitstrm_buf;
 
-  if (u4_bitstream_offset >= 8 || u4_bitstream_offset < 0) {
-    //ERR("error!!!! ofset: %d\n", *pu4_bitstrm_ofst);
-    //ERR("0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x\n",
-        //pu1_bitstrm_buf[0], pu1_bitstrm_buf[1], pu1_bitstrm_buf[2],
-        //pu1_bitstrm_buf[3], pu1_bitstrm_buf[4], pu1_bitstrm_buf[5]);
+  if (u4_bitstream_offset >= 32 || u4_bitstream_offset < 0) {
+    ERR("error!!!! ofset: %d\n", *pu4_bitstrm_ofst);
     return -1;
   }
 
+  for (int i = 0; i < 4; i++) {
+    flip_bitstrm_value += (pu1_bitstrm_buf[3 - i] << (8 * i));
+  }
+
   /* count the leading zero bits */
-  for (uint8_t b = 0; !b && u4_bitstream_offset < 8; leadingZeroBits++ )
+  for (uint8_t b = 0; !b && u4_bitstream_offset < 32; leadingZeroBits++ )
   {
-    b = ((*pu1_bitstrm_buf) >> (7 - u4_bitstream_offset)) & 0x01;
+    b = (flip_bitstrm_value >> (31 - u4_bitstream_offset)) & 0x01;
     if (!b) {
       u4_bitstream_offset++;
     }
   }
 
   for (int i = 0; i < leadingZeroBits; i++) {
-    codeNum |= (((*pu1_bitstrm_buf) >> (7 - u4_bitstream_offset - 1 - i)) & 0x01);
+    codeNum |= ((flip_bitstrm_value >> (31 - u4_bitstream_offset - 1 - i)) & 0x01);
     if (i < leadingZeroBits - 1)
       codeNum <<= 1;
   }
@@ -395,7 +398,7 @@ static void find_h264(uint8_t *data, size_t len, TS_Indexer_t *indexer, TSParser
     }
 
     uint32_t offset = 0;
-    uint8_t *pu1_bitstrm_buf = &p[1];
+    uint32_t *pu4_bitstrm_buf = (uint32_t *)&p[1];
     uint32_t *pu4_bitstrm_ofst = &offset;
     if (p != NULL)
     {
@@ -403,8 +406,8 @@ static void find_h264(uint8_t *data, size_t len, TS_Indexer_t *indexer, TSParser
       uint16_t u2_first_mb_in_slice;
       uint8_t slice_type;
 
-      u2_first_mb_in_slice = golomb_uev(pu4_bitstrm_ofst, pu1_bitstrm_buf);
-      slice_type = golomb_uev(pu4_bitstrm_ofst, pu1_bitstrm_buf);
+      u2_first_mb_in_slice = golomb_uev(pu4_bitstrm_ofst, pu4_bitstrm_buf);
+      slice_type = golomb_uev(pu4_bitstrm_ofst, pu4_bitstrm_buf);
 
       event.pts = stream->PES.pts;
       if (nal_unit_type == NAL_TYPE_IDR) {
