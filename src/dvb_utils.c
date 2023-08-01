@@ -368,3 +368,21 @@ int dvr_check_dmx_isNew(void)
     }
     return 0;
 }
+
+//check if demux driver ts_clone enabled
+int dvr_ts_clone_enable(void)
+{
+    char node[32] = "/sys/class/dmx/ts_clone";
+    char buf[32] = {0};
+    int ts_clone_enable = 0;
+    int r;
+
+    r = dvr_file_read(node, buf, sizeof(buf));
+    if (r != -1)
+    {
+        sscanf(buf, "ts clone %d", &ts_clone_enable);
+        return ts_clone_enable;
+    }
+
+    return 0;
+}

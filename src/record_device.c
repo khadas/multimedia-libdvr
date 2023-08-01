@@ -51,7 +51,7 @@ typedef struct {
 } Record_DeviceContext_t;
 
 /*  each sid need one mutex */
-static pthread_mutex_t secdmx_lock[MAX_FEND_DEVICE_COUNT] = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t secdmx_lock[MAX_DEMUX_DEVICE_COUNT] = PTHREAD_MUTEX_INITIALIZER;
 
 static Record_DeviceContext_t record_ctx[MAX_RECORD_DEVICE_COUNT] = {
   {
@@ -67,9 +67,9 @@ static Record_DeviceContext_t record_ctx[MAX_RECORD_DEVICE_COUNT] = {
 };
 /*define sec dmx function api ptr*/
 static void* secdmx_handle = NULL;
-int (*SECDMX_Init_Ptr)(void);
+int (*SECDMX_Init_Ptr)(int ts_clone_enabled);
 int (*SECDMX_Deinit_Ptr)(void);
-int (*SECDMX_AllocateDVRBuffer_Ptr)(int sid, size_t size, size_t *addr);
+int (*SECDMX_AllocateDVRBuffer_Ptr)(int sid, size_t *size, size_t *addr);
 int (*SECDMX_FreeDVRBuffer_Ptr)(int sid);
 int (*SECDMX_AddOutputBuffer_Ptr)(int sid, size_t addr, size_t size, size_t *handle);
 int (*SECDMX_AddDVRPids_Ptr)(size_t handle, uint16_t *pids, int pid_num);
@@ -143,6 +143,15 @@ int add_dvr_pids(Record_DeviceContext_t *p_ctx)
   return DVR_SUCCESS;
 }
 
+int get_sid(Record_DeviceContext_t *p_ctx)
+{
+  if (dvr_ts_clone_enable()) {
+    return p_ctx->dmx_dev_id;
+  } else {
+    return p_ctx->fend_dev_id;
+  }
+}
+
 int record_device_open(Record_DeviceHandle_t *p_handle, Record_DeviceOpenParams_t *params)
 {
   int i;
@@ -195,7 +204,8 @@ int record_device_open(Record_DeviceHandle_t *p_handle, Record_DeviceOpenParams_
   if (dvr_check_dmx_isNew() == 1) {
     /* initialize secure demux client */
     if (SECDMX_Init_Ptr != NULL) {
-      ret = SECDMX_Init_Ptr();
+      int ts_clone_enabled = dvr_ts_clone_enable();
+      ret = SECDMX_Init_Ptr(ts_clone_enabled);
       if (ret != DVR_SUCCESS) {
         DVR_INFO("%s secure demux init failed:%d", __func__, ret);
       }
@@ -603,7 +613,7 @@ ssize_t record_device_read_ext(Record_DeviceHandle_t handle, size_t *buf, size_t
   DVR_RETURN_IF_FALSE(p_ctx->dvr_buf);
   DVR_RETURN_IF_FALSE(p_ctx->output_handle);
 
-  sid = p_ctx->fend_dev_id;
+  sid = get_sid(p_ctx);
   pthread_mutex_lock(&p_ctx->lock);
 
   /* wp_offset is hw write pointer shared by multiple recordings under one sid,
@@ -664,7 +674,7 @@ int record_device_set_secure_buffer(Record_DeviceHandle_t handle, uint8_t *sec_b
     int result = DVR_SUCCESS;
     size_t dvr_buf = 0;
     size_t op_handle = 0;
-    int sid = p_ctx->fend_dev_id;
+    int sid = get_sid(p_ctx);
     int fd;
     char node[32] = {0};
     memset(node, 0, sizeof(node));
@@ -676,17 +686,42 @@ int record_device_set_secure_buffer(Record_DeviceHandle_t handle, uint8_t *sec_b
       return DVR_FAILURE;
     }
     //DVR_INFO("%s libdvrFilterTrace open2 \"%s\",p_ctx->dmx_dev_id: 0x%x, fd: 0x%x ", __func__,node, p_ctx->dmx_dev_id, fd);
-    if (SECDMX_AllocateDVRBuffer_Ptr != NULL) {
-    for (i = 0; i < MAX_RECORD_DEVICE_COUNT; i++) {
-      if (record_ctx[i].state != RECORD_DEVICE_STATE_CLOSED &&
-          &record_ctx[i] != p_ctx &&
-          record_ctx[i].fend_dev_id == p_ctx->fend_dev_id &&
-          record_ctx[i].dvr_buf != 0) {
-        break;
-      }
+    if (SECDMX_AddOutputBuffer_Ptr != NULL)
+      result = SECDMX_AddOutputBuffer_Ptr(sid, (size_t)sec_buf, len, &op_handle);
+    if (result != DVR_SUCCESS) {
+      DVR_INFO("%s libdvrFilterTrace close2-2. fd: 0x%x ", __func__, fd);
+      close(fd);
     }
+    DVR_RETURN_IF_FALSE_WITH_UNLOCK(result == DVR_SUCCESS, &p_ctx->lock);
+    p_ctx->output_handle = op_handle;
+
+    DVR_INFO("%s dvr_ts_clone_enable is [%d] ", __func__, dvr_ts_clone_enable());
+
+    if (SECDMX_AllocateDVRBuffer_Ptr != NULL) {
+        if (dvr_ts_clone_enable()) {
+            for (i = 0; i < MAX_RECORD_DEVICE_COUNT; i++) {
+              if (record_ctx[i].state != RECORD_DEVICE_STATE_CLOSED &&
+                  &record_ctx[i] != p_ctx &&
+                  record_ctx[i].dmx_dev_id == p_ctx->dmx_dev_id &&
+                  record_ctx[i].dvr_buf != 0) {
+                DVR_INFO("%s dvr_ts_clone_enable found [%d] ", __func__, i);
+                break;
+              }
+            }
+        } else {
+        for (i = 0; i < MAX_RECORD_DEVICE_COUNT; i++) {
+          if (record_ctx[i].state != RECORD_DEVICE_STATE_CLOSED &&
+              &record_ctx[i] != p_ctx &&
+              record_ctx[i].fend_dev_id == p_ctx->fend_dev_id &&
+              record_ctx[i].dvr_buf != 0) {
+            DVR_INFO("%s Non-dvr_ts_clone_enable found [%d] ", __func__, i);
+            break;
+          }
+        }
+      }
+
     if (i >= MAX_RECORD_DEVICE_COUNT) {
-      result = SECDMX_AllocateDVRBuffer_Ptr(sid, len, &dvr_buf);
+      result = SECDMX_AllocateDVRBuffer_Ptr(sid, &len, &dvr_buf);
       if (result != DVR_SUCCESS) {
       //DVR_INFO("%s libdvrFilterTrace close2-1. fd: 0x%x ", __func__, fd);
          close(fd);
@@ -711,15 +746,6 @@ int record_device_set_secure_buffer(Record_DeviceHandle_t handle, uint8_t *sec_b
     {
       DVR_INFO("record_device_set_secure_buffer ioctl succeeded DMX_SET_SEC_MEM: fd:%d, buf:%#x\n", fd, p_ctx->dvr_buf);
     }
-    if (SECDMX_AddOutputBuffer_Ptr != NULL)
-      result = SECDMX_AddOutputBuffer_Ptr(sid, (size_t)sec_buf, len, &op_handle);
-    if (result != DVR_SUCCESS) {
-    //DVR_INFO("%s libdvrFilterTrace close2-2. fd: 0x%x ", __func__, fd);
-      close(fd);
-    }
-    DVR_RETURN_IF_FALSE_WITH_UNLOCK(result == DVR_SUCCESS, &p_ctx->lock);
-    p_ctx->output_handle = op_handle;
-
     //DVR_INFO("%s libdvrFilterTrace close2-3. fd: 0x%x ", __func__, fd);
     close(fd);
     pthread_mutex_unlock(&p_ctx->lock);

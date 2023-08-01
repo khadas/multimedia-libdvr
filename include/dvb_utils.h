@@ -120,7 +120,12 @@ int dvb_get_demux_source (int dmx_idx, DVB_DemuxSource_t *src);
  */
 int dvr_check_dmx_isNew(void);
 
-
+/**
+ * check the demux ts clone status.
+ * \retval 0 Disabled.
+ * \retval 1 Enabled.
+ */
+int dvr_ts_clone_enable(void);
 #ifdef __cplusplus
 }
 #endif
