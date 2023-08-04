@@ -60,16 +60,14 @@ static void ts_indexer_event_cb(TS_Indexer_t *ts_indexer, TS_Indexer_Event_t *ev
       break;
 
     case TS_INDEXER_EVENT_TYPE_VIDEO_PTS:
-      #if 0
+      #if 1
       INF("PID: %#x ", event->pid);
       INF("TS_INDEXER_EVENT_TYPE_VIDEO_PTS, Offset: %lx, Lastoffset: %lx, Pts: %lx\n",
             event->offset, gControl.last_offset, event->pts);
       write_len = ts_indexer->offset - gControl.last_offset;
       if (gControl.dump_file) {
-        INF("ptr: %p, write_len: %#x\n", gControl.ptr, write_len);
         fwrite(gControl.ptr, 1, write_len, gControl.dump_file);
         gControl.ptr += write_len;
-        INF("ptr: %p\n", gControl.ptr);
       }
       gControl.last_offset = ts_indexer->offset;
       #endif
@@ -100,7 +98,7 @@ static void ts_indexer_event_cb(TS_Indexer_t *ts_indexer, TS_Indexer_Event_t *ev
     case TS_INDEXER_EVENT_TYPE_HEVC_IDR_W_RADL:
     case TS_INDEXER_EVENT_TYPE_HEVC_IDR_N_LP:
     case TS_INDEXER_EVENT_TYPE_HEVC_TRAIL_CRA:
-      INF("type: %d, offset: %lx\n", event->type, event->offset);
+      INF("type: %d, offset: %#lx\n", event->type, event->offset);
       break;
 
     default:

@@ -258,60 +258,18 @@ static uint8_t *get_nalu(uint8_t *data, size_t len, size_t *nalu_len, uint8_t is
     return NULL;
 
   //INF("%s enter, len:%#lx\n", __func__, len);
-if (is_hevc) {
-  while (i < len - 5) {
-    if (p[i] == 0x00 && p[i+1] == 0x00 && p[i+2] == 0x00 && p[i+3] == 0x01) {
+  while (i < len - 4) {
+    if (p[i] == 0x00 && p[i+1] == 0x00 && p[i+2] == 0x01) {
       uint8_t *frame_data = data + i;
       size_t frame_data_len = 0;
 
       i += 4;
       //INF("%s start code prefix\n", __func__);
-      for (size_t j = i ; j < len - 5; ++j) {
-        if (p[j] == 0x00 && p[j+1] == 0x00 && p[j+2] == 0x00 && p[j+3] == 0x01) {
+      for (size_t j = i ; j < len - 4; ++j) {
+        if (p[j] == 0x00 && p[j+1] == 0x00 && p[j+2] == 0x01) {
           frame_data_len = j - i;
           break;
         }
-      }
-
-      if (frame_data_len > 0) {
-        *nalu_len = frame_data_len;
-        return frame_data;
-      } else {
-        frame_data_len = len - i;
-        *nalu_len = frame_data_len;
-        return frame_data;
-      }
-    } else {
-      i ++;
-    }
-  }
-
-  return NULL;
-}
-
-  while ( i < len - 4) {
-    if ((p[i] == 0x00 && p[i+1] == 0x00 && p[i+2] == 0x01) ||
-        (p[i] == 0x00 && p[i+1] == 0x00 && p[i+2] == 0x00 && p[i+3] == 0x01)) {
-      uint8_t *frame_data = data + i;
-      size_t frame_data_len = 0;
-
-      if (p[i] == 0x00 && p[i+1] == 0x00 && p[i+2] == 0x01) {
-        i += 3;
-        //ERR("find 0x00 0x00 0x01 startcode\n");
-      } else {
-        i += 4;
-        //ERR("find 0x00 0x00 0x00 0x01 startcode\n");
-      }
-
-      //INF("%s start code prefix\n", __func__);
-      size_t j = i;
-      while (j < len - 4) {
-        if ((p[j] == 0x00 && p[j+1] == 0x00 && p[j+2] == 0x01) ||
-            (p[j] == 0x00 && p[j+1] == 0x00 && p[j+2] == 0x00 && p[j+3] == 0x01)) {
-          frame_data_len = j - i;
-          break;
-        }
-        j ++;
       }
 
       if (frame_data_len > 0) {
@@ -380,7 +338,7 @@ static void find_h264(uint8_t *data, size_t len, TS_Indexer_t *indexer, TSParser
 
   for (;;) {
     int left = pes_data_len - (nalu - data);
-    if (left <= 6) {
+    if (left <= 5) {
       memcpy(&stream->PES.data[0], nalu, left);
       stream->PES.len = left;
       break;
@@ -392,8 +350,6 @@ static void find_h264(uint8_t *data, size_t len, TS_Indexer_t *indexer, TSParser
 
     if (nalu[0] == 0x00 && nalu[1] == 0x00 && nalu[2] == 0x01) {
       p = &nalu[3];
-    } else if (nalu[0] == 0x00 && nalu[1] == 0x00 && nalu[2] == 0x00 && nalu[3] == 0x01) {
-      p = &nalu[4];
     }
 
     uint32_t offset = 0;
@@ -481,9 +437,10 @@ static void find_h265(uint8_t *data, int len, TS_Indexer_t *indexer, TSParser *s
     if (nalu == NULL)
       break;
 
-    if (nalu[0] == 0x00 && nalu[1] == 0x00 && nalu[2] == 0x00 && nalu[3] == 0x01) {
-      int nalu_type = (nalu[4] & 0x7E) >> 1;
-      //INF("nalu[3]: %#x, nalu_type: %#x\n", nalu[3], nalu_type);
+    if (nalu[0] == 0x00 && nalu[1] == 0x00 && nalu[2] == 0x01) {
+      int nalu_type = (nalu[3] & 0x7E) >> 1;
+      INF("0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x, nalu_type: %d, offset: %#lx\n",
+          nalu[3], nalu[4], nalu[5], nalu[6], nalu[7], nalu[8], nalu_type, event.offset);
       switch (nalu_type) {
         case HEVC_NALU_BLA_W_LP:
             event.type = TS_INDEXER_EVENT_TYPE_HEVC_BLA_W_LP;
