@@ -976,26 +976,10 @@ static int wrapper_removePlaybackSegment(DVR_WrapperCtx_t *ctx, DVR_RecordSegmen
         /*drive the player out of this will-be-deleted segment*/
         next_seg = list_prev_entry(p_seg, head);
 
-        if (ctx->playback.speed != 100.0f) {
-          error = dvr_playback_resume(ctx->playback.player);
-          DVR_WRAPPER_INFO("timeshift, playback(sn:%ld), resume for new start (%d)\n", ctx->sn, error);
-        }
         if (ctx->playback.param_open.vendor == DVR_PLAYBACK_VENDOR_AMAZON)
             off_set = 10 * 1000;
         error = dvr_playback_seek(ctx->playback.player, next_seg->seg_info.id, off_set);
         DVR_WRAPPER_INFO("timeshift, playback(sn:%ld), seek(seg:%llu 0) from new start (%d)\n", ctx->sn, next_seg->seg_info.id, error);
-
-        if (ctx->playback.speed == 0.0f) {
-          error = dvr_playback_pause(ctx->playback.player, DVR_FALSE);
-          DVR_WRAPPER_INFO("timeshift, playback(sn:%ld), keep last paused from new start (%d)\n", ctx->sn, error);
-        } else if (ctx->playback.speed != 100.0f) {
-          DVR_PlaybackSpeed_t dvr_speed = {
-             .speed = { ctx->playback.speed },
-             .mode = ( ctx->playback.speed > 0) ? DVR_PLAYBACK_FAST_FORWARD : DVR_PLAYBACK_FAST_BACKWARD
-          };
-          error = dvr_playback_set_speed(ctx->playback.player, dvr_speed);
-          DVR_WRAPPER_INFO("timeshift, playback(sn:%ld), keep last speed(x%f) from new start (%d)\n", ctx->sn,ctx->playback.speed, error);
-        }
       }
 
       error = dvr_playback_remove_segment(ctx->playback.player, seg_info->id);
