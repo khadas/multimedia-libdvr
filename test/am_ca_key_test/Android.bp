@@ -1,0 +1,48 @@
+
+
+package {
+    // See: http://go/android-license-faq
+    default_applicable_licenses: [
+        "Android-Apache-2.0",
+    ],
+}
+
+cc_binary {
+    name: "am_ca_key_test",
+    vendor: true,
+
+    srcs: [
+        "am_ca_t5d.c",
+		"inject_record_t5d/am_dmx/am_dmx.c",
+		"inject_record_t5d/am_dmx/linux_dvb/linux_dvb.c",
+		
+		"inject_record_t5d/am_dvr/am_dvr.c",
+		"inject_record_t5d/am_dvr/linux_dvb/linux_dvb.c",
+	
+		"inject_record_t5d/am_av/am_av.c",
+		"inject_record_t5d/am_av/aml/aml.c",
+		
+		"inject_record_t5d/am_misc/am_misc.c",
+		"inject_record_t5d/am_misc/am_adplock.c",
+
+		"inject_record_t5d/am_tfile/am_tfile.c",
+		"inject_record_t5d/am_time/am_time.c",
+
+		"inject_record_t5d/am_inject_record.c",
+		"am_ca_key_test.c",
+    ],
+
+    //LOCAL_MULTILIB := 32
+
+    cflags: [
+        "-DANDROID",
+        "-DAMLINUX",
+    ],
+
+    include_dirs: [
+      "vendor/amlogic/common/libdvr/test/am_ca_key_test/inject_record_t5d/include/am_adp",
+	  "vendor/amlogic/common/libdvr/test/am_ca_key_test/inject_record_t5d/include/ndk/include/linux",
+    ],
+    shared_libs: ["libc"],
+
+}
