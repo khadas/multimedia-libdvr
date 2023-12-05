@@ -128,7 +128,8 @@ int ca_alloc_chan (int devno, unsigned int pid, int algo, int dsc_type)
 	}
 	if (algo != CA_ALGO_AES_CBC_CLR_END &&
 		algo != CA_ALGO_DES_SCTE41 &&
-		algo != CA_ALGO_DES_SCTE52) {
+		algo != CA_ALGO_DES_SCTE52 &&
+		algo != CA_ALGO_CSA2) {
 		am_ca_pr(LOG_ERROR,"algo invalid\n");
 		return -1;
 	}
@@ -292,7 +293,16 @@ int ca_set_key (int devno, int chan_index, int parity, int key_handle)
 			alg_type = CA_CW_AES_ODD_IV;
 		else
 			goto error;
-	} else {
+	} else if (pchan->algo == CA_ALGO_CSA2) {
+		mode = CA_DSC_ECB;
+		if (parity == CA_KEY_EVEN_TYPE)
+			alg_type = CA_CW_DVB_CSA_EVEN;
+		else if (parity == CA_KEY_ODD_TYPE)
+			alg_type = CA_CW_DVB_CSA_ODD;
+		else
+			goto error;
+	}
+	else {
 		mode = CA_DSC_ECB;
 		if (parity == CA_KEY_EVEN_TYPE)
 			alg_type = CA_CW_DES_EVEN;
@@ -305,7 +315,7 @@ int ca_set_key (int devno, int chan_index, int parity, int key_handle)
 	fd = pdev->fd;
 	memset(&param,0,sizeof(struct ca_descr_ex));
 	param.index = index;
-	param.flags = CA_CW_FROM_KL;
+	param.flags = 16;// keyladder flag
 	param.type = alg_type;
 	param.mode = mode;
 	if (ioctl(fd, CA_SET_DESCR_EX, &param) == -1) {
@@ -384,6 +394,14 @@ int ca_set_cw_key(int devno, int chan_index, int parity, int key_len, char *key)
 			alg_type = CA_CW_AES_EVEN_IV;
 		else if (parity == CA_KEY_ODD_IV_TYPE)
 			alg_type = CA_CW_AES_ODD_IV;
+		else
+			goto error;
+	} else if (pchan->algo == CA_ALGO_CSA2) {
+		mode = CA_DSC_ECB;
+		if (parity == CA_KEY_EVEN_TYPE)
+			alg_type = CA_CW_DVB_CSA_EVEN;
+		else if (parity == CA_KEY_ODD_TYPE)
+			alg_type = CA_CW_DVB_CSA_ODD;
 		else
 			goto error;
 	} else {

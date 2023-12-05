@@ -45,7 +45,7 @@ int main(int argc, char **argv)
 	char *p = buf;
 	int dsc = 0, src = 0;
 	int ret;
-	int aes = 0, des = 0, sm4 = 0,iv = 0;
+	int aes = 0, des = 0, sm4 = 0, csa2 = 0, iv = 0;
 	int odd_type = CA_KEY_ODD_TYPE;
 	int even_type = CA_KEY_EVEN_TYPE;
 	int odd_iv_type = 0;
@@ -55,6 +55,7 @@ int main(int argc, char **argv)
 	char record_name[256];
 	int record_file = 0;
 	int mode = 0;
+	int kl = 0;
 	int v_chan_index = 0;
 	int a_chan_index = 0;
 
@@ -74,8 +75,12 @@ int main(int argc, char **argv)
 			des = 1;
 		else if (!strncmp(argv[i], "sm4", 3))
 			sm4 = 1;
+		else if (!strncmp(argv[i], "csa2", 3))
+			csa2 = 1;
 		else if (!strncmp(argv[i], "mode", 4))
 			sscanf(argv[i],"mode=%i", &mode);
+		else if (!strncmp(argv[i], "kl", 2))
+			sscanf(argv[i],"kl=%i", &kl);
 		else if (!strncmp(argv[i], "inject", 6)) {
 			memset(inject_name, 0, sizeof(inject_name));
 			sscanf(argv[i], "inject=%s", &inject_name);
@@ -87,7 +92,7 @@ int main(int argc, char **argv)
 			record_file = 1;
 		}
 		else if (!strncmp(argv[i], "help", 4)) {
-			printf("Usage: %s [vid=pid] [aid=pid] [dsc=n] [src=n] [aes|des|sm4] [mode=0/1/2,0:ecb,1:cbc,2:idsa]\n", argv[0]);
+			printf("Usage: %s [vid=pid] [aid=pid] [dsc=n] [src=n] [aes|des|sm4|csa2] [mode=0/1/2,0:ecb,1:cbc,2:idsa][kl]\n", argv[0]);
 			printf("\t [inject=xxx] [rec=xxx] \n");
 			printf("\t inject file and record for verify the descram function \n");
 			printf("\t if no v/a specified, will set to current running v/a\n");
@@ -102,8 +107,11 @@ int main(int argc, char **argv)
 		printf("des mode\n");
 	} else if (sm4) {
 		printf("sm4 mode\n");
+	} else if (csa2) {
+		printf("csa2 mode\n");
 	} else {
-		printf("csa mode\n");
+		printf("need mode setting\n");
+		goto end;
 	}
 
 	ret = ca_open(dsc);
@@ -177,12 +185,15 @@ int main(int argc, char **argv)
 			even_key = des_key;
 			key_len = 8;
 			printf("use DES key\n");
-		} else {
+		} else if (csa2) {
 			algo = CA_ALGO_CSA2;
 			odd_key = csa_key_odd;
 			even_key = csa_key_even;
-			printf("use CSA key\n");
+			printf("use CSA2 key\n");
 			key_len = 16;
+		} else {
+			printf("mode is invalid\n");
+			return -1;
 		}
 
 #define AM_CHECK_ERR(_x) do {\
@@ -200,8 +211,16 @@ int main(int argc, char **argv)
 				AM_CHECK_ERR(ca_set_cw_key(dsc, v_chan_index, odd_iv_type, key_len, (char*)key_iv));
 				AM_CHECK_ERR(ca_set_cw_key(dsc, v_chan_index, even_iv_type, key_len, (char*)key_iv));
 			}
-			AM_CHECK_ERR(ca_set_cw_key(dsc, v_chan_index, odd_type, key_len, (char*)odd_key));
-			AM_CHECK_ERR(ca_set_cw_key(dsc, v_chan_index, even_type, key_len, (char*)even_key));
+
+			if (kl == 1) {
+				printf("set key keyladder mode\n");
+				AM_CHECK_ERR(ca_set_key (dsc, v_chan_index, odd_type, 0));
+				AM_CHECK_ERR(ca_set_key (dsc, v_chan_index, even_type, 0));
+			} else {
+				printf("set key host mode\n");
+				AM_CHECK_ERR(ca_set_cw_key(dsc, v_chan_index, odd_type, key_len, (char*)odd_key));
+				AM_CHECK_ERR(ca_set_cw_key(dsc, v_chan_index, even_type, key_len, (char*)even_key));
+			}
 			printf("set default key for pid[%d]\n", vpid);
 		}
 		if(apid>0) {
@@ -213,8 +232,17 @@ int main(int argc, char **argv)
 				AM_CHECK_ERR(ca_set_cw_key(dsc, a_chan_index, odd_iv_type, key_len, (char*)key_iv));
 				AM_CHECK_ERR(ca_set_cw_key(dsc, a_chan_index, even_iv_type, key_len, (char*)key_iv));
 			}
-			AM_CHECK_ERR(ca_set_cw_key(dsc, a_chan_index, odd_type, key_len, (char*)odd_key));
-			AM_CHECK_ERR(ca_set_cw_key(dsc, a_chan_index, even_type, key_len, (char*)even_key));
+
+			if (kl == 1) {
+				printf("set key keyladder mode\n");
+				AM_CHECK_ERR(ca_set_key (dsc, a_chan_index, odd_type, 0));
+				AM_CHECK_ERR(ca_set_key (dsc, a_chan_index, even_type, 0));
+			} else {
+				printf("set key host mode\n");
+				AM_CHECK_ERR(ca_set_cw_key(dsc, a_chan_index, odd_type, key_len, (char*)odd_key));
+				AM_CHECK_ERR(ca_set_cw_key(dsc, a_chan_index, even_type, key_len, (char*)even_key));
+			}
+
 			printf("set default key for pid[%d]\n", apid);
 		}
 
