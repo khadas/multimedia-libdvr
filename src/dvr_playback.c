@@ -2422,15 +2422,14 @@ int dvr_playback_stop(DVR_PlaybackHandle_t handle, DVR_Bool_t clear) {
     DVR_PB_INFO("player is NULL");
     return DVR_FAILURE;
   }
-  if (player->state == DVR_PLAYBACK_STATE_STOP) {
-    DVR_PB_INFO(":playback is stoped");
-    return DVR_SUCCESS;
-  }
-  if (player->state == DVR_PLAYBACK_STATE_STOP) {
-    DVR_PB_INFO(":playback is stoped");
-    return DVR_SUCCESS;
-  }
+
   _stop_playback_thread(handle);
+
+  if (player->state == DVR_PLAYBACK_STATE_STOP) {
+    DVR_PB_INFO(":playback is stoped");
+    return DVR_SUCCESS;
+  }
+
   DVR_PB_DEBUG("lock");
   dvr_mutex_lock(&player->lock);
   DVR_PB_INFO(":get lock into stop fast");
