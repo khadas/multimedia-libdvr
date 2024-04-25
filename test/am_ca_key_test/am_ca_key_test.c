@@ -33,23 +33,109 @@
 /****************************************************************************
  * API functions
  ***************************************************************************/
+#define USER_MAX 10
+static char *u_odd_iv[USER_MAX] = {[0 ... USER_MAX-1] = NULL};
+static char *u_odd_key[USER_MAX] = {[0 ... USER_MAX-1] = NULL};
+static char *u_even_iv[USER_MAX] = {[0 ... USER_MAX-1] = NULL};
+static char *u_even_key[USER_MAX] = {[0 ... USER_MAX-1] = NULL};
+static char *u_00_iv[USER_MAX] = {[0 ... USER_MAX-1] = NULL};
+static char *u_00_key[USER_MAX] = {[0 ... USER_MAX-1] = NULL};
 
 extern int inject_file_and_rec_open(char *inject_name,int vpid, int apid, char *record_name);
 extern int inject_file_and_rec_close(void);
 
+int get_para(char *argv)
+{
+    #define CASE(name, len, type, var) \
+        if (!strncmp(argv, name"=", (len) + 1)) { \
+            sscanf(&argv[(len)+1], type, &var); \
+            printf("param["name"] => "type"\n", var); \
+        }
+    #define CASESTR(name, len, type, var) \
+        if (!strncmp(argv, name"=", (len) + 1)) { \
+            var = &argv[(len) + 1]; \
+            printf("param["name"] => "type"\n", var); \
+        }
+
+    CASESTR("odd_iv0", 7, "%s", u_odd_iv[0])
+    else CASESTR("odd_iv1", 7, "%s", u_odd_iv[1])
+    else CASESTR("odd_iv2", 7, "%s", u_odd_iv[2])
+    else CASESTR("odd_iv3", 7, "%s", u_odd_iv[3])
+    else CASESTR("odd_key0", 8, "%s", u_odd_key[0])
+    else CASESTR("odd_key1", 8, "%s", u_odd_key[1])
+    else CASESTR("odd_key2", 8, "%s", u_odd_key[2])
+    else CASESTR("odd_key3", 8, "%s", u_odd_key[3])
+    else CASESTR("even_iv0", 8, "%s", u_even_iv[0])
+    else CASESTR("even_iv1", 8, "%s", u_even_iv[1])
+    else CASESTR("even_iv2", 8, "%s", u_even_iv[2])
+    else CASESTR("even_iv3", 8, "%s", u_even_iv[3])
+    else CASESTR("even_key0", 9, "%s", u_even_key[0])
+    else CASESTR("even_key1", 9, "%s", u_even_key[1])
+    else CASESTR("even_key2", 9, "%s", u_even_key[2])
+    else CASESTR("even_key3", 9, "%s", u_even_key[3])
+    else CASESTR("00_iv0", 6, "%s", u_00_iv[0])
+    else CASESTR("00_iv1", 6, "%s", u_00_iv[1])
+    else CASESTR("00_iv2", 6, "%s", u_00_iv[2])
+    else CASESTR("00_iv3", 6, "%s", u_00_iv[3])
+    else CASESTR("00_key0", 7, "%s", u_00_key[0])
+    else CASESTR("00_key1", 7, "%s", u_00_key[1])
+    else CASESTR("00_key2", 7, "%s", u_00_key[2])
+    else CASESTR("00_key3", 7, "%s", u_00_key[3])
+
+    return 0;
+}
+
+static void get_key_from_para(char *para_org, int para_len, char *key, int *len)
+{
+    int i = 0;
+    int dst = 0;
+    char hi = 0;
+    char lo = 0;
+
+    printf("get key len:%d, key:%s\n", para_len, para_org);
+    if (para_len <= 2)
+        return ;
+    para_len -= 2;
+
+    dst = 2;
+
+    printf("key:");
+    while (para_len >= 2) {
+        hi = 0;
+        if (para_org[dst] >= 0x30 && para_org[dst] <= 0x39)    {
+            hi = para_org[dst] - 0x30;
+        } else if (para_org[dst] >= 0x41 && para_org[dst] <= 0x46) {
+            hi = para_org[dst] - 0x37;
+        } else if (para_org[dst] >= 0x61 && para_org[dst] <= 0x66) {
+            hi = para_org[dst] - 0x57;
+        }
+        lo = 0;
+        if (para_org[dst+1] >= 0x30 && para_org[dst+1] <= 0x39)    {
+            lo = para_org[dst+1] - 0x30;
+        } else if (para_org[dst+1] >= 0x41 && para_org[dst+1] <= 0x46) {
+            lo = para_org[dst+1] - 0x37;
+        } else if (para_org[dst+1] >= 0x61 && para_org[dst+1] <= 0x66) {
+            lo = para_org[dst+1] - 0x57;
+        }
+        key[i] = (hi << 4) | lo;
+        printf("0x%0x ", key[i]);
+        i++;
+        dst += 2;
+        para_len -= 2;
+    }
+    printf("\n");
+    *len = i;
+}
+
 int main(int argc, char **argv)
 {
-	int dsccv, dscca;
 	int vpid=0, apid=0;
 	char buf[1024];
-	char *p = buf;
 	int dsc = 0, src = 0;
 	int ret;
-	int aes = 0, des = 0, sm4 = 0, csa2 = 0, iv = 0;
+	int aes = 0, des = 0, sm4 = 0, csa2 = 0;
 	int odd_type = CA_KEY_ODD_TYPE;
 	int even_type = CA_KEY_EVEN_TYPE;
-	int odd_iv_type = 0;
-	int even_iv_type = 0;
 	char inject_name[256];
 	int inject_file = 0;
 	char record_name[256];
@@ -83,12 +169,12 @@ int main(int argc, char **argv)
 			sscanf(argv[i],"kl=%i", &kl);
 		else if (!strncmp(argv[i], "inject", 6)) {
 			memset(inject_name, 0, sizeof(inject_name));
-			sscanf(argv[i], "inject=%s", &inject_name);
+			sscanf(argv[i], "inject=%s", (char *)&inject_name);
 			inject_file = 1;
 		}
 		else if (!strncmp(argv[i], "rec", 3)) {
 			memset(record_name, 0, sizeof(record_name));
-			sscanf(argv[i], "rec=%s", &record_name);
+			sscanf(argv[i], "rec=%s", (char *)&record_name);
 			record_file = 1;
 		}
 		else if (!strncmp(argv[i], "help", 4)) {
@@ -97,6 +183,8 @@ int main(int argc, char **argv)
 			printf("\t inject file and record for verify the descram function \n");
 			printf("\t if no v/a specified, will set to current running v/a\n");
 			exit(0);
+		} else {
+			get_para(argv[i]);
 		}
 	}
 
@@ -125,72 +213,30 @@ int main(int argc, char **argv)
 		goto end;
 #endif
 	if(vpid>0 || apid>0) {
-		char aes_key_ecb[16] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff};
-		char aes_key_cbc_iv[16] = {0x49, 0x72, 0x64, 0x65, 0x74, 0x6F, 0xA9, 0x43, 0x6F,0x70, 0x79, 0x72, 0x69, 0x67, 0x68, 0x74};
-//		char aes_key_cbc_iv[16] = {0};
-		char aes_key_cbc[16] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff};
-		char aes_key_cbc_isda[16] = { 0xb2, 0x8e, 0xd9, 0x82, 0x9d, 0x91, 0xe6, 0x5d,0x8c, 0x15, 0x33, 0x51, 0xf7, 0x67, 0x0d, 0x4a};
-		char aes_key_cbc_isda_iv[16] = {0};
-
-		char sm4_ecb_key[16] = {0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10};
-		char sm4_cbc_key[16] = {0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10};
-		char sm4_cbc_key_iv[16] = {0};
-		char sm4_isda_key[16] = {0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10};;
-		char sm4_isda_key_iv[16] = {0};
-
-		char des_key[8] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07};
-		/*char csa_key[8] = {0x11, 0x22, 0x33, 0x66, 0x55, 0x66, 0x77, 0x32};*/
-		//char csa_key[8] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88};
-		char csa_key_odd[8] = {0xe6, 0x2a, 0x3b, 0x4b, 0xd0, 0x0e, 0x38, 0x16};
-		char csa_key_even[8] = {0xe6, 0x3c, 0x7c, 0x9e, 0x00, 0x43, 0xc6, 0x09};
-
-		char *odd_key = NULL;
-		char *even_key = NULL;
-		char *key_iv = NULL;
 		int algo = 0;
+		char key[32];
 		int key_len = 0;
 
 		if (aes) {
 			if (mode == 0) {
 				algo = CA_ALGO_AES_ECB_CLR_END;
-				odd_key = aes_key_ecb;
-				even_key = aes_key_ecb;
-				key_len = 16;
 				printf("use AES ecb key\n");
 			} else if (mode == 1) {
 				algo = CA_ALGO_AES_CBC_CLR_END;
-				odd_key = aes_key_cbc;
-				even_key = aes_key_cbc;
-				key_iv = aes_key_cbc_iv;
-				odd_iv_type = CA_KEY_ODD_IV_TYPE;
-				even_iv_type = CA_KEY_EVEN_IV_TYPE;
-				key_len = 16;
 				printf("use AES cbc key\n");
 			} else if (mode == 2 ) {
 				algo = CA_ALGO_AES_CBC_IDSA;
-				odd_key = aes_key_cbc_isda;
-				even_key = aes_key_cbc_isda;
-				key_iv = aes_key_cbc_isda_iv;
 				printf("use AES isda key\n");
-				odd_iv_type = CA_KEY_ODD_IV_TYPE;
-				even_iv_type = CA_KEY_EVEN_IV_TYPE;
-				key_len = 16;
 			} else {
 				printf("mode is invalid\n");
 				return -1;
 			}
 		} else if (des) {
 			algo = CA_ALGO_DES_SCTE41;
-			odd_key = des_key;
-			even_key = des_key;
-			key_len = 8;
 			printf("use DES key\n");
 		} else if (csa2) {
 			algo = CA_ALGO_CSA2;
-			odd_key = csa_key_odd;
-			even_key = csa_key_even;
 			printf("use CSA2 key\n");
-			key_len = 16;
 		} else {
 			printf("mode is invalid\n");
 			return -1;
@@ -206,43 +252,76 @@ int main(int argc, char **argv)
 			v_chan_index = ca_alloc_chan(dsc, vpid, algo, CA_DSC_COMMON_TYPE);
 			if (v_chan_index < 0)
 				goto end;
-			if (key_iv)
-			{
-				AM_CHECK_ERR(ca_set_cw_key(dsc, v_chan_index, odd_iv_type, key_len, (char*)key_iv));
-				AM_CHECK_ERR(ca_set_cw_key(dsc, v_chan_index, even_iv_type, key_len, (char*)key_iv));
+			if (u_odd_iv[0]) {
+				memset(key, 0, sizeof(key));
+				get_key_from_para(u_odd_iv[0], strlen(u_odd_iv[0]), key, &key_len);
+				AM_CHECK_ERR(ca_set_cw_key(dsc, v_chan_index, CA_KEY_ODD_IV_TYPE, key_len, (char*)key));
 			}
-
-			if (kl == 1) {
-				printf("set key keyladder mode\n");
-				AM_CHECK_ERR(ca_set_key (dsc, v_chan_index, odd_type, 0));
-				AM_CHECK_ERR(ca_set_key (dsc, v_chan_index, even_type, 0));
-			} else {
-				printf("set key host mode\n");
-				AM_CHECK_ERR(ca_set_cw_key(dsc, v_chan_index, odd_type, key_len, (char*)odd_key));
-				AM_CHECK_ERR(ca_set_cw_key(dsc, v_chan_index, even_type, key_len, (char*)even_key));
+			if (u_even_iv[0]) {
+				memset(key, 0, sizeof(key));
+				get_key_from_para(u_even_iv[0], strlen(u_even_iv[0]), key, &key_len);
+				AM_CHECK_ERR(ca_set_cw_key(dsc, v_chan_index, CA_KEY_EVEN_IV_TYPE, key_len, (char*)key));
+			}
+			if (u_odd_key[0]) {
+				if (kl == 1) {
+					printf("set key keyladder mode\n");
+					AM_CHECK_ERR(ca_set_key (dsc, v_chan_index, odd_type, 0));
+					AM_CHECK_ERR(ca_set_key (dsc, v_chan_index, even_type, 0));
+				} else {
+					memset(key, 0, sizeof(key));
+					get_key_from_para(u_odd_key[0], strlen(u_odd_key[0]), key, &key_len);
+					AM_CHECK_ERR(ca_set_cw_key(dsc, v_chan_index, CA_KEY_ODD_TYPE, key_len, (char*)key));
+				}
+			}
+			if (u_even_key[0]) {
+				if (kl == 1) {
+					printf("set key keyladder mode\n");
+					AM_CHECK_ERR(ca_set_key (dsc, v_chan_index, odd_type, 0));
+					AM_CHECK_ERR(ca_set_key (dsc, v_chan_index, even_type, 0));
+				} else {
+					memset(key, 0, sizeof(key));
+					get_key_from_para(u_even_key[0], strlen(u_even_key[0]), key, &key_len);
+					AM_CHECK_ERR(ca_set_cw_key(dsc, v_chan_index, CA_KEY_EVEN_TYPE, key_len, (char*)key));
+				}
 			}
 			printf("set default key for pid[%d]\n", vpid);
 		}
 		if(apid>0) {
-			v_chan_index = ca_alloc_chan(dsc, apid, algo, CA_DSC_COMMON_TYPE);
-			if (v_chan_index < 0)
+			a_chan_index = ca_alloc_chan(dsc, apid, algo, CA_DSC_COMMON_TYPE);
+			if (a_chan_index < 0)
 				goto end;
-			if (key_iv)
-			{
-				AM_CHECK_ERR(ca_set_cw_key(dsc, a_chan_index, odd_iv_type, key_len, (char*)key_iv));
-				AM_CHECK_ERR(ca_set_cw_key(dsc, a_chan_index, even_iv_type, key_len, (char*)key_iv));
+			if (u_odd_iv[0]) {
+				memset(key, 0, sizeof(key));
+				get_key_from_para(u_odd_iv[0], strlen(u_odd_iv[0]), key, &key_len);
+				AM_CHECK_ERR(ca_set_cw_key(dsc, a_chan_index, CA_KEY_ODD_IV_TYPE, key_len, (char*)key));
 			}
-
-			if (kl == 1) {
-				printf("set key keyladder mode\n");
-				AM_CHECK_ERR(ca_set_key (dsc, a_chan_index, odd_type, 0));
-				AM_CHECK_ERR(ca_set_key (dsc, a_chan_index, even_type, 0));
-			} else {
-				printf("set key host mode\n");
-				AM_CHECK_ERR(ca_set_cw_key(dsc, a_chan_index, odd_type, key_len, (char*)odd_key));
-				AM_CHECK_ERR(ca_set_cw_key(dsc, a_chan_index, even_type, key_len, (char*)even_key));
+			if (u_even_iv[0]) {
+				memset(key, 0, sizeof(key));
+				get_key_from_para(u_even_iv[0], strlen(u_even_iv[0]), key, &key_len);
+				AM_CHECK_ERR(ca_set_cw_key(dsc, a_chan_index, CA_KEY_EVEN_IV_TYPE, key_len, (char*)key));
 			}
-
+			if (u_odd_key[0]) {
+				if (kl == 1) {
+					printf("set key keyladder mode\n");
+					AM_CHECK_ERR(ca_set_key (dsc, a_chan_index, odd_type, 0));
+					AM_CHECK_ERR(ca_set_key (dsc, a_chan_index, even_type, 0));
+				} else {
+					memset(key, 0, sizeof(key));
+					get_key_from_para(u_odd_key[0], strlen(u_odd_key[0]), key, &key_len);
+					AM_CHECK_ERR(ca_set_cw_key(dsc, a_chan_index, CA_KEY_ODD_TYPE, key_len, (char*)key));
+				}
+			}
+			if (u_even_key[0]) {
+				if (kl == 1) {
+					printf("set key keyladder mode\n");
+					AM_CHECK_ERR(ca_set_key (dsc, a_chan_index, odd_type, 0));
+					AM_CHECK_ERR(ca_set_key (dsc, a_chan_index, even_type, 0));
+				} else {
+					memset(key, 0, sizeof(key));
+					get_key_from_para(u_even_key[0], strlen(u_even_key[0]), key, &key_len);
+					AM_CHECK_ERR(ca_set_cw_key(dsc, a_chan_index, CA_KEY_EVEN_TYPE, key_len, (char*)key));
+				}
+			}
 			printf("set default key for pid[%d]\n", apid);
 		}
 
